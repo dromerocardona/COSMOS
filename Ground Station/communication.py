@@ -22,9 +22,10 @@ class Communication:
 
     def read(self, signal_emitter):
         with serial.Serial(self.serial_port, self.baud_rate, timeout=self.timeout) as ser:
+            print(f"Serial port {self.serial_port} opened successfully.")
             with open(self.csv_filename, mode='a', newline='') as file:
                 writer = csv.writer(file)
-                while True:
+                while self.reading:
                     try:
                         line = ser.read_until(b'COSMOS').decode('utf-8').strip()
                         if line:
@@ -35,6 +36,10 @@ class Communication:
                             writer.writerow(line.split(','))
                     except Exception as e:
                         print(f"Error: {e}")
+
+    def stop_reading(self):
+        self.reading = False
+        print("Reading stopped.")
 
     def parse_csv_data(self, data):
         csv_data = data.split(',')
@@ -202,3 +207,38 @@ class Communication:
             except (IndexError, ValueError):
                 return None
         return None
+
+    def get_GPS_ALTITUDE(self):
+        if self.data_list:
+            try:
+                return self.data_list[-1][20]
+            except (IndexError, ValueError):
+                return None
+
+    def get_GPS_LATITUDE(self):
+        if self.data_list:
+            try:
+                return self.data_list[-1][21]
+            except (IndexError, ValueError):
+                return None
+
+    def get_GPS_LONGITUDE(self):
+        if self.data_list:
+            try:
+                return self.data_list[-1][22]
+            except (IndexError, ValueError):
+                return None
+
+    def get_GPS_SATS(self):
+        if self.data_list:
+            try:
+                return self.data_list[-1][23]
+            except (IndexError, ValueError):
+                return None
+
+    def get_CMD_ECHO(self):
+        if self.data_list:
+            try:
+                return self.data_list[-1][24]
+            except (IndexError, ValueError):
+                return None
