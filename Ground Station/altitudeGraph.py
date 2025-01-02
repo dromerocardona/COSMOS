@@ -3,7 +3,6 @@ import pyqtgraph as pg
 from PyQt5 import QtWidgets, QtCore
 import time
 
-
 class AltitudeGraph:
     def __init__(self):
         pg.setConfigOption('background', 'w')
