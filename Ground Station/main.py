@@ -5,6 +5,12 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
 from PyQt5.QtCore import Qt, pyqtSignal, QObject, QTimer
 from PyQt5.QtGui import QFont, QPixmap, QIcon
 from communication import Communication
+from pressureGraph import PressureGraph
+from temperatureGraph import TemperatureGraph
+from altitudeGraph import AltitudeGraph
+from rotationGraph import RotationGraph
+from voltageGraph import VoltageGraph
+from time import time
 
 class SignalEmitter(QObject):
     update_signal = pyqtSignal()
@@ -15,9 +21,9 @@ class SignalEmitter(QObject):
 class GroundStation(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Cosmos GS")
+        self.setWindowTitle("COSMOS GS")
         self.setGeometry(100, 100, 1200, 800)
-        self.setWindowIcon(QIcon('icon.png'))
+        self.setWindowIcon(QIcon('COSMOS_logo.png'))
 
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
