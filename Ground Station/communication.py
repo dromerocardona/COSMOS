@@ -9,6 +9,7 @@ class Communication:
         self.baud_rate = baud_rate
         self.timeout = timeout
         self.data_list = []
+        self.reading = False
         self.csv_filename = csv_filename
         self.receivedPacketCount = 0
 
@@ -21,6 +22,7 @@ class Communication:
                              'GPS_LATITUDE', 'GPS_LONGITUDE', 'GPS_SATS', 'CMD_ECHO', 'TEAM_NAME'])
 
     def read(self, signal_emitter):
+        self.reading = True
         with serial.Serial(self.serial_port, self.baud_rate, timeout=self.timeout) as ser:
             print(f"Serial port {self.serial_port} opened successfully.")
             with open(self.csv_filename, mode='a', newline='') as file:
