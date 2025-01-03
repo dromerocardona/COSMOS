@@ -49,8 +49,8 @@ class GroundStation(QMainWindow):
         sidebar_layout.setAlignment(Qt.AlignTop)
         sidebar_layout.setSpacing(10)
         sidebar_layout.addItem(QSpacerItem(10,10))
-        #add sidebar elements
 
+        #add sidebar elements
         self.liveMode = QLabel("Mode: N/A")
         self.liveState = QLabel("State: N/A")
         self.liveMissionTime = QLabel("Mission Time: N/A")
@@ -157,9 +157,9 @@ class GroundStation(QMainWindow):
         temperature = self.comm.get_TEMPERATURE()
         if temperature is not None:
             self.temperatureGraph.update_graph(temperature, current_time)
-        gyro_r = self.comm.getGYRO_R()
-        gyro_p = self.comm.getGYRO_P()
-        gyro_y = self.comm.getGYRO_Y()
+        gyro_r = self.comm.get_GYRO_R()
+        gyro_p = self.comm.get_GYRO_P()
+        gyro_y = self.comm.get_GYRO_Y()
         if gyro_r is not None and gyro_p is not None and gyro_y is not None:
             self.rotationGraph.update_graph(gyro_r, gyro_p, gyro_y, current_time)
         voltage = self.comm.get_VOLTAGE()
