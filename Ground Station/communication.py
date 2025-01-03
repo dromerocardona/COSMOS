@@ -39,6 +39,15 @@ class Communication:
                     except Exception as e:
                         print(f"Error: {e}")
 
+    def send_command(self, command):
+        try:
+            with serial.Serial(self.serial_port, self.baud_rate, timeout=self.timeout) as ser:
+                command_to_send = f"{command}\n"
+                ser.write(command_to_send.encode('utf-8'))
+                print(f"Command sent: {command}")
+        except serial.SerialException as e:
+            print(f"Failed to send command: {e}")
+
     def stop_reading(self):
         self.reading = False
         print("Reading stopped.")
