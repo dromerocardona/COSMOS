@@ -1,5 +1,5 @@
 import sys
-from offline_folium import offline
+#from offline_folium import offline
 import folium
 import os
 from PyQt5 import QtWidgets, QtCore, QtWebEngineWidgets
@@ -55,7 +55,7 @@ class GPSMap:
             self.update_map(self.latitude, self.longitude)
 
             # Load the updated map in the web view
-            self.browser.setUrl(f"file:///{os.path.abspath(self.map_file)}")
+            self.browser.setUrl(QtCore.QUrl.fromLocalFile(os.path.abspath(self.map_file)))
 
     def start(self):
         """Start the application."""

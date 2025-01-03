@@ -10,6 +10,7 @@ from temperatureGraph import TemperatureGraph
 from altitudeGraph import AltitudeGraph
 from rotationGraph import RotationGraph
 from voltageGraph import VoltageGraph
+from GPS import GPSMap
 from time import time
 
 class SignalEmitter(QObject):
@@ -88,11 +89,13 @@ class GroundStation(QMainWindow):
         self.temperatureGraph = TemperatureGraph()
         self.rotationGraph = RotationGraph()
         self.voltageGraph = VoltageGraph()
+        self.GPS = GPSMap()
         graphs_grid.addWidget(self.altitudeGraph.win, 0, 0)
         graphs_grid.addWidget(self.pressureGraph.win, 0, 1)
         graphs_grid.addWidget(self.temperatureGraph.win, 1, 0)
         graphs_grid.addWidget(self.rotationGraph.win, 1, 1)
         graphs_grid.addWidget(self.voltageGraph.win, 2, 0)
+        graphs_grid.addWidget(self.GPS.win, 2, 1)
 
         graphs_layout.addLayout(graphs_grid)
 
@@ -100,7 +103,7 @@ class GroundStation(QMainWindow):
         content_layout.addLayout(graphs_layout)
         main_layout.addLayout(content_layout)
 
-        self.comm = Communication(serial_port='COM8')
+        self.comm = Communication(serial_port='COM8') #update serial port
 
         self.reader_thread = None
         self.reading_data = False
@@ -167,6 +170,13 @@ class GroundStation(QMainWindow):
         voltage = self.comm.get_VOLTAGE()
         if voltage is not None:
             self.voltageGraph.update_graph(voltage, current_time)
+
+    def reset_graphs(self):
+        self.altitudeGraph.reset_graph()
+        self.pressureGraph.reset_graph()
+        self.temperatureGraph.reset_graph()
+        self.rotationGraph.reset_graph()
+        self.voltageGraph.reset_graph()
 
     def closeEvent(self, event):
         self.stop_data_transmission()
