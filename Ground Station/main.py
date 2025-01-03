@@ -31,7 +31,14 @@ class GroundStation(QMainWindow):
         main_layout = QVBoxLayout(self.central_widget)
 
         header_layout = QHBoxLayout()
+
         #add header elements
+        header_text = QLabel("COSMOS GROUND STATION")
+        header_text.setAlignment(Qt.AlignCenter)
+        header_text.setFont(QFont("Arial", 24, QFont.Bold))
+        header_text.setStyleSheet("color: black;")
+        header_layout.addWidget(header_text)
+
         header_widget = QWidget()
         header_widget.setLayout(header_layout)
         main_layout.addWidget(header_widget)
@@ -43,6 +50,34 @@ class GroundStation(QMainWindow):
         sidebar_layout.setSpacing(10)
         sidebar_layout.addItem(QSpacerItem(10,10))
         #add sidebar elements
+
+        self.liveMode = QLabel("Mode: N/A")
+        self.liveState = QLabel("State: N/A")
+        self.liveMissionTime = QLabel("Mission Time: N/A")
+        self.liveGPSTime = QLabel("GPS Time: N/A")
+        self.livePacketCount = QLabel("Packet Count: N/A")
+        self.liveReceivedPackets = QLabel("Recieved Packets: N/A")
+        self.liveGPSAltitude = QLabel("GPS Altitude: N/A")
+        self.liveBarometerAltitude = QLabel("Barometer Altitude: N/A")
+        self.liveSATS = QLabel("Satellites: N/A")
+        self.liveCMDEcho = QLabel("CMD Echo: N/A")
+        sidebar_layout.addWidget(self.liveMode)
+        sidebar_layout.addWidget(self.liveState)
+        sidebar_layout.addWidget(self.liveMissionTime)
+        sidebar_layout.addWidget(self.liveGPSTime)
+        sidebar_layout.addWidget(self.livePacketCount)
+        sidebar_layout.addWidget(self.liveReceivedPackets)
+        sidebar_layout.addWidget(self.liveGPSAltitude)
+        sidebar_layout.addWidget(self.liveBarometerAltitude)
+        sidebar_layout.addWidget(self.liveSATS)
+        sidebar_layout.addWidget(self.liveCMDEcho)
+
+        self.start_stop_button = QPushButton("CXON")
+        self.start_stop_button.clicked.connect(self.toggle_data_transmission)
+        sidebar_layout.addWidget(self.start_stop_button)
+
+        self.accelerationRPY = QLabel("Acceleration R,P,Y: N/A")
+        self.magnetometerRPY = QLabel("Magnetometer R,P,Y: N/A")
 
         graphs_layout = QVBoxLayout()
         graphs_grid = QGridLayout()
@@ -56,9 +91,46 @@ class GroundStation(QMainWindow):
 
         self.comm = Communication(serial_port='COM8')
 
+        self.reader_thread = None
+        self.reading_data = False
+
         self.timer = QTimer(self)
-        #self.timer.timeout.connect(self.update_live_data)
+        self.timer.timeout.connect(self.update_live_data)
         self.timer.start(1000)
+
+    def toggle_data_transmission(self):
+        if self.reading_data:
+            self.stop_data_transmission()
+        else:
+            self.start_data_transmission()
+
+    def start_data_transmission(self):
+        self.reading_data = True
+        self.start_stop_button.setText("CXOFF")
+        self.reader_thread = threading.Thread(target=self.comm.read, args=(self.signal_emitter,))
+        self.reader_thread.start()
+
+    def stop_data_transmission(self):
+        self.reading_data = False
+        self.start_stop_button.setText("CXON")
+        if self.reader_thread and self.reader_thread.is_alive():
+            self.comm.stop_reading()
+            self.reader_thread.join()
+            self.reader_thread = None
+
+    def update_live_data(self):
+        self.liveMode.setText(f"Time Elapsed: {self.comm.get_MODE() or 'N/A'}")
+        self.liveState.setText(f"State: {self.comm.get_STATE() or 'N/A'}")
+        self.liveMissionTime.setText(f"Mission Time: {self.comm.get_MISSION_TIME() or 'N/A'}")
+        self.liveGPSTime.setText(f"GPS Time: {self.comm.get_GPS_TIME() or 'N/A'}")
+        self.livePacketCount.setText(f"Packet Count: {self.comm.get_PACKET_COUNT() or 'N/A'}")
+        self.liveReceivedPackets.setText(f"Recieved Packets: {self.comm.receivedPacketCount or 'N/A'}")
+        self.liveGPSAltitude.setText(f"GPS Altitude: {self.comm.get_GPS_ALTITUDE() or 'N/A'}")
+        self.liveBarometerAltitude.setText(f"Barometer Altitude: {self.comm.get_ALTITUDE() or 'N/A'}")
+        self.liveSATS.setText(f"Satellites: {self.comm.get_GPS_SATS() or 'N/A'}")
+        self.liveCMDEcho.setText(f"CMDEcho: {self.comm.get_CMD_ECHO() or 'N/A'}")
+        self.accelerationRPY.setText(f"Acceleration R,P,Y: {f"{self.comm.get_ACCEL_R()}, {self.comm.get_ACCEL_P()},{self.comm.get_ACCEL_Y()}" or 'N/A'}")
+        self.magnetometerRPY.setText(f"Magnetometer R,P,Y: {f"{self.comm.get_MAG_R()}, {self.comm.get_MAG_P()}, {self.comm.get_MAG_Y()}" or 'N/A'}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
