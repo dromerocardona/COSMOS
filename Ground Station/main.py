@@ -78,6 +78,7 @@ class GroundStation(QMainWindow):
 
         self.accelerationRPY = QLabel("Acceleration R,P,Y: N/A")
         self.magnetometerRPY = QLabel("Magnetometer R,P,Y: N/A")
+        self.telemetry = QLabel("Telemetry: N/A")
 
         graphs_layout = QVBoxLayout()
         graphs_grid = QGridLayout()
@@ -144,6 +145,7 @@ class GroundStation(QMainWindow):
         self.liveCMDEcho.setText(f"CMD Echo: {self.comm.get_CMD_ECHO() or 'N/A'}")
         self.accelerationRPY.setText(f"Acceleration R,P,Y: {f"{self.comm.get_ACCEL_R()}, {self.comm.get_ACCEL_P()},{self.comm.get_ACCEL_Y()}" or 'N/A'}")
         self.magnetometerRPY.setText(f"Magnetometer R,P,Y: {f"{self.comm.get_MAG_R()}, {self.comm.get_MAG_P()}, {self.comm.get_MAG_Y()}" or 'N/A'}")
+        self.telemetry.setText(f"Telemetry: {self.comm.lastPacket or 'N/A'}")
 
     def update_graphs(self):
         current_time = time()

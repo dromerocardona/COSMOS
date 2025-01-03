@@ -12,6 +12,7 @@ class Communication:
         self.reading = False
         self.csv_filename = csv_filename
         self.receivedPacketCount = 0
+        self.lastPacket = ""
 
         with open(self.csv_filename, mode='a', newline='') as file:
             writer = csv.writer(file)
@@ -31,8 +32,8 @@ class Communication:
                 while self.reading:
                     try:
                         line = ser.read_until(b'COSMOS').decode('utf-8').strip()
+                        self.lastPacket = line
                         if line:
-                            print(f"Received: {line}")
                             self.receivedPacketCount += 1
                             self.parse_csv_data(line)
                             signal_emitter.emit_signal()
