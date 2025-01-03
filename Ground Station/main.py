@@ -56,7 +56,7 @@ class GroundStation(QMainWindow):
         self.liveMissionTime = QLabel("Mission Time: N/A")
         self.liveGPSTime = QLabel("GPS Time: N/A")
         self.livePacketCount = QLabel("Packet Count: N/A")
-        self.liveReceivedPackets = QLabel("Recieved Packets: N/A")
+        self.liveReceivedPackets = QLabel("Received Packets: N/A")
         self.liveGPSAltitude = QLabel("GPS Altitude: N/A")
         self.liveBarometerAltitude = QLabel("Barometer Altitude: N/A")
         self.liveSATS = QLabel("Satellites: N/A")
@@ -82,6 +82,16 @@ class GroundStation(QMainWindow):
         graphs_layout = QVBoxLayout()
         graphs_grid = QGridLayout()
         #add graphs
+        self.altitudeGraph = AltitudeGraph()
+        self.pressureGraph = PressureGraph()
+        self.temperatureGraph = TemperatureGraph()
+        self.rotationGraph = RotationGraph()
+        self.voltageGraph = VoltageGraph()
+        graphs_grid.addWidget(self.altitudeGraph.win, 0, 0)
+        graphs_grid.addWidget(self.pressureGraph.win, 0, 1)
+        graphs_grid.addWidget(self.temperatureGraph.win, 1, 0)
+        graphs_grid.addWidget(self.rotationGraph.win, 1, 1)
+        graphs_grid.addWidget(self.voltageGraph.win, 2, 0)
 
         graphs_layout.addLayout(graphs_grid)
 
@@ -93,6 +103,9 @@ class GroundStation(QMainWindow):
 
         self.reader_thread = None
         self.reading_data = False
+
+        self.signal_emitter = SignalEmitter()
+        self.signal_emitter.update_signal.connect(self.update_graphs)
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_live_data)
@@ -119,18 +132,43 @@ class GroundStation(QMainWindow):
             self.reader_thread = None
 
     def update_live_data(self):
-        self.liveMode.setText(f"Time Elapsed: {self.comm.get_MODE() or 'N/A'}")
+        self.liveMode.setText(f"Mode: {self.comm.get_MODE() or 'N/A'}")
         self.liveState.setText(f"State: {self.comm.get_STATE() or 'N/A'}")
         self.liveMissionTime.setText(f"Mission Time: {self.comm.get_MISSION_TIME() or 'N/A'}")
         self.liveGPSTime.setText(f"GPS Time: {self.comm.get_GPS_TIME() or 'N/A'}")
         self.livePacketCount.setText(f"Packet Count: {self.comm.get_PACKET_COUNT() or 'N/A'}")
-        self.liveReceivedPackets.setText(f"Recieved Packets: {self.comm.receivedPacketCount or 'N/A'}")
+        self.liveReceivedPackets.setText(f"Received Packets: {self.comm.receivedPacketCount or 'N/A'}")
         self.liveGPSAltitude.setText(f"GPS Altitude: {self.comm.get_GPS_ALTITUDE() or 'N/A'}")
         self.liveBarometerAltitude.setText(f"Barometer Altitude: {self.comm.get_ALTITUDE() or 'N/A'}")
         self.liveSATS.setText(f"Satellites: {self.comm.get_GPS_SATS() or 'N/A'}")
-        self.liveCMDEcho.setText(f"CMDEcho: {self.comm.get_CMD_ECHO() or 'N/A'}")
+        self.liveCMDEcho.setText(f"CMD Echo: {self.comm.get_CMD_ECHO() or 'N/A'}")
         self.accelerationRPY.setText(f"Acceleration R,P,Y: {f"{self.comm.get_ACCEL_R()}, {self.comm.get_ACCEL_P()},{self.comm.get_ACCEL_Y()}" or 'N/A'}")
         self.magnetometerRPY.setText(f"Magnetometer R,P,Y: {f"{self.comm.get_MAG_R()}, {self.comm.get_MAG_P()}, {self.comm.get_MAG_Y()}" or 'N/A'}")
+
+    def update_graphs(self):
+        current_time = time()
+
+        altitude = self.comm.get_ALTITUDE()
+        if altitude is not None:
+            self.altitudeGraph.update_graph(altitude, current_time)
+        pressure = self.comm.get_PRESSURE()
+        if pressure is not None:
+            self.pressureGraph.update_graph(pressure, current_time)
+        temperature = self.comm.get_TEMPERATURE()
+        if temperature is not None:
+            self.temperatureGraph.update_graph(temperature, current_time)
+        gyro_r = self.comm.getGYRO_R()
+        gyro_p = self.comm.getGYRO_P()
+        gyro_y = self.comm.getGYRO_Y()
+        if gyro_r is not None and gyro_p is not None and gyro_y is not None:
+            self.rotationGraph.update_graph(gyro_r, gyro_p, gyro_y, current_time)
+        voltage = self.comm.get_VOLTAGE()
+        if voltage is not None:
+            self.voltageGraph.update_graph(voltage, current_time)
+
+    def closeEvent(self, event):
+        self.stop_data_transmission()
+        event.accept()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
