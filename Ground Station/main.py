@@ -1,7 +1,7 @@
 import sys
 import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QPushButton, \
-    QSpacerItem, QSizePolicy, QGridLayout
+    QSpacerItem, QSizePolicy, QGridLayout, QProgressBar
 from PyQt5.QtCore import Qt, pyqtSignal, QObject, QTimer
 from PyQt5.QtGui import QFont, QPixmap, QIcon
 from communication import Communication
@@ -11,7 +11,39 @@ from altitudeGraph import AltitudeGraph
 from rotationGraph import RotationGraph
 from voltageGraph import VoltageGraph
 from GPS import GPSMap
-from time import time
+import time
+
+class LoadingScreen(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("Loading...")
+        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+        self.setGeometry(100, 100, 300, 100)
+
+        layout = QVBoxLayout()
+
+        self.label = QLabel("Loading...")
+        self.label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.label)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setValue(0)
+        layout.addWidget(self.progress_bar)
+
+        self.setLayout(layout)
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_progress)
+        self.timer.start(100)
+
+    def update_progress(self):
+        current_value = self.progress_bar.value()
+        if current_value < 100:
+            self.progress_bar.setValue(current_value + 1)
+        else:
+            self.timer.stop()
+            self.close()
 
 class SignalEmitter(QObject):
     update_signal = pyqtSignal()
@@ -184,6 +216,15 @@ class GroundStation(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = GroundStation()
-    window.show()
+
+    loading_screen = LoadingScreen()
+    loading_screen.show()
+
+    for i in range(100):
+        app.processEvents()
+        time.sleep(0.01)
+
+    main_window = GroundStation()
+    main_window.show()
+
     sys.exit(app.exec_())
