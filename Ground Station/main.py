@@ -115,7 +115,6 @@ class GroundStation(QMainWindow):
 
         graphs_layout = QVBoxLayout()
         graphs_grid = QGridLayout()
-        #add graphs
         self.altitudeGraph = AltitudeGraph()
         self.pressureGraph = PressureGraph()
         self.temperatureGraph = TemperatureGraph()
