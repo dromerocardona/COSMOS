@@ -19,9 +19,18 @@ class LoadingScreen(QWidget):
 
         self.setWindowTitle("Loading...")
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
-        self.setGeometry(100, 100, 300, 100)
+        self.setGeometry(100, 100, 1200, 800)
+        self.setWindowIcon(QIcon('COSMOS_logo.png'))
 
         layout = QVBoxLayout()
+
+        loading_pixmap = QPixmap('COSMOS_logo.png')  # Update with the correct path to your image
+        self.image_width,image_height = 100,100
+        loading_pixmap = loading_pixmap.scaled(self.image_width, image_height)
+        self.image_label = QLabel()
+        self.image_label.setPixmap(loading_pixmap)
+        self.image_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.image_label)
 
         self.label = QLabel("Loading...")
         self.label.setAlignment(Qt.AlignCenter)
@@ -40,7 +49,7 @@ class LoadingScreen(QWidget):
     def update_progress(self):
         current_value = self.progress_bar.value()
         if current_value < 100:
-            self.progress_bar.setValue(current_value + 1)
+            self.progress_bar.setValue(current_value + 5)
         else:
             self.timer.stop()
             self.close()
