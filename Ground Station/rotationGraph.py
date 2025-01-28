@@ -45,10 +45,10 @@ class RotationGraph:
         self.data_y.append(gyro_y)
         self.timestamps.append(elapsed_time)
 
-        self.data_r = self.data_r[-20:]
-        self.data_p = self.data_p[-20:]
-        self.data_y = self.data_y[-20:]
-        self.timestamps = self.timestamps[-20:]
+        #self.data_r = self.data_r[-20:]
+        #self.data_p = self.data_p[-20:]
+        #self.data_y = self.data_y[-20:]
+        #self.timestamps = self.timestamps[-20:]
 
     def update_gui(self):
         self.curve_r.setData(self.timestamps, self.data_r)
