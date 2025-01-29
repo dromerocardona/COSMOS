@@ -12,6 +12,7 @@ from rotationGraph import RotationGraph
 from voltageGraph import VoltageGraph
 from GPS import GPSMap
 import time
+from playsound3 import playsound
 
 class LoadingScreen(QWidget):
     def __init__(self):
@@ -112,8 +113,28 @@ class GroundStation(QMainWindow):
         sidebar_layout.addWidget(self.liveAutogyroRotationRate)
         sidebar_layout.addWidget(self.liveCMDEcho)
 
+        #command buttons
+        self.reset_graphs_button = QPushButton("Reset Graphs")
+        self.reset_graphs_button.clicked.connect(self.reset_graphs)
+        self.set_UTF_time_button = QPushButton("Set UTF Time")
+        self.set_UTF_time_button.clicked.connect(self.comm.send_command("UTF"))
+        self.set_GPS_time_button = QPushButton("Set GPS Time")
+        self.SIM_toggle_button = QPushButton("SIM Enable")
+        self.SIM_activate_button = QPushButton("SIM Activate")
+        self.CAL_button = QPushButton("CAL")
+        self.RELEASE_toggle = QPushButton("RELEASE ON")
+        self.CAM_toggle = QPushButton("CAM ON")
         self.start_stop_button = QPushButton("CXON")
         self.start_stop_button.clicked.connect(self.toggle_data_transmission)
+
+        sidebar_layout.addWidget(self.reset_graphs_button)
+        sidebar_layout.addWidget(self.set_UTF_time_button)
+        sidebar_layout.addWidget(self.set_GPS_time_button)
+        sidebar_layout.addWidget(self.SIM_toggle_button)
+        sidebar_layout.addWidget(self.SIM_activate_button)
+        sidebar_layout.addWidget(self.CAL_button)
+        sidebar_layout.addWidget(self.RELEASE_toggle)
+        sidebar_layout.addWidget(self.CAM_toggle)
         sidebar_layout.addWidget(self.start_stop_button)
 
         self.accelerationRPY = QLabel("Acceleration R,P,Y: N/A")
@@ -162,12 +183,14 @@ class GroundStation(QMainWindow):
     def start_data_transmission(self):
         self.reading_data = True
         self.start_stop_button.setText("CXOFF")
+        self.comm.send_command("CMD,3195,CX,ON")
         self.reader_thread = threading.Thread(target=self.comm.read, args=(self.signal_emitter,))
         self.reader_thread.start()
 
     def stop_data_transmission(self):
         self.reading_data = False
         self.start_stop_button.setText("CXON")
+        self.comm.send_command("CMD,3195,CX,OFF")
         if self.reader_thread and self.reader_thread.is_alive():
             self.comm.stop_reading()
             self.reader_thread.join()
