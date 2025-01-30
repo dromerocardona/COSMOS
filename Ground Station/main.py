@@ -13,6 +13,7 @@ from voltageGraph import VoltageGraph
 from GPS import GPSMap
 import time
 from playsound3 import playsound
+import datetime
 
 class LoadingScreen(QWidget):
     def __init__(self):
@@ -207,7 +208,8 @@ class GroundStation(QMainWindow):
             self.reader_thread = None
 
     def set_utc_time(self):
-        self.comm.send_command("CMD,3195,ST,UTC_TIME")
+        utc_time = datetime.datetime.now().strftime("%H:%M:%S")
+        self.comm.send_command(f"CMD,3195,ST,{utc_time}")
     def set_gps_time(self):
         self.comm.send_command("CMD,3195,ST,GPS_TIME")
     def toggle_sim(self):
@@ -267,6 +269,11 @@ class GroundStation(QMainWindow):
         self.accelerationRPY.setText(f"Acceleration R,P,Y: {f"{self.comm.get_ACCEL_R()}, {self.comm.get_ACCEL_P()},{self.comm.get_ACCEL_Y()}" or 'N/A'}")
         self.magnetometerRPY.setText(f"Magnetometer R,P,Y: {f"{self.comm.get_MAG_R()}, {self.comm.get_MAG_P()}, {self.comm.get_MAG_Y()}" or 'N/A'}")
         self.telemetry.setText(f"Telemetry: {self.comm.lastPacket or 'N/A'}")
+
+        latitude = self.comm.get_GPS_LATITUDE()
+        longitude = self.comm.get_GPS_LONGITUDE()
+        if latitude is not None and longitude is not None:
+            self.GPS.location_updated.emit(latitude, longitude)
 
     def update_graphs(self):
         current_time = time()
