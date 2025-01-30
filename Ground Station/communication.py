@@ -61,6 +61,7 @@ class Communication:
     def get_data(self):
         return self.data_list
 
+    #Telemetry data getters
     def get_TEAM_ID(self):
         if self.data_list:
             try:
