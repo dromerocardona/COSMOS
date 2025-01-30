@@ -220,11 +220,14 @@ class GroundStation(QMainWindow):
             self.sim_enable()
             self.sim = True
     def sim_enable(self):
+        self.comm.simEnabled = True
         self.SIM_toggle_button.setText("SIM Disable")
         self.comm.send_command("CMD,3195,SIM,ENABLE")
     def sim_activate(self):
         self.comm.send_command("CMD,3195,SIM,ACTIVATE")
+        self.comm.simulation_mode()
     def sim_disable(self):
+        self.comm.simulation = False
         self.SIM_toggle_button.setText("SIM Enable")
         self.comm.send_command("CMD,3195,SIM,DISABLE")
     def cal(self):

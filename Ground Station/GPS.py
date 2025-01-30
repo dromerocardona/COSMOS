@@ -1,11 +1,12 @@
 import sys
-#from offline_folium import offline
 import folium
 import os
 from PyQt5 import QtWidgets, QtCore, QtWebEngineWidgets
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QObject
 import time
+from offline_folium import offline
+
 
 class GPSMap(QWidget, QObject):
     location_updated = QtCore.pyqtSignal(float, float)
@@ -39,10 +40,10 @@ class GPSMap(QWidget, QObject):
     def update_map(self, latitude, longitude):
         """Update the map HTML file with new GPS coordinates."""
 
-        self.latitude = latitude
-        self.longitude = longitude
+        self.latitude = 0
+        self.longitude = 0
 
-        folium_map = folium.Map(location=[latitude, longitude], zoom_start=15)
+        folium_map = offline.Map(location=[latitude, longitude], zoom_start=15)
         folium.Marker([latitude, longitude], tooltip="Current Position").add_to(folium_map)
 
         # Save map to file

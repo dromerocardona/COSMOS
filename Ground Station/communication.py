@@ -1,6 +1,7 @@
 import threading
 import serial
 import csv
+import time
 
 class Communication:
 
@@ -13,6 +14,8 @@ class Communication:
         self.csv_filename = csv_filename
         self.receivedPacketCount = 0
         self.lastPacket = ""
+        self.simEnabled = False
+        self.simulation = False
 
         with open(self.csv_filename, mode='a', newline='') as file:
             writer = csv.writer(file)
@@ -49,6 +52,16 @@ class Communication:
                 print(f"Command sent: {command}")
         except serial.SerialException as e:
             print(f"Failed to send command: {e}")
+
+    def simulation_mode(self):
+        self.simulation = True
+        with open('simulated_pressure.csv', mode='r') as file:
+            csv_reader = csv.reader(file)
+            for line in csv_reader:
+                if not self.simulation:
+                    break
+                self.send_command(f'CMD,3195,SIMP,{line}')
+                time.sleep(1)  # Add a delay to simulate real-time data sending
 
     def stop_reading(self):
         self.reading = False
