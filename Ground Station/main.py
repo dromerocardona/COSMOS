@@ -17,6 +17,7 @@ from playsound3 import playsound
 class LoadingScreen(QWidget):
     def __init__(self):
         super().__init__()
+        self.comm = Communication(serial_port='COM8')
 
         self.setWindowTitle("Loading...")
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
@@ -114,21 +115,31 @@ class GroundStation(QMainWindow):
         sidebar_layout.addWidget(self.liveCMDEcho)
 
         #command buttons
+        self.sim = False
+        self.release = False
+        self.cam = False
+
         self.reset_graphs_button = QPushButton("Reset Graphs")
         self.reset_graphs_button.clicked.connect(self.reset_graphs)
-        self.set_UTF_time_button = QPushButton("Set UTF Time")
-        self.set_UTF_time_button.clicked.connect(self.comm.send_command("UTF"))
+        self.set_UTC_time_button = QPushButton("Set UTC Time")
+        self.set_UTC_time_button.clicked.connect(self.set_utc_time)
         self.set_GPS_time_button = QPushButton("Set GPS Time")
+        self.set_GPS_time_button.clicked.connect(self.set_gps_time)
         self.SIM_toggle_button = QPushButton("SIM Enable")
+        self.SIM_toggle_button.clicked.connect(self.sim_enable)
         self.SIM_activate_button = QPushButton("SIM Activate")
+        self.SIM_activate_button.clicked.connect(self.sim_activate)
         self.CAL_button = QPushButton("CAL")
+        self.CAL_button.clicked.connect(self.cal)
         self.RELEASE_toggle = QPushButton("RELEASE ON")
+        self.RELEASE_toggle.clicked.connect(self.release_on)
         self.CAM_toggle = QPushButton("CAM ON")
+        self.CAM_toggle.clicked.connect(self.cam_on)
         self.start_stop_button = QPushButton("CXON")
         self.start_stop_button.clicked.connect(self.toggle_data_transmission)
 
         sidebar_layout.addWidget(self.reset_graphs_button)
-        sidebar_layout.addWidget(self.set_UTF_time_button)
+        sidebar_layout.addWidget(self.set_UTC_time_button)
         sidebar_layout.addWidget(self.set_GPS_time_button)
         sidebar_layout.addWidget(self.SIM_toggle_button)
         sidebar_layout.addWidget(self.SIM_activate_button)
@@ -195,6 +206,34 @@ class GroundStation(QMainWindow):
             self.comm.stop_reading()
             self.reader_thread.join()
             self.reader_thread = None
+
+    def set_utc_time(self):
+        self.comm.send_command("CMD,3195,ST,UTC_TIME")
+    def set_gps_time(self):
+        self.comm.send_command("CMD,3195,ST,GPS_TIME")
+    def toggle_sim(self):
+        if self.sim:
+            self.sim_disable()
+            self.sim = False
+        elif not self.sim:
+            self.sim_enable()
+            self.sim = True
+    def sim_enable(self):
+        self.comm.send_command("CMD,3195,SIM,ENABLE")
+    def sim_activate(self):
+        self.comm.send_command("CMD,3195,SIM,ACTIVATE")
+    def sim_disable(self):
+        self.comm.send_command("CMD,3195,SIM,DISABLE")
+    def cal(self):
+        self.comm.send_command("CMD,3195,CAL")
+    def release_on(self):
+        self.comm.send_command("CMD,3195,RELEASE,ON")
+    def release_off(self):
+        self.comm.send_command("CMD,3195,RELEASE,OFF")
+    def cam_on(self):
+        self.comm.send_command("CMD,3195,CAM,ON")
+    def cam_off(self):
+        self.comm.send_command("CMD,3195,CAM,OFF")
 
     def update_live_data(self):
         self.liveMode.setText(f"Mode: {self.comm.get_MODE() or 'N/A'}")
