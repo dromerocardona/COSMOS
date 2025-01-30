@@ -17,7 +17,6 @@ from playsound3 import playsound
 class LoadingScreen(QWidget):
     def __init__(self):
         super().__init__()
-        self.comm = Communication(serial_port='COM8')
 
         self.setWindowTitle("Loading...")
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
@@ -219,10 +218,12 @@ class GroundStation(QMainWindow):
             self.sim_enable()
             self.sim = True
     def sim_enable(self):
+        self.SIM_toggle_button.setText("SIM Disable")
         self.comm.send_command("CMD,3195,SIM,ENABLE")
     def sim_activate(self):
         self.comm.send_command("CMD,3195,SIM,ACTIVATE")
     def sim_disable(self):
+        self.SIM_toggle_button.setText("SIM Enable")
         self.comm.send_command("CMD,3195,SIM,DISABLE")
     def cal(self):
         self.comm.send_command("CMD,3195,CAL")
@@ -234,8 +235,10 @@ class GroundStation(QMainWindow):
             self.release_on()
             self.release = True
     def release_on(self):
+        self.RELEASE_toggle.setText("RELEASE OFF")
         self.comm.send_command("CMD,3195,RELEASE,ON")
     def release_off(self):
+        self.RELEASE_toggle.setText("RELEASE ON")
         self.comm.send_command("CMD,3195,RELEASE,OFF")
     def toggle_cam(self):
         if self.cam:
@@ -245,8 +248,10 @@ class GroundStation(QMainWindow):
             self.cam_on()
             self.cam = True
     def cam_on(self):
+        self.CAM_toggle.setText("CAM OFF")
         self.comm.send_command("CMD,3195,CAM,ON")
     def cam_off(self):
+        self.CAM_toggle.setText("CAM ON")
         self.comm.send_command("CMD,3195,CAM,OFF")
 
     def update_live_data(self):
