@@ -59,7 +59,7 @@ class LoadingScreen(QWidget):
 class SignalEmitter(QObject):
     update_signal = pyqtSignal()
 
-    def emit_signal(self):
+    def emit_signal(self) -> None:
         self.update_signal.emit()
 
 class GroundStation(QMainWindow):
@@ -126,15 +126,15 @@ class GroundStation(QMainWindow):
         self.set_GPS_time_button = QPushButton("Set GPS Time")
         self.set_GPS_time_button.clicked.connect(self.set_gps_time)
         self.SIM_toggle_button = QPushButton("SIM Enable")
-        self.SIM_toggle_button.clicked.connect(self.sim_enable)
+        self.SIM_toggle_button.clicked.connect(self.toggle_sim)
         self.SIM_activate_button = QPushButton("SIM Activate")
         self.SIM_activate_button.clicked.connect(self.sim_activate)
         self.CAL_button = QPushButton("CAL")
         self.CAL_button.clicked.connect(self.cal)
         self.RELEASE_toggle = QPushButton("RELEASE ON")
-        self.RELEASE_toggle.clicked.connect(self.release_on)
+        self.RELEASE_toggle.clicked.connect(self.toggle_release)
         self.CAM_toggle = QPushButton("CAM ON")
-        self.CAM_toggle.clicked.connect(self.cam_on)
+        self.CAM_toggle.clicked.connect(self.toggle_cam)
         self.start_stop_button = QPushButton("CXON")
         self.start_stop_button.clicked.connect(self.toggle_data_transmission)
 
@@ -226,10 +226,24 @@ class GroundStation(QMainWindow):
         self.comm.send_command("CMD,3195,SIM,DISABLE")
     def cal(self):
         self.comm.send_command("CMD,3195,CAL")
+    def toggle_release(self):
+        if self.release:
+            self.release_off()
+            self.release = False
+        elif not self.release:
+            self.release_on()
+            self.release = True
     def release_on(self):
         self.comm.send_command("CMD,3195,RELEASE,ON")
     def release_off(self):
         self.comm.send_command("CMD,3195,RELEASE,OFF")
+    def toggle_cam(self):
+        if self.cam:
+            self.cam_off()
+            self.cam = False
+        elif not self.cam:
+            self.cam_on()
+            self.cam = True
     def cam_on(self):
         self.comm.send_command("CMD,3195,CAM,ON")
     def cam_off(self):
