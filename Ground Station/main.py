@@ -27,7 +27,7 @@ class LoadingScreen(QWidget):
         layout = QVBoxLayout()
 
         loading_pixmap = QPixmap('COSMOS_logo.png')  # Update with the correct path to your image
-        self.image_width,image_height = 100,100
+        self.image_width,image_height = 300,300
         loading_pixmap = loading_pixmap.scaled(self.image_width, image_height)
         self.image_label = QLabel()
         self.image_label.setPixmap(loading_pixmap)
@@ -298,6 +298,11 @@ class GroundStation(QMainWindow):
         voltage = self.comm.get_VOLTAGE()
         if voltage is not None:
             self.voltageGraph.update_graph(voltage, current_time)
+
+        latitude = self.comm.get_GPS_LATITUDE()
+        longitude = self.comm.get_GPS_LONGITUDE()
+        if latitude is not None and longitude is not None:
+            self.GPS.location_updated.emit(latitude, longitude)
 
     def reset_graphs(self):
         self.altitudeGraph.reset_graph()

@@ -40,8 +40,8 @@ class GPSMap(QWidget, QObject):
     def update_map(self, latitude, longitude):
         """Update the map HTML file with new GPS coordinates."""
 
-        self.latitude = 0
-        self.longitude = 0
+        self.latitude = latitude
+        self.longitude = longitude
 
         folium_map = offline.Map(location=[latitude, longitude], zoom_start=15)
         folium.Marker([latitude, longitude], tooltip="Current Position").add_to(folium_map)
