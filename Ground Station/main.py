@@ -137,6 +137,8 @@ class GroundStation(QMainWindow):
         self.CAM_toggle.clicked.connect(self.toggle_cam)
         self.start_stop_button = QPushButton("CXON")
         self.start_stop_button.clicked.connect(self.toggle_data_transmission)
+        self.calCamStabilization = QPushButton("Calibrate Camera Stabilization")
+        self.calCamStabilization.clicked.connect(self.calCamStabilization)
 
         sidebar_layout.addWidget(self.reset_graphs_button)
         sidebar_layout.addWidget(self.set_UTC_time_button)
@@ -258,6 +260,8 @@ class GroundStation(QMainWindow):
     def cam_off(self):
         self.CAM_toggle.setText("CAM ON")
         self.comm.send_command("CMD,3195,CAM,OFF")
+    def calCamStabilization(self):
+        self.comm.send_command("CMD,3195,CAL_CAM_STABILIZATION")
 
     def update_live_data(self):
         self.liveMode.setText(f"Mode: {self.comm.get_MODE() or 'N/A'}")
@@ -306,7 +310,7 @@ class GroundStation(QMainWindow):
 
     def reset_graphs(self):
         self.altitudeGraph.reset_graph()
-        self.pressureGraph.reset_graph()
+        self.autoGyroRotationGraph.reset_graph()
         self.temperatureGraph.reset_graph()
         self.rotationGraph.reset_graph()
         self.voltageGraph.reset_graph()
