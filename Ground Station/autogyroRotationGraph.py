@@ -3,19 +3,19 @@ import pyqtgraph as pg
 from PyQt5 import QtWidgets, QtCore
 import time
 
-class PressureGraph:
+class AutoGyroRotationGraph:
     def __init__(self):
         pg.setConfigOption('background', 'w')
         pg.setConfigOption('foreground', 'k')
         self.app = QtWidgets.QApplication(sys.argv)
-        self.win = pg.GraphicsLayoutWidget(show=True, title="Pressure")
-        self.plot = self.win.addPlot(title="Pressure")
+        self.win = pg.GraphicsLayoutWidget(show=True, title="Autogyro Rotation Rate")
+        self.plot = self.win.addPlot(title="Autogyro Rotation Rate")
         self.curve = self.plot.plot(pen='b')
         self.data = []
         self.timestamps = []
         self.start_time = None
 
-        self.plot.setLabel('left', 'Pressure (hPa)',color='black')
+        self.plot.setLabel('left', 'Autogyro Rotation Rate (RPM)',color='black')
         self.plot.setLabel('bottom', 'Time', 's', color='black')
         self.plot.setRange(yRange=[950, 1050])
 
@@ -27,11 +27,11 @@ class PressureGraph:
         if self.start_time is None:
             self.start_time = time.time()
 
-    def update_graph(self, pressure, timestamp):
+    def update_graph(self, autogyrorate, timestamp):
         self.start_tracking()
         elapsed_time = timestamp - self.start_time
 
-        self.data.append(pressure)
+        self.data.append(autogyrorate)
         self.timestamps.append(elapsed_time)
         #self.data = self.data[-20:]
         #self.timestamps = self.timestamps[-20:]

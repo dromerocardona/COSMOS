@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
 from PyQt5.QtCore import Qt, pyqtSignal, QObject, QTimer
 from PyQt5.QtGui import QFont, QPixmap, QIcon
 from communication import Communication
-from pressureGraph import PressureGraph
+from autogyroRotationGraph import AutoGyroRotationGraph
 from temperatureGraph import TemperatureGraph
 from altitudeGraph import AltitudeGraph
 from rotationGraph import RotationGraph
@@ -155,13 +155,13 @@ class GroundStation(QMainWindow):
         graphs_layout = QVBoxLayout()
         graphs_grid = QGridLayout()
         self.altitudeGraph = AltitudeGraph()
-        self.pressureGraph = PressureGraph()
+        self.autoGyroRotationGraph = AutoGyroRotationGraph()
         self.temperatureGraph = TemperatureGraph()
         self.rotationGraph = RotationGraph()
         self.voltageGraph = VoltageGraph()
         self.GPS = GPSMap()
         graphs_grid.addWidget(self.altitudeGraph.win, 0, 0)
-        graphs_grid.addWidget(self.pressureGraph.win, 0, 1)
+        graphs_grid.addWidget(self.autoGyroRotationGraph.win, 0, 1)
         graphs_grid.addWidget(self.temperatureGraph.win, 1, 0)
         graphs_grid.addWidget(self.rotationGraph.win, 1, 1)
         graphs_grid.addWidget(self.voltageGraph.win, 2, 0)
@@ -284,9 +284,9 @@ class GroundStation(QMainWindow):
         altitude = self.comm.get_ALTITUDE()
         if altitude is not None:
             self.altitudeGraph.update_graph(altitude, current_time)
-        pressure = self.comm.get_PRESSURE()
-        if pressure is not None:
-            self.pressureGraph.update_graph(pressure, current_time)
+        autogyro_rotation_rate = self.comm.get_AUTO_GYRO_ROTATION_RATE()
+        if autogyro_rotation_rate is not None:
+            self.autoGyroRotationGraph.update_graph(autogyro_rotation_rate, current_time)
         temperature = self.comm.get_TEMPERATURE()
         if temperature is not None:
             self.temperatureGraph.update_graph(temperature, current_time)
