@@ -3,7 +3,6 @@
 #include <Wire.h>
 #include <Adafruit_LIS3MDL.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_PWMServoDriver.h>
 #include <ScioSense_ENS220.h>
 #include <ens220.h>
 #include <utils.h>
@@ -334,6 +333,4 @@ Serial.println("Error writing to SD card!");
 packetCount++;
 }
 
-// Delay for telemetry interval
-delay(1000);
 }
