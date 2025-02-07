@@ -15,10 +15,12 @@ import time
 from playsound3 import playsound
 import datetime
 
+# Loading screen
 class LoadingScreen(QWidget):
     def __init__(self):
         super().__init__()
 
+        #Set title, size, icon
         self.setWindowTitle("Loading...")
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
         self.setGeometry(100, 100, 1200, 800)
@@ -26,6 +28,7 @@ class LoadingScreen(QWidget):
 
         layout = QVBoxLayout()
 
+        #Add loading image
         loading_pixmap = QPixmap('COSMOS_logo.png')  # Update with the correct path to your image
         self.image_width,image_height = 300,300
         loading_pixmap = loading_pixmap.scaled(self.image_width, image_height)
@@ -34,20 +37,24 @@ class LoadingScreen(QWidget):
         self.image_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.image_label)
 
+        #Add loading text
         self.label = QLabel("Loading...")
         self.label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.label)
 
+        #Add progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         layout.addWidget(self.progress_bar)
 
         self.setLayout(layout)
 
+        #Start timer
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_progress)
         self.timer.start(100)
 
+    #Update progress bar
     def update_progress(self):
         current_value = self.progress_bar.value()
         if current_value < 100:
@@ -56,15 +63,18 @@ class LoadingScreen(QWidget):
             self.timer.stop()
             self.close()
 
+# Used for updating graphs, telemetry, etc.
 class SignalEmitter(QObject):
     update_signal = pyqtSignal()
 
     def emit_signal(self) -> None:
         self.update_signal.emit()
 
+# Main GCS window
 class GroundStation(QMainWindow):
     def __init__(self):
         super().__init__()
+        #Set title, size, icon
         self.setWindowTitle("COSMOS GS")
         self.setGeometry(100, 100, 1200, 800)
         self.setWindowIcon(QIcon('COSMOS_logo.png'))
@@ -87,8 +97,10 @@ class GroundStation(QMainWindow):
         header_widget.setLayout(header_layout)
         main_layout.addWidget(header_widget)
 
+        #add content elements
         content_layout = QHBoxLayout()
 
+        #add sidebar
         sidebar_layout = QVBoxLayout()
         sidebar_layout.setAlignment(Qt.AlignTop)
         sidebar_layout.setSpacing(10)
@@ -114,11 +126,12 @@ class GroundStation(QMainWindow):
         sidebar_layout.addWidget(self.liveAutogyroRotationRate)
         sidebar_layout.addWidget(self.liveCMDEcho)
 
-        #command buttons
+        #primary command reset
         self.sim = False
         self.release = False
         self.cam = False
 
+        #add command buttons
         self.reset_graphs_button = QPushButton("Reset Graphs")
         self.reset_graphs_button.clicked.connect(self.reset_graphs)
         self.set_UTC_time_button = QPushButton("Set UTC Time")
@@ -140,6 +153,7 @@ class GroundStation(QMainWindow):
         self.calCamStabilization = QPushButton("Calibrate Camera Stabilization")
         self.calCamStabilization.clicked.connect(self.calCamStabilization)
 
+        #add command buttons to sidebar
         sidebar_layout.addWidget(self.reset_graphs_button)
         sidebar_layout.addWidget(self.set_UTC_time_button)
         sidebar_layout.addWidget(self.set_GPS_time_button)
@@ -150,10 +164,12 @@ class GroundStation(QMainWindow):
         sidebar_layout.addWidget(self.CAM_toggle)
         sidebar_layout.addWidget(self.start_stop_button)
 
+        #footer data
         self.accelerationRPY = QLabel("Acceleration R,P,Y: N/A")
         self.magnetometerRPY = QLabel("Magnetometer R,P,Y: N/A")
         self.telemetry = QLabel("Telemetry: N/A")
 
+        #graphs/GPS layout
         graphs_layout = QVBoxLayout()
         graphs_grid = QGridLayout()
         self.altitudeGraph = AltitudeGraph()
@@ -171,28 +187,32 @@ class GroundStation(QMainWindow):
 
         graphs_layout.addLayout(graphs_grid)
 
+        #add all elements to main layout
         content_layout.addLayout(sidebar_layout)
         content_layout.addLayout(graphs_layout)
         main_layout.addLayout(content_layout)
 
+        #communcation setup
         self.comm = Communication(serial_port='COM8') #update serial port
-
         self.reader_thread = None
         self.reading_data = False
 
         self.signal_emitter = SignalEmitter()
         self.signal_emitter.update_signal.connect(self.update_graphs)
 
+        #start timer for updating live data
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_live_data)
         self.timer.start(1000)
 
+    #enables/disables data transmission
     def toggle_data_transmission(self):
         if self.reading_data:
             self.stop_data_transmission()
         else:
             self.start_data_transmission()
 
+    #start data transmission
     def start_data_transmission(self):
         self.reading_data = True
         self.start_stop_button.setText("CXOFF")
@@ -200,6 +220,7 @@ class GroundStation(QMainWindow):
         self.reader_thread = threading.Thread(target=self.comm.read, args=(self.signal_emitter,))
         self.reader_thread.start()
 
+    #stop data transmission
     def stop_data_transmission(self):
         self.reading_data = False
         self.start_stop_button.setText("CXON")
@@ -209,6 +230,7 @@ class GroundStation(QMainWindow):
             self.reader_thread.join()
             self.reader_thread = None
 
+    #send/execute commands
     def set_utc_time(self):
         utc_time = datetime.datetime.now().strftime("%H:%M:%S")
         self.comm.send_command(f"CMD,3195,ST,{utc_time}")
@@ -263,6 +285,7 @@ class GroundStation(QMainWindow):
     def calCamStabilization(self):
         self.comm.send_command("CMD,3195,CAL_CAM_STABILIZATION")
 
+    #update telemetry on GCS
     def update_live_data(self):
         self.liveMode.setText(f"Mode: {self.comm.get_MODE() or 'N/A'}")
         self.liveState.setText(f"State: {self.comm.get_STATE() or 'N/A'}")
@@ -277,11 +300,13 @@ class GroundStation(QMainWindow):
         self.magnetometerRPY.setText(f"Magnetometer R,P,Y: {f"{self.comm.get_MAG_R()}, {self.comm.get_MAG_P()}, {self.comm.get_MAG_Y()}" or 'N/A'}")
         self.telemetry.setText(f"Telemetry: {self.comm.lastPacket or 'N/A'}")
 
+        #update GPS data
         latitude = self.comm.get_GPS_LATITUDE()
         longitude = self.comm.get_GPS_LONGITUDE()
         if latitude is not None and longitude is not None:
             self.GPS.location_updated.emit(latitude, longitude)
 
+    #update graphs
     def update_graphs(self):
         current_time = time()
 
@@ -308,6 +333,7 @@ class GroundStation(QMainWindow):
         if latitude is not None and longitude is not None:
             self.GPS.location_updated.emit(latitude, longitude)
 
+    #reset graphs
     def reset_graphs(self):
         self.altitudeGraph.reset_graph()
         self.autoGyroRotationGraph.reset_graph()
@@ -315,10 +341,12 @@ class GroundStation(QMainWindow):
         self.rotationGraph.reset_graph()
         self.voltageGraph.reset_graph()
 
+    #close window/program
     def closeEvent(self, event):
         self.stop_data_transmission()
         event.accept()
 
+#Run the application
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 

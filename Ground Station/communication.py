@@ -6,6 +6,7 @@ import time
 class Communication:
 
     def __init__(self, serial_port, baud_rate=9600, timeout = 4, csv_filename = 'Flight_3195.csv'):
+        #Initialize communication parameters
         self.serial_port = serial_port
         self.baud_rate = baud_rate
         self.timeout = timeout
@@ -14,9 +15,11 @@ class Communication:
         self.csv_filename = csv_filename
         self.receivedPacketCount = 0
         self.lastPacket = ""
+        #simulation parameters
         self.simEnabled = False
         self.simulation = False
 
+        #Create a CSV file to store telemetry data
         with open(self.csv_filename, mode='a', newline='') as file:
             writer = csv.writer(file)
             if not file.tell():
@@ -26,6 +29,7 @@ class Communication:
                                  'MAG_P', 'MAG_Y', 'AUTO_GYRO_ROTATION RATE', 'GPS_TIME', 'GPS_ALTITUDE',
                                  'GPS_LATITUDE', 'GPS_LONGITUDE', 'GPS_SATS', 'CMD_ECHO', 'TEAM_NAME'])
 
+    #Read data from serial port
     def read(self, signal_emitter):
         self.reading = True
         with serial.Serial(self.serial_port, self.baud_rate, timeout=self.timeout) as ser:
@@ -34,6 +38,7 @@ class Communication:
                 writer = csv.writer(file)
                 while self.reading:
                     try:
+                        #Reads line until 'COSMOS' is found
                         line = ser.read_until(b'COSMOS').decode('utf-8').strip()
                         self.lastPacket = line
                         if line:
@@ -44,6 +49,7 @@ class Communication:
                     except Exception as e:
                         print(f"Error: {e}")
 
+    #Send command to serial port
     def send_command(self, command):
         try:
             with serial.Serial(self.serial_port, self.baud_rate, timeout=self.timeout) as ser:
@@ -53,6 +59,7 @@ class Communication:
         except serial.SerialException as e:
             print(f"Failed to send command: {e}")
 
+    #Simulation mode, reads data from a CSV file and sends it to the serial port
     def simulation_mode(self):
         self.simulation = True
         with open('simulated_pressure.csv', mode='r') as file:
@@ -63,14 +70,17 @@ class Communication:
                 self.send_command(f'CMD,3195,SIMP,{line}')
                 time.sleep(1)  # Add a delay to simulate real-time data sending
 
+    #Stops reading data from serial port
     def stop_reading(self):
         self.reading = False
         print("Reading stopped.")
 
+    #Splits lines with commas and appends them to a list
     def parse_csv_data(self, data):
         csv_data = data.split(',')
         self.data_list.append(csv_data)
 
+    #Returns data list
     def get_data(self):
         return self.data_list
 
