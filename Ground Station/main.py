@@ -114,7 +114,6 @@ class GroundStation(QMainWindow):
         self.livePacketCount = QLabel("Packet Count: N/A")
         self.liveReceivedPackets = QLabel("Received Packets: N/A")
         self.liveGPSAltitude = QLabel("GPS Altitude: N/A")
-        self.liveAutogyroRotationRate = QLabel("Autogyro Rotation Rate: N/A")
         self.liveCMDEcho = QLabel("CMD Echo: N/A")
         sidebar_layout.addWidget(self.liveMode)
         sidebar_layout.addWidget(self.liveState)
@@ -123,7 +122,6 @@ class GroundStation(QMainWindow):
         sidebar_layout.addWidget(self.livePacketCount)
         sidebar_layout.addWidget(self.liveReceivedPackets)
         sidebar_layout.addWidget(self.liveGPSAltitude)
-        sidebar_layout.addWidget(self.liveAutogyroRotationRate)
         sidebar_layout.addWidget(self.liveCMDEcho)
 
         #primary command reset
@@ -144,14 +142,14 @@ class GroundStation(QMainWindow):
         self.SIM_activate_button.clicked.connect(self.sim_activate)
         self.CAL_button = QPushButton("CAL")
         self.CAL_button.clicked.connect(self.cal)
-        self.RELEASE_toggle = QPushButton("RELEASE ON")
+        self.RELEASE_toggle = QPushButton("CANISTER RELEASE ON")
         self.RELEASE_toggle.clicked.connect(self.toggle_release)
         self.CAM_toggle = QPushButton("CAM ON")
         self.CAM_toggle.clicked.connect(self.toggle_cam)
         self.start_stop_button = QPushButton("CXON")
         self.start_stop_button.clicked.connect(self.toggle_data_transmission)
-        self.calCamStabilization = QPushButton("Calibrate Camera Stabilization")
-        self.calCamStabilization.clicked.connect(self.calCamStabilization)
+        self.calCamStabilization = QPushButton("Cal Cam Stable")
+        self.calCamStabilization.clicked.connect(self.cal_camera_stabilization)
 
         #add command buttons to sidebar
         sidebar_layout.addWidget(self.reset_graphs_button)
@@ -163,11 +161,16 @@ class GroundStation(QMainWindow):
         sidebar_layout.addWidget(self.RELEASE_toggle)
         sidebar_layout.addWidget(self.CAM_toggle)
         sidebar_layout.addWidget(self.start_stop_button)
+        sidebar_layout.addWidget(self.calCamStabilization)
+
+        #add footer
+        footer_layout = QVBoxLayout()
 
         #footer data
         self.accelerationRPY = QLabel("Acceleration R,P,Y: N/A")
         self.magnetometerRPY = QLabel("Magnetometer R,P,Y: N/A")
         self.telemetry = QLabel("Telemetry: N/A")
+        footer_layout.addWidget(self.telemetry)
 
         #graphs/GPS layout
         graphs_layout = QVBoxLayout()
@@ -184,6 +187,8 @@ class GroundStation(QMainWindow):
         graphs_grid.addWidget(self.rotationGraph.win, 1, 1)
         graphs_grid.addWidget(self.voltageGraph.win, 2, 0)
         graphs_grid.addWidget(self.GPS.win, 2, 1)
+        graphs_grid.addWidget(self.accelerationRPY, 3, 0)
+        graphs_grid.addWidget(self.magnetometerRPY, 4, 0)
 
         graphs_layout.addLayout(graphs_grid)
 
@@ -191,9 +196,10 @@ class GroundStation(QMainWindow):
         content_layout.addLayout(sidebar_layout)
         content_layout.addLayout(graphs_layout)
         main_layout.addLayout(content_layout)
+        main_layout.addLayout(footer_layout)
 
         #communcation setup
-        self.comm = Communication(serial_port='COM8') #update serial port
+        self.comm = Communication(serial_port='COM5') #update serial port
         self.reader_thread = None
         self.reading_data = False
 
@@ -265,10 +271,10 @@ class GroundStation(QMainWindow):
             self.release = True
     def release_on(self):
         self.RELEASE_toggle.setText("RELEASE OFF")
-        self.comm.send_command("CMD,3195,RELEASE,ON")
+        self.comm.send_command("CMD,3195,MEC,RELEASE,ON")
     def release_off(self):
         self.RELEASE_toggle.setText("RELEASE ON")
-        self.comm.send_command("CMD,3195,RELEASE,OFF")
+        self.comm.send_command("CMD,3195,MEC,RELEASE,OFF")
     def toggle_cam(self):
         if self.cam:
             self.cam_off()
@@ -278,12 +284,12 @@ class GroundStation(QMainWindow):
             self.cam = True
     def cam_on(self):
         self.CAM_toggle.setText("CAM OFF")
-        self.comm.send_command("CMD,3195,CAM,ON")
+        self.comm.send_command("CMD,3195,MEC,CAM,ON")
     def cam_off(self):
         self.CAM_toggle.setText("CAM ON")
-        self.comm.send_command("CMD,3195,CAM,OFF")
-    def calCamStabilization(self):
-        self.comm.send_command("CMD,3195,CAL_CAM_STABILIZATION")
+        self.comm.send_command("CMD,3195,MEC,CAM,OFF")
+    def cal_camera_stabilization(self):
+        self.comm.send_command("CMD,3195,MEC,CAM_STABLE")
 
     #update telemetry on GCS
     def update_live_data(self):
@@ -294,7 +300,6 @@ class GroundStation(QMainWindow):
         self.livePacketCount.setText(f"Packet Count: {self.comm.get_PACKET_COUNT() or 'N/A'}")
         self.liveReceivedPackets.setText(f"Received Packets: {self.comm.receivedPacketCount or 'N/A'}")
         self.liveGPSAltitude.setText(f"GPS Altitude: {self.comm.get_GPS_ALTITUDE() or 'N/A'}")
-        self.liveAutogyroRotationRate.setText(f"Autogyro Rotation Rate: {self.comm.get_AUTO_GYRO_ROTATION_RATE() or 'N/A'}")
         self.liveCMDEcho.setText(f"CMD Echo: {self.comm.get_CMD_ECHO() or 'N/A'}")
         self.accelerationRPY.setText(f"Acceleration R,P,Y: {f"{self.comm.get_ACCEL_R()}, {self.comm.get_ACCEL_P()},{self.comm.get_ACCEL_Y()}" or 'N/A'}")
         self.magnetometerRPY.setText(f"Magnetometer R,P,Y: {f"{self.comm.get_MAG_R()}, {self.comm.get_MAG_P()}, {self.comm.get_MAG_Y()}" or 'N/A'}")
