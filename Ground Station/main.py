@@ -78,6 +78,7 @@ class GroundStation(QMainWindow):
         self.setWindowTitle("COSMOS GS")
         self.setGeometry(100, 100, 1200, 800)
         self.setWindowIcon(QIcon('COSMOS_logo.png'))
+        self.setStyleSheet("background-color: white;")
 
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
@@ -108,13 +109,21 @@ class GroundStation(QMainWindow):
 
         #add sidebar elements
         self.liveMode = QLabel("Mode: N/A")
+        self.liveMode.setStyleSheet("color: black; font-weight: bold;")
         self.liveState = QLabel("State: N/A")
+        self.liveState.setStyleSheet("color: black; font-weight: bold;")
         self.liveMissionTime = QLabel("Mission Time: N/A")
+        self.liveMissionTime.setStyleSheet("color: black; font-weight: bold;")
         self.liveGPSTime = QLabel("GPS Time: N/A")
+        self.liveGPSTime.setStyleSheet("color: black; font-weight: bold;")
         self.livePacketCount = QLabel("Packet Count: N/A")
+        self.livePacketCount.setStyleSheet("color: black; font-weight: bold;")
         self.liveReceivedPackets = QLabel("Received Packets: N/A")
+        self.liveReceivedPackets.setStyleSheet("color: black; font-weight: bold;")
         self.liveGPSAltitude = QLabel("GPS Altitude: N/A")
+        self.liveGPSAltitude.setStyleSheet("color: black; font-weight: bold;")
         self.liveCMDEcho = QLabel("CMD Echo: N/A")
+        self.liveCMDEcho.setStyleSheet("color: black; font-weight: bold;")
         sidebar_layout.addWidget(self.liveMode)
         sidebar_layout.addWidget(self.liveState)
         sidebar_layout.addWidget(self.liveMissionTime)
@@ -131,24 +140,34 @@ class GroundStation(QMainWindow):
 
         #add command buttons
         self.reset_graphs_button = QPushButton("Reset Graphs")
+        self.reset_graphs_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.reset_graphs_button.clicked.connect(self.reset_graphs)
         self.set_UTC_time_button = QPushButton("Set UTC Time")
+        self.set_UTC_time_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.set_UTC_time_button.clicked.connect(self.set_utc_time)
         self.set_GPS_time_button = QPushButton("Set GPS Time")
+        self.set_GPS_time_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.set_GPS_time_button.clicked.connect(self.set_gps_time)
         self.SIM_toggle_button = QPushButton("SIM Enable")
+        self.SIM_toggle_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.SIM_toggle_button.clicked.connect(self.toggle_sim)
         self.SIM_activate_button = QPushButton("SIM Activate")
+        self.SIM_activate_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.SIM_activate_button.clicked.connect(self.sim_activate)
         self.CAL_button = QPushButton("CAL")
+        self.CAL_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.CAL_button.clicked.connect(self.cal)
         self.RELEASE_toggle = QPushButton("CANISTER RELEASE ON")
+        self.RELEASE_toggle.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.RELEASE_toggle.clicked.connect(self.toggle_release)
         self.CAM_toggle = QPushButton("CAM ON")
+        self.CAM_toggle.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.CAM_toggle.clicked.connect(self.toggle_cam)
         self.start_stop_button = QPushButton("CXON")
+        self.start_stop_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.start_stop_button.clicked.connect(self.toggle_data_transmission)
         self.calCamStabilization = QPushButton("Cal Cam Stable")
+        self.calCamStabilization.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.calCamStabilization.clicked.connect(self.cal_camera_stabilization)
 
         #add command buttons to sidebar
@@ -168,8 +187,11 @@ class GroundStation(QMainWindow):
 
         #footer data
         self.accelerationRPY = QLabel("Acceleration R,P,Y: N/A")
+        self.accelerationRPY.setStyleSheet("color: black; font-weight: bold;")
         self.magnetometerRPY = QLabel("Magnetometer R,P,Y: N/A")
+        self.magnetometerRPY.setStyleSheet("color: black; font-weight: bold;")
         self.telemetry = QLabel("Telemetry: N/A")
+        self.telemetry.setStyleSheet("color: black; font-weight: bold;")
         footer_layout.addWidget(self.telemetry)
 
         #graphs/GPS layout
@@ -301,7 +323,7 @@ class GroundStation(QMainWindow):
         self.liveReceivedPackets.setText(f"Received Packets: {self.comm.receivedPacketCount or 'N/A'}")
         self.liveGPSAltitude.setText(f"GPS Altitude: {self.comm.get_GPS_ALTITUDE() or 'N/A'}")
         self.liveCMDEcho.setText(f"CMD Echo: {self.comm.get_CMD_ECHO() or 'N/A'}")
-        self.accelerationRPY.setText(f"Acceleration R,P,Y: {f"{self.comm.get_ACCEL_R()}, {self.comm.get_ACCEL_P()},{self.comm.get_ACCEL_Y()}" or 'N/A'}")
+        self.accelerationRPY.setText(f"Acceleration R,P,Y: {f"{self.comm.get_ACCEL_R()}, {self.comm.get_ACCEL_P()}, {self.comm.get_ACCEL_Y()}" or 'N/A'}")
         self.magnetometerRPY.setText(f"Magnetometer R,P,Y: {f"{self.comm.get_MAG_R()}, {self.comm.get_MAG_P()}, {self.comm.get_MAG_Y()}" or 'N/A'}")
         self.telemetry.setText(f"Telemetry: {self.comm.lastPacket or 'N/A'}")
 

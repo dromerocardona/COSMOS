@@ -9,6 +9,7 @@ class AutoGyroRotationGraph:
         pg.setConfigOption('foreground', 'k')
         self.app = QtWidgets.QApplication(sys.argv)
         self.win = pg.GraphicsLayoutWidget(show=True, title="Autogyro Rotation Rate")
+        self.win.setStyleSheet("border: 1px solid black;")
         self.plot = self.win.addPlot(title="Autogyro Rotation Rate")
         self.curve = self.plot.plot(pen='b')
         self.data = []

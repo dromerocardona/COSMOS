@@ -9,6 +9,7 @@ class AltitudeGraph:
         pg.setConfigOption('foreground', 'k')
         self.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv)
         self.win = pg.GraphicsLayoutWidget(show=True, title="Altitude")
+        self.win.setStyleSheet("border: 1px solid black;")
         self.plot = self.win.addPlot(title="Altitude")
         self.curve = self.plot.plot(pen='g')
         self.data = []

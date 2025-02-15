@@ -9,6 +9,7 @@ class VoltageGraph:
         pg.setConfigOption('foreground', 'k')
         self.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv)
         self.win = pg.GraphicsLayoutWidget(show=True, title="Battery Voltage")
+        self.win.setStyleSheet("border: 1px solid black;")
         self.plot = self.win.addPlot(title=" Battery Voltage")
         self.curve = self.plot.plot(pen='m')
         self.data = []
