@@ -1,11 +1,11 @@
 import sys
+from offline_folium import offline
 import folium
 import os
 from PyQt5 import QtWidgets, QtCore, QtWebEngineWidgets
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QObject
 import time
-from offline_folium import offline
 
 
 class GPSMap(QWidget, QObject):
@@ -43,7 +43,7 @@ class GPSMap(QWidget, QObject):
         self.latitude = latitude
         self.longitude = longitude
 
-        folium_map = offline.Map(location=[latitude, longitude], zoom_start=15)
+        folium_map = folium.Map(location=[latitude, longitude], zoom_start=15)
         folium.Marker([latitude, longitude], tooltip="Current Position").add_to(folium_map)
 
         # Save map to file
