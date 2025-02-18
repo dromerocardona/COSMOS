@@ -75,6 +75,9 @@ class GroundStation(QMainWindow):
     def __init__(self):
         super().__init__()
         # Set title, size, icon
+        self.release = None
+        self.cam = None
+        self.sim = None
         self.setWindowTitle("COSMOS GS")
         self.setGeometry(100, 100, 1200, 800)
         self.setWindowIcon(QIcon('COSMOS_logo.png'))
@@ -131,6 +134,10 @@ class GroundStation(QMainWindow):
         sidebar_groupbox_layout = QVBoxLayout()
         sidebar_groupbox.setLayout(sidebar_groupbox_layout)
 
+        # Create a grid layout for the command buttons
+        buttons_grid = QGridLayout()
+        buttons_grid.setAlignment(Qt.AlignCenter)
+
         # Add sidebar elements to the group box layout
         self.liveMode = QLabel("Mode: N/A")
         self.liveMode.setStyleSheet("color: black; font-weight: bold;")
@@ -162,36 +169,51 @@ class GroundStation(QMainWindow):
 
         # Add command buttons to sidebar layout
         self.reset_graphs_button = QPushButton("Reset Graphs")
+        self.reset_graphs_button.clicked.connect(self.reset_graphs)
         self.reset_graphs_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.set_UTC_time_button = QPushButton("Set UTC Time")
         self.set_UTC_time_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
+        self.set_UTC_time_button.clicked.connect(self.set_utc_time)
         self.set_GPS_time_button = QPushButton("Set GPS Time")
+        self.set_GPS_time_button.clicked.connect(self.set_gps_time)
         self.set_GPS_time_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.SIM_toggle_button = QPushButton("SIM Enable")
+        self.SIM_toggle_button.clicked.connect(self.toggle_sim)
         self.SIM_toggle_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.SIM_activate_button = QPushButton("SIM Activate")
+        self.SIM_activate_button.clicked.connect(self.sim_activate)
         self.SIM_activate_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.CAL_button = QPushButton("CAL")
+        self.CAL_button.clicked.connect(self.cal)
         self.CAL_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.RELEASE_toggle = QPushButton("CANISTER RELEASE ON")
+        self.RELEASE_toggle.clicked.connect(self.toggle_release)
         self.RELEASE_toggle.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.CAM_toggle = QPushButton("CAM ON")
+        self.CAM_toggle.clicked.connect(self.toggle_cam)
         self.CAM_toggle.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.start_stop_button = QPushButton("CXON")
+        self.start_stop_button.clicked.connect(self.toggle_data_transmission)
         self.start_stop_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.calCamStabilization = QPushButton("Cal Cam Stable")
+        self.calCamStabilization.clicked.connect(self.cal_camera_stabilization)
         self.calCamStabilization.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
 
-        sidebar_layout.addWidget(self.reset_graphs_button)
-        sidebar_layout.addWidget(self.set_UTC_time_button)
-        sidebar_layout.addWidget(self.set_GPS_time_button)
-        sidebar_layout.addWidget(self.SIM_toggle_button)
-        sidebar_layout.addWidget(self.SIM_activate_button)
-        sidebar_layout.addWidget(self.CAL_button)
-        sidebar_layout.addWidget(self.RELEASE_toggle)
-        sidebar_layout.addWidget(self.CAM_toggle)
-        sidebar_layout.addWidget(self.start_stop_button)
-        sidebar_layout.addWidget(self.calCamStabilization)
+        buttons_grid.addWidget(self.reset_graphs_button, 0, 0)
+        buttons_grid.addWidget(self.set_UTC_time_button, 0, 1)
+        buttons_grid.addWidget(self.set_GPS_time_button, 1, 0)
+        buttons_grid.addWidget(self.SIM_toggle_button, 1, 1)
+        buttons_grid.addWidget(self.SIM_activate_button, 2, 0)
+        buttons_grid.addWidget(self.CAL_button, 2, 1)
+        buttons_grid.addWidget(self.RELEASE_toggle, 3, 0)
+        buttons_grid.addWidget(self.CAM_toggle, 3, 1)
+        buttons_grid.addWidget(self.start_stop_button, 4, 0)
+        buttons_grid.addWidget(self.calCamStabilization, 4, 1)
+
+        # Create a widget for the buttons grid and add it to the sidebar layout
+        buttons_widget = QWidget()
+        buttons_widget.setLayout(buttons_grid)
+        sidebar_layout.addWidget(buttons_widget)
 
         # Add the sidebar widget to the content layout
         sidebar_widget = QWidget()
