@@ -11,16 +11,21 @@
 #include <TinyGPS++.h>
 #include <Arduino.h>
 #include "i2c_interface.h"
+#include <FeedBackServo.h>
+#include <Arduino.h>
+#include <servo.h>
+
 
 // PINS AND DEFINITIONS
 #define BATTERY_PIN A0 // Analog pin for voltage divider circuit
 #define RPM_PIN 2      // Pin for Hall effect sensor
 #define SD_CS_PIN 4    // Chip select pin for SD card
-#define SERVO_PIN 9    // Servo pin for camera stabilization
+#define SERVO_PIN 3   // Servo pin for camera stabilization
 #define I2C_ADDRESS 0x20 // I2C Address for ENS 220
 #define SERIAL_BAUDRATE 57600 // Speed of Serial Communication with the computer (ENS220)
 #define INTN_1 2 // Interrupt pin for ENS220
 #define CAMERA_PIN 7 // RunCam
+#define FEEDBACK_PIN 2 // Feedback signal pin for servo control
 
 // Team ID
 #define TEAM_ID "3195"
@@ -30,6 +35,9 @@ using namespace ScioSense; // ENS220
 ENS220 ens220; // sensor object ENS220
 TinyGPSPlus gps; // GPS sensor
 Adafruit_LIS3MDL lis3mdl;// Magnetometer
+// Set feedback signal pin number for the servo
+FeedBackServo servo = FeedBackServo(FEEDBACK_PIN);
+Servo cameraServo;
 
 // Variables
 float voltageDividerFactor = 5.0; // Adjust based on resistor values in voltage divider
@@ -39,13 +47,6 @@ unsigned int packetCount = 0;
 float cameraposition = 0;
 File dataFile;
 bool telemetryEnabled = false;  // Telemetry Control
-
-// Servo control (PWM)
-Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
-#define SERVOMIN 150   // Minimum pulse length count (out of 4096)
-#define SERVOMAX 600   // Maximum pulse length count (out of 4096)
-#define SERVO_FREQ 50  // Analog servos run at ~50 Hz updates
-uint8_t servonum = 0; // Servo channel number
 
 // Simulation mode variables
 bool simulationMode = false;
@@ -57,33 +58,8 @@ void rpmISR() {
 rpmCount++;
 }
 
-// Function to set the servo pulse
-void setServoPulse(uint8_t n, double pulse) {
-double pulselength = 1000000.0; // 1,000,000 us per second
-pulselength /= SERVO_FREQ;      // Analog servos run at ~50 Hz updates
-pulselength /= 4096.0;          // 12 bits of resolution
-pulse *= 1000000.0;             // Convert input seconds to microseconds
-pulse /= pulselength;
-pwm.setPWM(n, 0, pulse);
-}
-
-// Function to make the camera always face north
-void pointCameraNorth(float heading) {
-// The target position is 0 degrees (facing north)
-// We can calculate the angle difference between the current heading and the target
-float angleDifference = 0 - heading;
-
-// Map the difference to the servo range (0 to 180 degrees)
-int pulseLength = map(angleDifference, -90, 90, SERVOMIN, SERVOMAX);
-
-// Ensure the pulse length is within the servo's valid range
-pulseLength = constrain(pulseLength, SERVOMIN, SERVOMAX);
-
-// Set the PWM for the servo to position the camera
-pwm.setPWM(servonum, 0, pulseLength);
-
-delay(500);  // Wait for the servo to adjust
-}
+// Variables
+float receivedPressure = 0.0;  // Variable to store received pressure value from ground station
 
 void handleCommand(String command) {
 command.trim();  // Remove any leading or trailing spaces
@@ -94,9 +70,23 @@ Serial.println("Simulation mode enabled.");
 } 
 else if (command == "SIM_ACTIVATE") {
 if (simulationMode) {
-Serial.println("Simulation activated. Using simulated pressure values.");
+Serial.println("Simulation activated. Waiting for pressure input...");
+// Wait for the ground station to send pressure data via XBee
+while (!Serial1.available()) {
+// Keep waiting for data
+delay(100); 
+}
+String pressureInput = Serial1.readStringUntil('\n');  // Read the pressure string from ground station
+pressureInput.trim();  // Clean any trailing/leading spaces
+receivedPressure = pressureInput.toFloat();  // Convert the string to a float
+if (receivedPressure > 0.0) {
+simulatedPressure = receivedPressure;  // Set simulated pressure
+Serial.println("Simulated pressure updated.");
 } else {
-Serial.println("Simulation not enabled yet.");
+Serial.println("Invalid pressure value received. Using default pressure.");
+}
+} else {
+Serial.println("Simulation mode not enabled yet.");
 }
 } 
 else if (command == "CAMERA_ON") {
@@ -119,6 +109,8 @@ Serial.println("Telemetry stopped.");
 
 // ENS220 Sensor Initialization
 void ContinuousModeWithFIFO_setup()
+
+
 {
 Serial.println("Starting ENS220 example 03_FIFO_I2C_Continuous");
 
@@ -149,6 +141,7 @@ ens220.writeConfiguration();
 ens220.startContinuousMeasure(ENS220::Sensor::TemperatureAndPressure);
 }
 
+
 void ContinuousModeWithFIFO_loop()
 {    
 // Poll the interrupt pin until a new value is available
@@ -177,7 +170,8 @@ Serial.println(ens220.getTempCelsius());
 }
 }
 
-void setup() {
+void setup()
+{
 Serial.begin(115200);         // Debugging output
 Serial1.begin(9600);          // XBee communication
 Wire.begin();
@@ -225,19 +219,18 @@ lis3mdl.setOperationMode(LIS3MDL_CONTINUOUSMODE);
 lis3mdl.setDataRate(LIS3MDL_DATARATE_155_HZ);
 lis3mdl.setRange(LIS3MDL_RANGE_4_GAUSS);
 
-// Initialize PWM for servo control
-pwm.begin();
-pwm.setOscillatorFrequency(27000000);  // Set oscillator frequency to 27MHz
-pwm.setPWMFreq(SERVO_FREQ);  // Set PWM frequency for servos
-delay(10);
+cameraServo.attach(SERVO_PIN);
+cameraServo.write(90);
+// Set servo control pin number
+servo.setServoControl(SERVO_PIN);
+servo.setKp(1.0);  // You can adjust the PID controller gain
+}
+
 
 // Initialize ENS220 sensor
-Serial.begin(SERIAL_BAUDRATE);
-Wire.begin();   
 #ifdef DEBUG_ENS220
 ens220.enableDebugging(Serial);
 #endif
-ContinuousModeWithFIFO_setup();
 
 // Initialize variables
 lastRpmTime = millis();
@@ -252,6 +245,8 @@ handleCommand(command);  // Process the command
 }
 
 unsigned long missionTime = millis() / 1000; // Mission time in seconds
+
+float heading = 0;  // Replace with actual heading calculation
 
 // Read battery voltage
 float currentVoltage = analogRead(BATTERY_PIN) * (5.0 / 1023.0) * voltageDividerFactor;
@@ -285,6 +280,41 @@ if (simulationMode) {
 simulatedAltitude = (1 - pow(simulatedPressure / 1013.25, 0.190284)) * 145366.45;  // Approximation formula
 gpsAltitude = simulatedAltitude;
 }
+
+
+// Read magnetometer data (magnetic field in 3 axes)
+sensors_event_t magEvent;
+lis3mdl.getEvent(&magEvent);
+
+// Calculate heading (in degrees) from the magnetometer X, Y values
+float heading = atan2(magEvent.magnetic.y, magEvent.magnetic.x);
+
+// Convert heading from radians to degrees
+heading = heading * 180 / PI;
+
+// Ensure heading is between 0° and 360°
+if (heading < 0) {
+  heading += 360;
+}
+
+// Adjust servo to point the camera north (0°)
+// You might need to calibrate the servo to match your system's design
+float targetAngle = 0 - heading;  // Subtract to point north
+
+// Rotate the servo to the target angle
+cameraServo.write(targetAngle);
+
+// Rotate the servo to the target angle
+servo.rotate(targetAngle, 4);  // Rotate the servo with some tolerance
+
+// Print heading and servo angle for debugging
+Serial.print("Heading: ");
+Serial.print(heading);
+Serial.print("°  Servo angle: ");
+Serial.println(targetAngle);
+
+delay(500);  // Add a small delay for stability
+
 
 // Read Accelerometer, Gyroscope, and Magnetometer Data
 sensors_event_t accelEvent, gyroEvent, magEvent;
@@ -333,4 +363,6 @@ Serial.println("Error writing to SD card!");
 packetCount++;
 }
 
+// Delay for telemetry interval
+delay(100);
 }
