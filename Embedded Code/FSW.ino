@@ -286,6 +286,7 @@ gpsAltitude = simulatedAltitude;
 sensors_event_t magEvent;
 lis3mdl.getEvent(&magEvent);
 
+//--------begin camera stabilization code--------
 // Calculate heading (in degrees) from the magnetometer X, Y values
 float heading = atan2(magEvent.magnetic.y, magEvent.magnetic.x);
 
@@ -306,6 +307,7 @@ cameraServo.write(targetAngle);
 
 // Rotate the servo to the target angle
 servo.rotate(targetAngle, 4);  // Rotate the servo with some tolerance
+//--------end camera stabilization code--------
 
 // Print heading and servo angle for debugging
 Serial.print("Heading: ");
