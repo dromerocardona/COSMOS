@@ -27,7 +27,7 @@
 #define CAMERA_PIN 7 // RunCam
 #define FEEDBACK_PIN 2 // Feedback signal pin for servo control
 
-// Team ID
+// Team ID DONT CHANGE!!!
 #define TEAM_ID "3195" // Team ID for telemetry DONT CHANGE!!!
 
 // Sensor objects
@@ -62,49 +62,48 @@ void rpmISR() {
 float receivedPressure = 0.0;  // Variable to store received pressure value from ground station
 
 void handleCommand(String command) {
-command.trim();  // Remove any leading or trailing spaces
+  command.trim();  // Remove any leading or trailing spaces
 
-if (command == "SIM_ENABLE") {
-  simulationMode = true;
-  Serial.println("Simulation mode enabled.");
-} 
-else if (command == "SIM_ACTIVATE") {
-  if (simulationMode) {
-    Serial.println("Simulation activated. Waiting for pressure input...");
-    // Wait for the ground station to send pressure data via XBee
-    while (!Serial1.available()) {
-      // Keep waiting for data
-      delay(100); 
-    }
+  if (command == "SIM_ENABLE") {
+    simulationMode = true;
+    Serial.println("Simulation mode enabled.");
+  } 
+  else if (command == "SIM_ACTIVATE") {
+    if (simulationMode) {
+      Serial.println("Simulation activated. Waiting for pressure input...");
+
+      while (!Serial1.available()) {// Wait for the ground station to send pressure data via XBee
+        delay(100);// Keep waiting for data
+      }
       String pressureInput = Serial1.readStringUntil('\n');  // Read the pressure string from ground station
       pressureInput.trim();  // Clean any trailing/leading spaces
       receivedPressure = pressureInput.toFloat();  // Convert the string to a float
-    if (receivedPressure > 0.0) {
-      simulatedPressure = receivedPressure;  // Set simulated pressure
-      Serial.println("Simulated pressure updated.");
+      if (receivedPressure > 0.0) {
+        simulatedPressure = receivedPressure;  // Set simulated pressure
+        Serial.println("Simulated pressure updated.");
+      } else {
+        Serial.println("Invalid pressure value received. Using default pressure.");
+      }
     } else {
-      Serial.println("Invalid pressure value received. Using default pressure.");
+      Serial.println("Simulation mode not enabled yet.");
     }
-  } else {
-    Serial.println("Simulation mode not enabled yet.");
   }
-}
-else if (command == "CAMERA_ON") {
-  digitalWrite(CAMERA_PIN, HIGH); // Turn camera ON
-  Serial.println("Camera powered ON.");
-} 
-else if (command == "CAMERA_OFF") {
-  digitalWrite(CAMERA_PIN, LOW);  // Turn camera OFF
-  Serial.println("Camera powered OFF.");
-} 
-else if (command == "CX_ON") {
-  telemetryEnabled = true;  // Start telemetry
-  Serial.println("Telemetry started.");
-}
-else if (command == "CX_OFF") {
-  telemetryEnabled = false; // Stop telemetry
-  Serial.println("Telemetry stopped.");
-}
+  else if (command == "CAMERA_ON") {
+    digitalWrite(CAMERA_PIN, HIGH); // Turn camera ON
+    Serial.println("Camera powered ON.");
+  } 
+  else if (command == "CAMERA_OFF") {
+    digitalWrite(CAMERA_PIN, LOW);  // Turn camera OFF
+    Serial.println("Camera powered OFF.");
+  } 
+  else if (command == "CX_ON") {
+    telemetryEnabled = true;  // Start telemetry
+    Serial.println("Telemetry started.");
+  }
+  else if (command == "CX_OFF") {
+    telemetryEnabled = false; // Stop telemetry
+    Serial.println("Telemetry stopped.");
+  }
 }
 
 // ENS220 Sensor Initialization
@@ -238,14 +237,14 @@ void saveTelemetryData(telemetry) {// Save telemetry to SD card
   }
 }
 
-// Initialize ENS220 sensor
-#ifdef DEBUG_ENS220
-ens220.enableDebugging(Serial);
-#endif
+{// Optional Debugging parameter
+  #ifdef DEBUG_ENS220 // define DEBUG_ENS220 in your project to enable debugging
+  ens220.enableDebugging(Serial);
+  #endif
+}
 
 // Initialize variables
 lastRpmTime = millis();
-}
 
 void loop() {
 
@@ -326,9 +325,6 @@ void loop() {
   Serial.print("°  Servo angle: ");
   Serial.println(targetAngle);
 
-  delay(500);  // Add a small delay for stability
-
-
   // Read Accelerometer, Gyroscope, and Magnetometer Data
   sensors_event_t accelEvent, gyroEvent, magEvent;
   float x, y, z;
@@ -363,5 +359,4 @@ void loop() {
     packetCount++;
   }
 
-  delay(100);// Delay for telemetry interval
 }
