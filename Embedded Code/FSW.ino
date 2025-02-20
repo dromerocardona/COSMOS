@@ -28,7 +28,7 @@
 #define FEEDBACK_PIN 2 // Feedback signal pin for servo control
 
 // Team ID
-#define TEAM_ID "3195"
+#define TEAM_ID "3195" // Team ID for telemetry DONT CHANGE!!!
 
 // Sensor objects
 using namespace ScioSense; // ENS220
@@ -55,7 +55,7 @@ float simulatedAltitude = 0.0;      // Altitude derived from simulated pressure
 
 // Interrupt Service Routine for RPM counting
 void rpmISR() {
-rpmCount++;
+  rpmCount++;
 }
 
 // Variables
@@ -65,167 +65,178 @@ void handleCommand(String command) {
 command.trim();  // Remove any leading or trailing spaces
 
 if (command == "SIM_ENABLE") {
-simulationMode = true;
-Serial.println("Simulation mode enabled.");
+  simulationMode = true;
+  Serial.println("Simulation mode enabled.");
 } 
 else if (command == "SIM_ACTIVATE") {
-if (simulationMode) {
-Serial.println("Simulation activated. Waiting for pressure input...");
-// Wait for the ground station to send pressure data via XBee
-while (!Serial1.available()) {
-// Keep waiting for data
-delay(100); 
+  if (simulationMode) {
+    Serial.println("Simulation activated. Waiting for pressure input...");
+    // Wait for the ground station to send pressure data via XBee
+    while (!Serial1.available()) {
+      // Keep waiting for data
+      delay(100); 
+    }
+      String pressureInput = Serial1.readStringUntil('\n');  // Read the pressure string from ground station
+      pressureInput.trim();  // Clean any trailing/leading spaces
+      receivedPressure = pressureInput.toFloat();  // Convert the string to a float
+    if (receivedPressure > 0.0) {
+      simulatedPressure = receivedPressure;  // Set simulated pressure
+      Serial.println("Simulated pressure updated.");
+    } else {
+      Serial.println("Invalid pressure value received. Using default pressure.");
+    }
+  } else {
+    Serial.println("Simulation mode not enabled yet.");
+  }
 }
-String pressureInput = Serial1.readStringUntil('\n');  // Read the pressure string from ground station
-pressureInput.trim();  // Clean any trailing/leading spaces
-receivedPressure = pressureInput.toFloat();  // Convert the string to a float
-if (receivedPressure > 0.0) {
-simulatedPressure = receivedPressure;  // Set simulated pressure
-Serial.println("Simulated pressure updated.");
-} else {
-Serial.println("Invalid pressure value received. Using default pressure.");
-}
-} else {
-Serial.println("Simulation mode not enabled yet.");
-}
-} 
 else if (command == "CAMERA_ON") {
-digitalWrite(CAMERA_PIN, HIGH); // Turn camera ON
-Serial.println("Camera powered ON.");
+  digitalWrite(CAMERA_PIN, HIGH); // Turn camera ON
+  Serial.println("Camera powered ON.");
 } 
 else if (command == "CAMERA_OFF") {
-digitalWrite(CAMERA_PIN, LOW);  // Turn camera OFF
-Serial.println("Camera powered OFF.");
+  digitalWrite(CAMERA_PIN, LOW);  // Turn camera OFF
+  Serial.println("Camera powered OFF.");
 } 
 else if (command == "CX_ON") {
-telemetryEnabled = true;  // Start telemetry
-Serial.println("Telemetry started.");
+  telemetryEnabled = true;  // Start telemetry
+  Serial.println("Telemetry started.");
 }
 else if (command == "CX_OFF") {
-telemetryEnabled = false; // Stop telemetry
-Serial.println("Telemetry stopped.");
+  telemetryEnabled = false; // Stop telemetry
+  Serial.println("Telemetry stopped.");
 }
 }
 
 // ENS220 Sensor Initialization
-void ContinuousModeWithFIFO_setup()
+void ContinuousModeWithFIFO_setup() {
+  Serial.println("Starting ENS220 example 03_FIFO_I2C_Continuous");
 
+  // Start the communication, confirm the device PART_ID, and read the device UID
+  I2cInterface i2c_1;
+  i2c_1.begin(Wire, I2C_ADDRESS);
 
-{
-Serial.println("Starting ENS220 example 03_FIFO_I2C_Continuous");
+  while (ens220.begin(&i2c_1) != true){
+    Serial.println("Waiting for I2C to start");
+    delay(1000);
+  }
 
-// Start the communication, confirm the device PART_ID, and read the device UID
-I2cInterface i2c_1;
-i2c_1.begin(Wire, I2C_ADDRESS);
+  Serial.print("Device UID: "); Serial.println(ens220.getUID(), HEX);
 
-while (ens220.begin(&i2c_1) != true)
-{
-Serial.println("Waiting for I2C to start");
-delay(1000);
-}
+  // Set up ENS220 configuration
+  ens220.setDefaultConfiguration();
+  ens220.setPressureConversionTime(ENS220::PressureConversionTime::T_16_4);
+  ens220.setOversamplingOfPressure(ENS220::Oversampling::N_16);
+  ens220.setOversamplingOfTemperature(ENS220::Oversampling::N_16);
+  ens220.setPressureTemperatureRatio(ENS220::PressureTemperatureRatio::PT_32);        
+  ens220.setPressureDataPath(ENS220::PressureDataPath::Fifo);
+  ens220.setInterfaceConfiguration(ENS220::InterfaceConfiguration::InterruptEnable);
+  ens220.setInterruptConfiguration(ENS220::InterruptConfiguration::TemperatureDataReady | ENS220::InterruptConfiguration::PressureFifoFull); 
+  ens220.setInterruptPin(INTN_1);
 
-Serial.print("Device UID: "); Serial.println(ens220.getUID(), HEX);
-
-// Set up ENS220 configuration
-ens220.setDefaultConfiguration();
-ens220.setPressureConversionTime(ENS220::PressureConversionTime::T_16_4);
-ens220.setOversamplingOfPressure(ENS220::Oversampling::N_16);
-ens220.setOversamplingOfTemperature(ENS220::Oversampling::N_16);
-ens220.setPressureTemperatureRatio(ENS220::PressureTemperatureRatio::PT_32);        
-ens220.setPressureDataPath(ENS220::PressureDataPath::Fifo);
-ens220.setInterfaceConfiguration(ENS220::InterfaceConfiguration::InterruptEnable);
-ens220.setInterruptConfiguration(ENS220::InterruptConfiguration::TemperatureDataReady | ENS220::InterruptConfiguration::PressureFifoFull); 
-ens220.setInterruptPin(INTN_1);
-
-ens220.writeConfiguration();
-ens220.startContinuousMeasure(ENS220::Sensor::TemperatureAndPressure);
+  ens220.writeConfiguration();
+  ens220.startContinuousMeasure(ENS220::Sensor::TemperatureAndPressure);
 }
 
 
-void ContinuousModeWithFIFO_loop()
-{    
-// Poll the interrupt pin until a new value is available
-ens220.waitInterrupt();
+void ContinuousModeWithFIFO_loop(){    
+  // Poll the interrupt pin until a new value is available
+  ens220.waitInterrupt();
 
-// Check the DATA_STAT from the sensor. If data is available, it reads it
-auto result= ens220.update();
-if(result == ENS220::Result::Ok)
-{      
-if(hasFlag(ens220.getInterruptStatus(), ENS220::InterruptStatus::FifoFull))
-{
-for(int i=0; i<32; i++)
-{
-    // Send the pressure value that was collected during the ens220.update()
-    Serial.print("P[hPa]:");
-    Serial.println(ens220.getPressureHectoPascal(i));
-}
-}
+  // Check the DATA_STAT from the sensor. If data is available, it reads it
+  auto result= ens220.update();
+  if(result == ENS220::Result::Ok) {      
+    if(hasFlag(ens220.getInterruptStatus(), ENS220::InterruptStatus::FifoFull)) {
+      for(int i=0; i<32; i++) {
+          // Send the pressure value that was collected during the ens220.update()
+          Serial.print("P[hPa]:");
+          Serial.println(ens220.getPressureHectoPascal(i));
+      }
+    }
 
-if(hasFlag(ens220.getInterruptStatus(), ENS220::InterruptStatus::Temperature))
-{
-// Send the temperature value that was collected during the ens220.update()
-Serial.print("T[C]:");
-Serial.println(ens220.getTempCelsius());
-}
-}
+    if(hasFlag(ens220.getInterruptStatus(), ENS220::InterruptStatus::Temperature)) {
+    // Send the temperature value that was collected during the ens220.update()
+      Serial.print("T[C]:");
+      Serial.println(ens220.getTempCelsius());
+    }
+  }
 }
 
-void setup()
-{
-Serial.begin(115200);         // Debugging output
-Serial1.begin(9600);          // XBee communication
-Wire.begin();
+void setup() {
+  Serial.begin(115200);         // Debugging output
+  Serial1.begin(9600);          // XBee communication
+  Wire.begin();
 
-// Initialize camera control pin (e.g., for power on/off)
-pinMode(CAMERA_PIN, OUTPUT);  // Set camera control pin to output
-digitalWrite(CAMERA_PIN, LOW);  // Make sure camera is OFF initially
+  // Initialize camera control pin (e.g., for power on/off)
+  pinMode(CAMERA_PIN, OUTPUT);  // Set camera control pin to output
+  digitalWrite(CAMERA_PIN, LOW);  // Make sure camera is OFF initially
 
-// Initialize SD card
-if (!SD.begin(SD_CS_PIN)) {
-Serial.println("SD card initialization failed!");
-while (1);
+  // Initialize SD card
+  if (!SD.begin(SD_CS_PIN)) {
+    Serial.println("SD card initialization failed!");
+    while (1);
+  }
+
+  // Initialize RPM sensor
+  pinMode(RPM_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(RPM_PIN), rpmISR, RISING);
+
+  // Initialize GPS (using Serial1 to communicate with GPS)
+  Serial1.begin(9600);
+
+  // Initialize LSM6DSO32 (Accelerometer and Gyroscope)
+  if (!IMU.begin()) {  // Corrected reference to the lsm6dso32 object
+    Serial.println("Error initializing LSM6DSOX!");
+    while (1);
+  }
+
+  Serial.print("Accelerometer sample rate = ");
+  Serial.print(IMU.accelerationSampleRate());
+  Serial.println(" Hz");
+  Serial.println();
+  Serial.println("Acceleration in g's");
+  Serial.println("X\tY\tZ");
+
+  // Initialize LIS3MDL (Magnetometer)
+  if (! lis3mdl.begin_I2C()) {          // hardware I2C mode,
+    Serial.println("Failed to find LIS3MDL chip");
+    while (1) { delay(10); }
+  }
+  Serial.println("LIS3MDL Found!");
+
+  // Set up LIS3MDL settings
+  lis3mdl.setPerformanceMode(LIS3MDL_MEDIUMMODE);
+  lis3mdl.setOperationMode(LIS3MDL_CONTINUOUSMODE);
+  lis3mdl.setDataRate(LIS3MDL_DATARATE_155_HZ);
+  lis3mdl.setRange(LIS3MDL_RANGE_4_GAUSS);
+
+  cameraServo.attach(SERVO_PIN);
+  cameraServo.write(90);
+  // Set servo control pin number
+  servo.setServoControl(SERVO_PIN);
+  servo.setKp(1.0);  // You can adjust the PID controller gain
 }
 
-// Initialize RPM sensor
-pinMode(RPM_PIN, INPUT_PULLUP);
-attachInterrupt(digitalPinToInterrupt(RPM_PIN), rpmISR, RISING);
+string telemetry() {
+  // Prepare telemetry data
+  String telemetry = String(TEAM_ID) + "," + "Time: " + missionTime + "s," + "," + packetCount + ",FLIGHT,ACTIVE," + gpsAltitude + "," +
+  currentVoltage + "," + accelEvent.acceleration.x + "," + accelEvent.acceleration.y + "," + accelEvent.acceleration.z + "," +
+  gyroEvent.gyro.x + "," + gyroEvent.gyro.y + "," + gyroEvent.gyro.z + "," +
+  magEvent.magnetic.x + "," + magEvent.magnetic.y + "," + magEvent.magnetic.z + "," +
+  latitude + "," + longitude + "," + satellites + "," +
+  "Temperature(C):" + temperature + "," + "Pressure(hPa):" + pressure;
 
-// Initialize GPS (using Serial1 to communicate with GPS)
-Serial1.begin(9600);
-
-// Initialize LSM6DSO32 (Accelerometer and Gyroscope)
-if (!IMU.begin()) {  // Corrected reference to the lsm6dso32 object
-Serial.println("Error initializing LSM6DSOX!");
-while (1);
+  return telemetry; // Return telemetry data as a string
 }
 
-Serial.print("Accelerometer sample rate = ");
-Serial.print(IMU.accelerationSampleRate());
-Serial.println(" Hz");
-Serial.println();
-Serial.println("Acceleration in g's");
-Serial.println("X\tY\tZ");
-
-// Initialize LIS3MDL (Magnetometer)
-if (! lis3mdl.begin_I2C()) {          // hardware I2C mode,
-Serial.println("Failed to find LIS3MDL chip");
-while (1) { delay(10); }
+void saveTelemetryData(telemetry) {// Save telemetry to SD card
+  dataFile = SD.open("telemetry.txt", FILE_WRITE);
+  if (dataFile) {
+    dataFile.println(telemetry);
+    dataFile.close();
+  } else {
+    Serial.println("Error writing to SD card!");
+  }
 }
-Serial.println("LIS3MDL Found!");
-
-// Set up LIS3MDL settings
-lis3mdl.setPerformanceMode(LIS3MDL_MEDIUMMODE);
-lis3mdl.setOperationMode(LIS3MDL_CONTINUOUSMODE);
-lis3mdl.setDataRate(LIS3MDL_DATARATE_155_HZ);
-lis3mdl.setRange(LIS3MDL_RANGE_4_GAUSS);
-
-cameraServo.attach(SERVO_PIN);
-cameraServo.write(90);
-// Set servo control pin number
-servo.setServoControl(SERVO_PIN);
-servo.setKp(1.0);  // You can adjust the PID controller gain
-}
-
 
 // Initialize ENS220 sensor
 #ifdef DEBUG_ENS220
@@ -238,133 +249,119 @@ lastRpmTime = millis();
 
 void loop() {
 
-// Read data from XBee or Serial1
-if (Serial1.available()) {
-String command = Serial1.readStringUntil('\n');  // Read command from XBee
-handleCommand(command);  // Process the command
-}
+  // Read data from XBee or Serial1
+  if (Serial1.available()) {
+    String command = Serial1.readStringUntil('\n');  // Read command from XBee
+    handleCommand(command);  // Process the command
+  }
 
-unsigned long missionTime = millis() / 1000; // Mission time in seconds
+  unsigned long missionTime = millis() / 1000; // Mission time in seconds
 
-float heading = 0;  // Replace with actual heading calculation
+  float heading = 0;  // Replace with actual heading calculation
 
-// Read battery voltage
-float currentVoltage = analogRead(BATTERY_PIN) * (5.0 / 1023.0) * voltageDividerFactor;
+  // Read battery voltage
+  float currentVoltage = analogRead(BATTERY_PIN) * (5.0 / 1023.0) * voltageDividerFactor;
 
-// Calculate RPM
-unsigned long currentTime = millis();
-float rpm = (rpmCount / (float)(currentTime - lastRpmTime)) * 60000.0;
-rpmCount = 0;
-lastRpmTime = currentTime;
+  // Calculate RPM
+  unsigned long currentTime = millis();
+  float rpm = (rpmCount / (float)(currentTime - lastRpmTime)) * 60000.0;
+  rpmCount = 0;
+  lastRpmTime = currentTime;
 
-// Read GPS data
-float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
-unsigned int satellites = 0;
-while (Serial1.available() > 0) {
-gps.encode(Serial1.read());
-}
-if (gps.location.isValid()) {
-latitude = gps.location.lat();
-longitude = gps.location.lng();
-}
-if (gps.altitude.isValid()) {
-gpsAltitude = gps.altitude.meters();
-}
-if (gps.satellites.isValid()) {
-satellites = gps.satellites.value();
-}
+  // Read GPS data
+  float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
+  unsigned int satellites = 0;
+  while (Serial1.available() > 0) {
+    gps.encode(Serial1.read());
+  }
+  if (gps.location.isValid()) {
+    latitude = gps.location.lat();
+    longitude = gps.location.lng();
+  }
+  if (gps.altitude.isValid()) {
+    gpsAltitude = gps.altitude.meters();
+  }
+  if (gps.satellites.isValid()) {
+    satellites = gps.satellites.value();
+  }
 
-// Use simulated pressure if in simulation mode
-if (simulationMode) {
-// Use the simulated pressure value to calculate the altitude
-simulatedAltitude = (1 - pow(simulatedPressure / 1013.25, 0.190284)) * 145366.45;  // Approximation formula
-gpsAltitude = simulatedAltitude;
-}
-
-
-// Read magnetometer data (magnetic field in 3 axes)
-sensors_event_t magEvent;
-lis3mdl.getEvent(&magEvent);
-
-//--------begin camera stabilization code--------
-// Calculate heading (in degrees) from the magnetometer X, Y values
-float heading = atan2(magEvent.magnetic.y, magEvent.magnetic.x);
-
-// Convert heading from radians to degrees
-heading = heading * 180 / PI;
-
-// Ensure heading is between 0° and 360°
-if (heading < 0) {
-  heading += 360;
-}
-
-// Adjust servo to point the camera north (0°)
-// You might need to calibrate the servo to match your system's design
-float targetAngle = 0 - heading;  // Subtract to point north
-
-// Rotate the servo to the target angle
-cameraServo.write(targetAngle);
-
-// Rotate the servo to the target angle
-servo.rotate(targetAngle, 4);  // Rotate the servo with some tolerance
-//--------end camera stabilization code--------
-
-// Print heading and servo angle for debugging
-Serial.print("Heading: ");
-Serial.print(heading);
-Serial.print("°  Servo angle: ");
-Serial.println(targetAngle);
-
-delay(500);  // Add a small delay for stability
+  // Use simulated pressure if in simulation mode
+  if (simulationMode) {
+    // Use the simulated pressure value to calculate the altitude
+    simulatedAltitude = (1 - pow(simulatedPressure / 1013.25, 0.190284)) * 145366.45;  // Approximation formula
+    gpsAltitude = simulatedAltitude;
+  }
 
 
-// Read Accelerometer, Gyroscope, and Magnetometer Data
-sensors_event_t accelEvent, gyroEvent, magEvent;
-float x, y, z;
-if (IMU.accelerationAvailable()) {
-IMU.readAcceleration(x, y, z);
+  // Read magnetometer data (magnetic field in 3 axes)
+  sensors_event_t magEvent;
+  lis3mdl.getEvent(&magEvent);
 
-Serial.print(x);
-Serial.print('\t');
-Serial.print(y);
-Serial.print('\t');
-Serial.println(z);
-}
-lis3mdl.getEvent(&magEvent);  // Magnetometer data
+  //--------begin camera stabilization code--------
+  // Calculate heading (in degrees) from the magnetometer X, Y values
+  float heading = atan2(magEvent.magnetic.y, magEvent.magnetic.x);
 
-ContinuousModeWithFIFO_loop();// ENs 220
+  // Convert heading from radians to degrees
+  heading = heading * 180 / PI;
 
-// Retrieve Temperature and Pressure from ENS220
-float temperature = ens220.getTempCelsius();
-float pressure = ens220.getPressureHectoPascal();
+  // Ensure heading is between 0° and 360°
+  if (heading < 0) {
+    heading += 360;
+  }
 
-// Only send telemetry if telemetryEnabled is true
-if (telemetryEnabled) {
+  // Adjust servo to point the camera north (0°)
+  // You might need to calibrate the servo to match your system's design
+  float targetAngle = 0 - heading;  // Subtract to point north
 
-// Prepare telemetry data
- String telemetry = String(TEAM_ID) + "," + "Time: " + missionTime + "s," + "," + packetCount + ",FLIGHT,ACTIVE," + gpsAltitude + "," +
-          currentVoltage + "," + accelEvent.acceleration.x + "," + accelEvent.acceleration.y + "," + accelEvent.acceleration.z + "," +
-          gyroEvent.gyro.x + "," + gyroEvent.gyro.y + "," + gyroEvent.gyro.z + "," +
-          magEvent.magnetic.x + "," + magEvent.magnetic.y + "," + magEvent.magnetic.z + "," +
-          latitude + "," + longitude + "," + satellites + "," +
-          "Temperature(C):" + temperature + "," + "Pressure(hPa):" + pressure;
+  // Rotate the servo to the target angle
+  cameraServo.write(targetAngle);
 
-// Transmit telemetry via XBee
-Serial1.println(telemetry);
+  // Rotate the servo to the target angle
+  servo.rotate(targetAngle, 4);  // Rotate the servo with some tolerance
+  //--------end camera stabilization code--------
 
-// Save telemetry to SD card
-dataFile = SD.open("telemetry.txt", FILE_WRITE);
-if (dataFile) {
-dataFile.println(telemetry);
-dataFile.close();
-} else {
-Serial.println("Error writing to SD card!");
-}
+  // Print heading and servo angle for debugging
+  Serial.print("Heading: ");
+  Serial.print(heading);
+  Serial.print("°  Servo angle: ");
+  Serial.println(targetAngle);
 
-// Increment packet count
-packetCount++;
-}
+  delay(500);  // Add a small delay for stability
 
-// Delay for telemetry interval
-delay(100);
+
+  // Read Accelerometer, Gyroscope, and Magnetometer Data
+  sensors_event_t accelEvent, gyroEvent, magEvent;
+  float x, y, z;
+  if (IMU.accelerationAvailable()) {
+    IMU.readAcceleration(x, y, z);
+
+    Serial.print(x);
+    Serial.print('\t');
+    Serial.print(y);
+    Serial.print('\t');
+    Serial.println(z);
+  }
+  lis3mdl.getEvent(&magEvent);  // Magnetometer data
+
+  ContinuousModeWithFIFO_loop(); // ENs 220
+
+  // Retrieve Temperature and Pressure from ENS220
+  float temperature = ens220.getTempCelsius();
+  float pressure = ens220.getPressureHectoPascal();
+
+  // Only send telemetry if telemetryEnabled is true
+  if (telemetryEnabled) {
+
+    telemetry = telemetry();
+
+    // Transmit telemetry via XBee
+    Serial1.println(telemetry);
+
+    saveTelemetryData(telemetry);  // Save telemetry data to SD card
+
+    // Increment packet count
+    packetCount++;
+  }
+
+  delay(100);// Delay for telemetry interval
 }
