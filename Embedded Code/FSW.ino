@@ -41,8 +41,8 @@ Servo cameraServo;
 
 // Variables
 float voltageDividerFactor = 5.0; // Adjust based on resistor values in voltage divider
-volatile unsigned long rpmCount = 0;
-unsigned long lastRpmTime = 0;
+volatile unsigned long rpmCount = 0; // RPM counter
+unsigned long lastRpmTime = 0; // last time of an magnet detection
 unsigned int packetCount = 0;
 float cameraposition = 0;
 File dataFile;
@@ -261,12 +261,11 @@ void loop() {
   // Read battery voltage
   float currentVoltage = analogRead(BATTERY_PIN) * (5.0 / 1023.0) * voltageDividerFactor;
 
-  // Calculate RPM
-  unsigned long currentTime = millis();
-  float rpm = (rpmCount / (float)(currentTime - lastRpmTime)) * 60000.0;
-  rpmCount = 0;
-  lastRpmTime = currentTime;
-
+  // Calculate instantaneous RPM
+  float rpm = (rpmCount / (float)(millis() - lastRpmTime)) * 60000.0; // Calculate RPM
+  lastRpmTime = millis();  // Imediately update last RPM time for min error
+  rpmCount = 0; //?
+  
   // Read GPS data
   float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
   unsigned int satellites = 0;
