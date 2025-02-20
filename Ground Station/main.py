@@ -25,6 +25,7 @@ class LoadingScreen(QWidget):
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
         self.setGeometry(100, 100, 1200, 800)
         self.setWindowIcon(QIcon('COSMOS_logo.png'))
+        threading.Thread(target=playsound, args=('gcs_startup.mp3',), daemon=True).start()
 
         layout = QVBoxLayout()
 
@@ -90,10 +91,13 @@ class GroundStation(QMainWindow):
 
         header_layout = QHBoxLayout()
 
+        self.sats = QLabel("N/A")
+        sats_icon = QPixmap('sats_icon.png')
+
         # Left side of the header
         left_header_layout = QHBoxLayout()
         logo_label = QLabel()
-        logo_pixmap = QPixmap('COSMOS_logo.png')  # Update with the correct path to your logo image
+        logo_pixmap = QPixmap('COSMOS_logo.png')
         logo_pixmap = logo_pixmap.scaled(50, 50, Qt.KeepAspectRatio)
         logo_label.setPixmap(logo_pixmap)
         team_label = QLabel("TEAM #3195")
@@ -113,6 +117,30 @@ class GroundStation(QMainWindow):
         header_layout.addStretch()
         header_layout.addWidget(header_text)
         header_layout.addStretch()
+
+        # Right side of the header
+        right_header_layout = QHBoxLayout()
+        right_header_layout.setAlignment(Qt.AlignRight)
+        right_header_layout.setSpacing(10)
+
+        # Enclose sats in a white box
+        sats_box = QGroupBox()
+        sats_box.setStyleSheet("background-color: white;")
+        sats_box_layout = QVBoxLayout()
+        sats_box.setLayout(sats_box_layout)
+
+        self.sats = QLabel("N/A")
+        self.sats.setAlignment(Qt.AlignCenter)
+        sats_icon = QPixmap('sats_icon.png')
+        sats_icon = sats_icon.scaled(25, 25, Qt.KeepAspectRatio)
+        sats_icon_label = QLabel()
+        sats_icon_label.setPixmap(sats_icon)
+
+        sats_box_layout.addWidget(sats_icon_label)
+        sats_box_layout.addWidget(self.sats)
+
+        right_header_layout.addWidget(sats_box)
+        header_layout.addLayout(right_header_layout)
 
         header_widget = QWidget()
         header_widget.setLayout(header_layout)
@@ -168,47 +196,47 @@ class GroundStation(QMainWindow):
         sidebar_layout.addWidget(sidebar_groupbox)
 
         # Add command buttons to sidebar layout
-        self.reset_graphs_button = QPushButton("Reset Graphs")
+        self.reset_graphs_button = QPushButton("Reset\nGraphs")
         self.reset_graphs_button.clicked.connect(self.reset_graphs)
         self.reset_graphs_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
-        self.set_UTC_time_button = QPushButton("Set UTC Time")
+        self.set_UTC_time_button = QPushButton("Set\nUTC Time")
         self.set_UTC_time_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.set_UTC_time_button.clicked.connect(self.set_utc_time)
-        self.set_GPS_time_button = QPushButton("Set GPS Time")
+        self.set_GPS_time_button = QPushButton("Set\nGPS Time")
         self.set_GPS_time_button.clicked.connect(self.set_gps_time)
         self.set_GPS_time_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
-        self.SIM_toggle_button = QPushButton("SIM Enable")
+        self.SIM_toggle_button = QPushButton("SIM\nEnable")
         self.SIM_toggle_button.clicked.connect(self.toggle_sim)
         self.SIM_toggle_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
-        self.SIM_activate_button = QPushButton("SIM Activate")
+        self.SIM_activate_button = QPushButton("SIM\nActivate")
         self.SIM_activate_button.clicked.connect(self.sim_activate)
         self.SIM_activate_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.CAL_button = QPushButton("CAL")
         self.CAL_button.clicked.connect(self.cal)
-        self.CAL_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
-        self.RELEASE_toggle = QPushButton("CANISTER RELEASE ON")
+        self.CAL_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; padding: 10px 0;")
+        self.RELEASE_toggle = QPushButton("CANISTER\nRELEASE ON")
         self.RELEASE_toggle.clicked.connect(self.toggle_release)
         self.RELEASE_toggle.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
-        self.CAM_toggle = QPushButton("CAM ON")
+        self.CAM_toggle = QPushButton("CAM\nON")
         self.CAM_toggle.clicked.connect(self.toggle_cam)
         self.CAM_toggle.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
         self.start_stop_button = QPushButton("CXON")
         self.start_stop_button.clicked.connect(self.toggle_data_transmission)
-        self.start_stop_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
-        self.calCamStabilization = QPushButton("Cal Cam Stable")
+        self.start_stop_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; padding: 10px 0;")
+        self.calCamStabilization = QPushButton("Cal\nCam Stable")
         self.calCamStabilization.clicked.connect(self.cal_camera_stabilization)
         self.calCamStabilization.setStyleSheet("color: black; border: 1px solid black; font-weight: bold;")
 
         buttons_grid.addWidget(self.reset_graphs_button, 0, 0)
         buttons_grid.addWidget(self.set_UTC_time_button, 0, 1)
-        buttons_grid.addWidget(self.set_GPS_time_button, 1, 0)
-        buttons_grid.addWidget(self.SIM_toggle_button, 1, 1)
-        buttons_grid.addWidget(self.SIM_activate_button, 2, 0)
-        buttons_grid.addWidget(self.CAL_button, 2, 1)
-        buttons_grid.addWidget(self.RELEASE_toggle, 3, 0)
+        buttons_grid.addWidget(self.set_GPS_time_button, 0, 2)
+        buttons_grid.addWidget(self.SIM_toggle_button, 1, 0)
+        buttons_grid.addWidget(self.SIM_activate_button, 1, 1)
+        buttons_grid.addWidget(self.CAL_button, 1, 2)
+        buttons_grid.addWidget(self.RELEASE_toggle, 2, 0)
         buttons_grid.addWidget(self.CAM_toggle, 3, 1)
-        buttons_grid.addWidget(self.start_stop_button, 4, 0)
-        buttons_grid.addWidget(self.calCamStabilization, 4, 1)
+        buttons_grid.addWidget(self.start_stop_button, 2, 2)
+        buttons_grid.addWidget(self.calCamStabilization, 2, 1)
 
         # Create a widget for the buttons grid and add it to the sidebar layout
         buttons_widget = QWidget()
@@ -248,6 +276,8 @@ class GroundStation(QMainWindow):
         self.rotationGraph = RotationGraph()
         self.voltageGraph = VoltageGraph()
         self.GPS = GPSMap()
+        self.GPS.location_updated.connect(self.GPS.update_map)
+        self.GPS.update_gui()
         graphs_grid.addWidget(self.altitudeGraph.win, 0, 0)
         graphs_grid.addWidget(self.autoGyroRotationGraph.win, 0, 1)
         graphs_grid.addWidget(self.temperatureGraph.win, 0, 2)
@@ -405,6 +435,8 @@ class GroundStation(QMainWindow):
         longitude = self.comm.get_GPS_LONGITUDE()
         if latitude is not None and longitude is not None:
             self.GPS.location_updated.emit(latitude, longitude)
+            self.GPS.update_map(latitude, longitude)
+            self.GPS.update_gui()
 
     #reset graphs
     def reset_graphs(self):
