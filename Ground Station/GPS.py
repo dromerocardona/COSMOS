@@ -6,6 +6,7 @@ from PyQt5 import QtWidgets, QtCore, QtWebEngineWidgets
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QObject
 import time
+import shutil
 
 class GPSMap(QWidget, QObject):
     location_updated = QtCore.pyqtSignal(float, float)
@@ -62,9 +63,11 @@ class GPSMap(QWidget, QObject):
 
     def create_initial_map(self):
         """Create an initial map with a default location."""
-        # Replace with your desired default location
+        # Replace with desired default location
         initial_latitude = 34.722719
         initial_longitude = -86.638421
+
+        shutil.copyfile("template_map.html", self.map_file)
 
         folium_map = folium.Map(location=[initial_latitude, initial_longitude], zoom_start=10)
         folium_map.save(self.map_file)
