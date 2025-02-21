@@ -10,7 +10,7 @@ class TemperatureGraph:
         self.app = QtWidgets.QApplication(sys.argv)
         self.win = pg.GraphicsLayoutWidget(show=True, title="Temperature")
         self.win.setStyleSheet("border: 1px solid black;")
-        self.plot = self.win.addPlot(title="Temperature")
+        self.plot = self.win.addPlot(title="<b>Temperature</b>")
         self.curve = self.plot.plot(pen='r')
         self.data = []
         self.timestamps = []

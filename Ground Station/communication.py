@@ -128,7 +128,7 @@ class Communication:
     def get_ALTITUDE(self):
         if self.data_list:
             try:
-                return self.data_list[-1][5]
+                return float(self.data_list[-1][5])
             except (IndexError, ValueError):
                 return None
         return None
@@ -136,7 +136,7 @@ class Communication:
     def get_TEMPERATURE(self):
         if self.data_list:
             try:
-                return self.data_list[-1][6]
+                return float(self.data_list[-1][6])
             except (IndexError, ValueError):
                 return None
         return None
@@ -144,7 +144,7 @@ class Communication:
     def get_PRESSURE(self):
         if self.data_list:
             try:
-                return self.data_list[-1][7]
+                return float(self.data_list[-1][7])
             except (IndexError, ValueError):
                 return None
         return None
@@ -152,7 +152,7 @@ class Communication:
     def get_VOLTAGE(self):
         if self.data_list:
             try:
-                return self.data_list[-1][8]
+                return float(self.data_list[-1][8])
             except (IndexError, ValueError):
                 return None
         return None
@@ -160,7 +160,7 @@ class Communication:
     def get_GYRO_R(self):
         if self.data_list:
             try:
-                return self.data_list[-1][9]
+                return float(self.data_list[-1][9])
             except (IndexError, ValueError):
                 return None
         return None
@@ -168,7 +168,7 @@ class Communication:
     def get_GYRO_P(self):
         if self.data_list:
             try:
-                return self.data_list[-1][10]
+                return float(self.data_list[-1][10])
             except (IndexError, ValueError):
                 return None
         return None
@@ -176,7 +176,7 @@ class Communication:
     def get_GYRO_Y(self):
         if self.data_list:
             try:
-                return self.data_list[-1][11]
+                return float(self.data_list[-1][11])
             except (IndexError, ValueError):
                 return None
         return None
@@ -184,7 +184,7 @@ class Communication:
     def get_ACCEL_R(self):
         if self.data_list:
             try:
-                return self.data_list[-1][12]
+                return float(self.data_list[-1][12])
             except (IndexError, ValueError):
                 return None
         return None
@@ -192,7 +192,7 @@ class Communication:
     def get_ACCEL_P(self):
         if self.data_list:
             try:
-                return self.data_list[-1][13]
+                return float(self.data_list[-1][13])
             except (IndexError, ValueError):
                 return None
         return None
@@ -200,7 +200,7 @@ class Communication:
     def get_ACCEL_Y(self):
         if self.data_list:
             try:
-                return self.data_list[-1][14]
+                return float(self.data_list[-1][14])
             except (IndexError, ValueError):
                 return None
         return None
@@ -208,7 +208,7 @@ class Communication:
     def get_MAG_R(self):
         if self.data_list:
             try:
-                return self.data_list[-1][15]
+                return float(self.data_list[-1][15])
             except (IndexError, ValueError):
                 return None
         return None
@@ -216,7 +216,7 @@ class Communication:
     def get_MAG_P(self):
         if self.data_list:
             try:
-                return self.data_list[-1][16]
+                return float(self.data_list[-1][16])
             except (IndexError, ValueError):
                 return None
         return None
@@ -224,7 +224,7 @@ class Communication:
     def get_MAG_Y(self):
         if self.data_list:
             try:
-                return self.data_list[-1][17]
+                return float(self.data_list[-1][17])
             except (IndexError, ValueError):
                 return None
         return None
@@ -232,7 +232,7 @@ class Communication:
     def get_AUTO_GYRO_ROTATION_RATE(self):
         if self.data_list:
             try:
-                return self.data_list[-1][18]
+                return float(self.data_list[-1][18])
             except (IndexError, ValueError):
                 return None
         return None
@@ -255,14 +255,14 @@ class Communication:
     def get_GPS_LATITUDE(self):
         if self.data_list:
             try:
-                return self.data_list[-1][21]
+                return float(self.data_list[-1][21])
             except (IndexError, ValueError):
                 return None
 
     def get_GPS_LONGITUDE(self):
         if self.data_list:
             try:
-                return self.data_list[-1][22]
+                return float(self.data_list[-1][22])
             except (IndexError, ValueError):
                 return None
 

@@ -29,6 +29,7 @@ class GPSMap(QWidget, QObject):
         # Placeholder for telemetry data
         self.latitude = 0.0
         self.longitude = 0.0
+        shutil.copyfile("template_map.html", "live_gps_map.html")
         self.map_file = "live_gps_map.html"
         self.location_updated.connect(self.update_map)
 
@@ -66,8 +67,6 @@ class GPSMap(QWidget, QObject):
         # Replace with desired default location
         initial_latitude = 34.722719
         initial_longitude = -86.638421
-
-        shutil.copyfile("template_map.html", self.map_file)
 
         folium_map = folium.Map(location=[initial_latitude, initial_longitude], zoom_start=10)
         folium_map.save(self.map_file)

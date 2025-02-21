@@ -10,7 +10,7 @@ class AutoGyroRotationGraph:
         self.app = QtWidgets.QApplication(sys.argv)
         self.win = pg.GraphicsLayoutWidget(show=True, title="Autogyro Rotation Rate")
         self.win.setStyleSheet("border: 1px solid black;")
-        self.plot = self.win.addPlot(title="Autogyro Rotation Rate")
+        self.plot = self.win.addPlot(title="<b>Autogyro Rotation Rate</b>")
         self.curve = self.plot.plot(pen='b')
         self.data = []
         self.timestamps = []
@@ -18,7 +18,7 @@ class AutoGyroRotationGraph:
 
         self.plot.setLabel('left', 'Autogyro Rotation Rate (RPM)',color='black')
         self.plot.setLabel('bottom', 'Time', 's', color='black')
-        self.plot.setRange(yRange=[0, 500])
+        self.plot.setRange(yRange=[0, 200])
 
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_gui)
@@ -32,7 +32,7 @@ class AutoGyroRotationGraph:
         self.start_tracking()
         elapsed_time = timestamp - self.start_time
 
-        self.data.append(autogyrorate)
+        self.data.append(autogyrorate/6)
         self.timestamps.append(elapsed_time)
         #self.data = self.data[-20:]
         #self.timestamps = self.timestamps[-20:]
