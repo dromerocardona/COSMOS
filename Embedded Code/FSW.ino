@@ -335,9 +335,9 @@ void loop() {
 
   *///END OF PID CONTROL
 
-    Serial.print("Heading: ");
-    Serial.print(heading);
-    Serial.print("°  Servo angle: ");
+    // Serial.print("Heading: ");
+    // Serial.print(heading);
+    // Serial.print("°  Servo angle: ");
     // Serial.println(targetAngle);
 
     delay(500); // Stability delay
