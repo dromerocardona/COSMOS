@@ -10,7 +10,7 @@ class RotationGraph:
         self.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv)
         self.win = pg.GraphicsLayoutWidget(show=True, title="Rotation")
         self.win.setStyleSheet("border: 1px solid black;")
-        self.plot = self.win.addPlot(title="Rotation")
+        self.plot = self.win.addPlot(title="<b>Rotation</b>")
 
         self.plot.addLegend()
 
