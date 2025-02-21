@@ -215,6 +215,24 @@ void setup() {
   servo.setKp(1.0);  // You can adjust the PID controller gain
 }
 
+/*
+This is what the telemetry should ultimately look like:
+--------------------------------------------------------------------------------------------------------------------------------------
+String telemetry = String(TEAM_ID) + "," + STRING(missionTime) + "," STRING(packetCount) + "," + STRING(mode) + "," + STRING(state) +
+"," + STRING(altitude) + "," + STRING(temperature) + "," STRING(pressure) + "," + STRING(currentVoltage) + "," +
+STRING(gyroEvent.gyro.x) + "," + STRING(gyroEvent.gyro.y) + "," + STRING(gyroEvent.gyro.z) + "," + STRING(accelEvent.acceleration.x) +
+"," + STRING(accelEvent.acceleration.y) + "," + STRING(accelEvent.acceleration.z) + "," + STRING(magEvent.magnetic.x) + "," +
+STRING(magEvent.magnetic.y) + "," + STRING(magEvent.magnetic.z) + "," + STRING(autogyroRotationRate) + "," + STRING(gpsTime) +
+"," + STRING(latitude) + "," + STRING(longitude) + "," + STRING(satellites) + "," + STRING(lastCommand) + String("COSMOS");
+--------------------------------------------------------------------------------------------------------------------------------------
+Notes:
+all telemetry must be sent as a string
+please look at the mission guide for examples of mode and state, follow them exactly
+altitude must be calculated using pressure sensor (why it is calibrated)
+also get gpsTime, the ground station will either set the time to the time on the gps or the computer time
+for the lastCommand variable, return only a simplified version (e.g. CXON, CAM_ON, etc.)
+*/
+
 string telemetry() {
   // Prepare telemetry data
   String telemetry = String(TEAM_ID) + "," + "Time: " + missionTime + "s," + "," + packetCount + ",FLIGHT,ACTIVE," + gpsAltitude + "," +
