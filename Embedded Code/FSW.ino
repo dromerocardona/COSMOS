@@ -77,9 +77,15 @@ const float K_proportional = 1.0; // Proportional gain
 const float K_integral = 0.1; // Integral gain
 const float K_derivative = 0.01; // Derivative gain
 /*EXPLANATION FOR TUNING REFRENCE:
-P accounts for large error in the system
-I helps with drift and lag in the system
-D accounts for rapid changed to stabilize the system and improve response
+"P" accounts for large error in the system an determines how fast errors are corrected (values above 2 are usually too high)
+"I" helps with drift and lag in the system (the value for this is generaly small like 0.1 or 0.05)
+"D" accounts for rapid changed to stabilize the system and improve response by dampening occilations (values are determined by system response time)
+
+General guide for PID tuning:
+-Tune in order of "P", "D", "I"
+  -Start with "P", increase until the system STARTS to oscillate (unconverging) (I would guess between 1.2 and 1.8)
+  -Increase "D" until the system is stable (does not overshoot)
+  -Finally, increase "I" until the system is stable and acurate 
 */
 
 // Variables used for PID
