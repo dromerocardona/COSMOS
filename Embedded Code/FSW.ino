@@ -41,12 +41,16 @@ Servo cameraServo;
 
 // Variables
 float voltageDividerFactor = 5.0; // Adjust based on resistor values in voltage divider
-volatile unsigned long rpmCount = 0; // RPM counter
-unsigned long lastRpmTime = 0; // last time of an magnet detection
 unsigned int packetCount = 0;
-float cameraposition = 0;
 File dataFile;
 bool telemetryEnabled = false;  // Telemetry Control
+// Camera stabilization variables
+float cameraposition = 0;
+unsigned long lastRpmTime = 0; // last time of an magnet detection
+volatile unsigned long rpmCount = 0; // RPM counter
+float currentInterruptTime = 0; // Current time of an interrupt
+float timeDifference = 0; // Time difference between two consecutive interrupts
+float lastInterruptTime
 
 // Simulation mode variables
 bool simulationMode = false;
@@ -55,7 +59,13 @@ float simulatedAltitude = 0.0;      // Altitude derived from simulated pressure
 
 // Interrupt Service Routine for RPM counting
 void rpmISR() {
-  rpmCount++;
+  currentInterruptTime = millis();// Get the current time
+  timeDifference = currentInterruptTime - lastInterruptTime;  // Calculate the time difference between interrupts
+  lastInterruptTime = currentInterruptTime;
+  
+  // |  We could potentialy calculate the instantaneous RPM in break instead of in loop
+  // V
+  // instantaneousRPM = 60000.0 / timeDifference;
 }
 
 // Variables
@@ -262,9 +272,9 @@ void loop() {
   float currentVoltage = analogRead(BATTERY_PIN) * (5.0 / 1023.0) * voltageDividerFactor;
 
   // Calculate instantaneous RPM
-  float rpm = (rpmCount / (float)(millis() - lastRpmTime)) * 60000.0; // Calculate RPM
+  float rpm = (60000 / timeDifference); // Calculate RPM
   lastRpmTime = millis();  // Imediately update last RPM time for min error
-  rpmCount = 0; //?
+  rpmCount = 0; 
   
   // Read GPS data
   float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
