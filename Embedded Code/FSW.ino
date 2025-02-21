@@ -53,6 +53,24 @@ bool simulationMode = false;
 float simulatedPressure = 1013.25;  // Default sea level pressure in hPa
 float simulatedAltitude = 0.0;      // Altitude derived from simulated pressure
 
+// PID tuning parameters
+const float K_proportional = 1.0; // Proportional gain
+const float K_integral = 0.1; // Integral gain
+const float K_derivative = 0.01; // Derivative gain
+/*EXPLANATION FOR TUNING REFRENCE:
+P accounts for large error in the system
+I helps with drift and lag in the system
+D accounts for rapid changed to stabilize the system and improve response
+*/
+
+// Variables used for PID
+float setpoint = 1000.0; // Desired setpoint placeholder
+float input = 0.0; // Current system input
+float output = 0.0; // PID output
+float error = 0.0; // Current error
+float lastError = 0.0; // Previous error
+float integral = 0.0; // tracks cumulative error
+
 // Interrupt Service Routine for RPM counting
 void rpmISR() {
   currentInterruptTime = millis();// Get the current time
@@ -285,17 +303,37 @@ void loop() {
     heading = heading * 180 / PI; // Convert to degrees
     if (heading < 0) heading += 360; // Ensure 0-360 range
 
-    // Adjust camera servo to point north
-    // float targetAngle = 0 - heading;
-    // Read feedback angle from servo
-    // Serial.print("Now angle: ");
-    // Serial.println(servo.Angle());
+  /* THIS IS THE PID CONTROL
 
-    // Rotate servo
-    // servo.rotate(270, 4);
-    // delay(1000);
-    // servo.rotate(-180, 4);
-    // delay(1000);
+  // get input from the system
+  input = heading;
+
+  // Calculate the error
+  error = setpoint - input; // Calculate the error based on difference between setpoint and input
+    //this method of error calculation may need to be changed based on the system
+
+  // Calculate the integral term
+  integral += error;
+
+  // Calculate the derivative term
+  float derivative = error - lastError;
+
+  // Calculate the PID output
+  output = K_proportional * error + K_integral * integral + K_derivative * derivative;
+
+  // Update the system based on the PID output
+  updateSystem(output);
+
+  // Store the current error as the last error to prepare for the next iteration
+  lastError = error;
+
+  // Print the current values for debugging
+  //Serial.print("Input: ");
+  //Serial.print(input);
+  //Serial.print(", Output: ");
+  //Serial.println(output);
+
+  *///END OF PID CONTROL
 
     Serial.print("Heading: ");
     Serial.print(heading);
