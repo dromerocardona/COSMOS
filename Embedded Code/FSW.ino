@@ -65,7 +65,7 @@ unsigned long lastRpmTime = 0; // last time of an magnet detection
 volatile unsigned long rpmCount = 0; // RPM counter
 float currentInterruptTime = 0; // Current time of an interrupt
 float timeDifference = 0; // Time difference between two consecutive interrupts
-float lastInterruptTime
+float lastInterruptTime = 0;
 
 // Simulation mode variables
 bool simulationMode = false;
