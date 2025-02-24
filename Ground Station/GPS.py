@@ -5,7 +5,6 @@ import os
 from PyQt5 import QtWidgets, QtCore, QtWebEngineWidgets
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QObject
-import time
 import shutil
 
 class GPSMap(QWidget, QObject):

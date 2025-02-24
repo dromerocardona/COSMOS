@@ -1,4 +1,3 @@
-import threading
 import serial
 import csv
 import time

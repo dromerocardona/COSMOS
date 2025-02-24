@@ -1,7 +1,7 @@
 import sys
 import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QPushButton, \
-    QSpacerItem, QSizePolicy, QGridLayout, QProgressBar, QGroupBox
+    QSpacerItem, QGridLayout, QProgressBar, QGroupBox, QComboBox
 from PyQt5.QtCore import Qt, pyqtSignal, QObject, QTimer
 from PyQt5.QtGui import QFont, QPixmap, QIcon
 from communication import Communication
@@ -14,6 +14,7 @@ from GPS import GPSMap
 import time
 from playsound3 import playsound
 import datetime
+import serial
 
 # Loading screen
 class LoadingScreen(QWidget):
@@ -122,6 +123,18 @@ class GroundStation(QMainWindow):
         right_header_layout = QHBoxLayout()
         right_header_layout.setAlignment(Qt.AlignRight)
         right_header_layout.setSpacing(10)
+
+        # Add serial port selection dropdown
+        self.serial_port_dropdown = QComboBox()
+        self.serial_port_dropdown.addItems(self.get_available_serial_ports())
+        self.serial_port_dropdown.currentIndexChanged.connect(self.change_serial_port)
+        right_header_layout.addWidget(self.serial_port_dropdown)
+
+        # Enclose sats in a white box
+        sats_box = QGroupBox()
+        sats_box.setStyleSheet("background-color: white;")
+        sats_box_layout = QVBoxLayout()
+        sats_box.setLayout(sats_box_layout)
 
         # Enclose sats in a white box
         sats_box = QGroupBox()
@@ -320,7 +333,7 @@ class GroundStation(QMainWindow):
         main_layout.addWidget(footer_widget)
 
         # Communication setup
-        self.comm = Communication(serial_port='COM5')  # Update serial port
+        self.comm = Communication(serial_port=self.serial_port_dropdown.currentText())  # Initialize with selected serial port
         self.reader_thread = None
         self.reading_data = False
 
@@ -469,6 +482,23 @@ class GroundStation(QMainWindow):
         self.temperatureGraph.reset_graph()
         self.rotationGraph.reset_graph()
         self.voltageGraph.reset_graph()
+
+    def get_available_serial_ports(self):
+        ports = [f"COM{i}" for i in range(1, 20)]
+        available_ports = []
+        for port in ports:
+            try:
+                s = serial.Serial(port)
+                s.close()
+                available_ports.append(port)
+            except (OSError, serial.SerialException):
+                pass
+        return available_ports
+
+    def change_serial_port(self):
+        selected_port = self.serial_port_dropdown.currentText()
+        self.comm.serial_port = selected_port
+        print(f"Serial port changed to {selected_port}")
 
     #close window/program
     def closeEvent(self, event):
