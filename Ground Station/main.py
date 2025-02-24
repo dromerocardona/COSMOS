@@ -16,6 +16,18 @@ from playsound3 import playsound
 import datetime
 import serial
 
+def get_available_serial_ports():
+    ports = [f"COM{i}" for i in range(1, 20)]
+    available_ports = []
+    for port in ports:
+        try:
+            s = serial.Serial(port)
+            s.close()
+            available_ports.append(port)
+        except (OSError, serial.SerialException):
+            pass
+    return available_ports
+
 # Loading screen
 class LoadingScreen(QWidget):
     def __init__(self):
@@ -78,7 +90,8 @@ class GroundStation(QMainWindow):
         super().__init__()
         # Set title, size, icon
         self.release = None
-        self.cam = None
+        self.blade_cam = None
+        self.ground_cam = None
         self.sim = None
         self.setWindowTitle("COSMOS GS")
         self.setGeometry(100, 100, 1200, 800)
@@ -126,7 +139,7 @@ class GroundStation(QMainWindow):
 
         # Add serial port selection dropdown
         self.serial_port_dropdown = QComboBox()
-        self.serial_port_dropdown.addItems(self.get_available_serial_ports())
+        self.serial_port_dropdown.addItems(get_available_serial_ports())
         self.serial_port_dropdown.currentIndexChanged.connect(self.change_serial_port)
         right_header_layout.addWidget(self.serial_port_dropdown)
 
@@ -251,10 +264,14 @@ class GroundStation(QMainWindow):
         self.RELEASE_toggle.clicked.connect(self.toggle_release)
         self.RELEASE_toggle.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
         self.RELEASE_toggle.setFixedHeight(button_height)
-        self.CAM_toggle = QPushButton("CAM\nON")
-        self.CAM_toggle.clicked.connect(self.toggle_cam)
-        self.CAM_toggle.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
-        self.CAM_toggle.setFixedHeight(button_height)
+        self.BLADE_CAM_toggle = QPushButton("BLADE CAM\nON")
+        self.BLADE_CAM_toggle.clicked.connect(self.toggle_blade_cam)
+        self.BLADE_CAM_toggle.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
+        self.BLADE_CAM_toggle.setFixedHeight(button_height)
+        self.GROUND_CAM_toggle = QPushButton("GROUND CAM\nON")
+        self.GROUND_CAM_toggle.clicked.connect(self.toggle_ground_cam)
+        self.GROUND_CAM_toggle.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
+        self.GROUND_CAM_toggle.setFixedHeight(button_height)
         self.start_stop_button = QPushButton("CXON")
         self.start_stop_button.clicked.connect(self.toggle_data_transmission)
         self.start_stop_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; padding: 10px 0; border-radius: 5px; background-color: #a7cbf5;")
@@ -271,7 +288,8 @@ class GroundStation(QMainWindow):
         buttons_grid.addWidget(self.SIM_activate_button, 1, 1)
         buttons_grid.addWidget(self.CAL_button, 1, 2)
         buttons_grid.addWidget(self.RELEASE_toggle, 2, 0)
-        buttons_grid.addWidget(self.CAM_toggle, 3, 1)
+        buttons_grid.addWidget(self.BLADE_CAM_toggle, 3, 1)
+        buttons_grid.addWidget(self.GROUND_CAM_toggle, 3, 2)
         buttons_grid.addWidget(self.start_stop_button, 2, 2)
         buttons_grid.addWidget(self.calCamStabilization, 2, 1)
 
@@ -385,14 +403,15 @@ class GroundStation(QMainWindow):
             self.sim = True
     def sim_enable(self):
         self.comm.simEnabled = True
-        self.SIM_toggle_button.setText("SIM Disable")
+        self.SIM_toggle_button.setText("SIM\nDisable")
         self.comm.send_command("CMD,3195,SIM,ENABLE")
     def sim_activate(self):
-        self.comm.send_command("CMD,3195,SIM,ACTIVATE")
-        self.comm.simulation_mode()
+        if self.comm.simEnabled:
+            self.comm.send_command("CMD,3195,SIM,ACTIVATE")
+            self.comm.simulation_mode()
     def sim_disable(self):
         self.comm.simulation = False
-        self.SIM_toggle_button.setText("SIM Enable")
+        self.SIM_toggle_button.setText("SIM\nEnable")
         self.comm.send_command("CMD,3195,SIM,DISABLE")
     def cal(self):
         self.comm.send_command("CMD,3195,CAL")
@@ -404,24 +423,37 @@ class GroundStation(QMainWindow):
             self.release_on()
             self.release = True
     def release_on(self):
-        self.RELEASE_toggle.setText("RELEASE OFF")
+        self.RELEASE_toggle.setText("CANISTER\nRELEASE OFF")
         self.comm.send_command("CMD,3195,MEC,RELEASE,ON")
     def release_off(self):
-        self.RELEASE_toggle.setText("RELEASE ON")
+        self.RELEASE_toggle.setText("CANISTER\nRELEASE ON")
         self.comm.send_command("CMD,3195,MEC,RELEASE,OFF")
-    def toggle_cam(self):
-        if self.cam:
-            self.cam_off()
-            self.cam = False
-        elif not self.cam:
-            self.cam_on()
-            self.cam = True
-    def cam_on(self):
-        self.CAM_toggle.setText("CAM OFF")
-        self.comm.send_command("CMD,3195,MEC,CAM,ON")
-    def cam_off(self):
-        self.CAM_toggle.setText("CAM ON")
-        self.comm.send_command("CMD,3195,MEC,CAM,OFF")
+    def toggle_blade_cam(self):
+        if self.blade_cam:
+            self.blade_cam_off()
+            self.blade_cam = False
+        elif not self.blade_cam:
+            self.blade_cam_on()
+            self.blade_cam = True
+    def blade_cam_on(self):
+        self.BLADE_CAM_toggle.setText("BLADE CAM\nOFF")
+        self.comm.send_command("CMD,3195,MEC,CAM,BLADE,ON")
+    def blade_cam_off(self):
+        self.BLADE_CAM_toggle.setText("BLADE CAM\nON")
+        self.comm.send_command("CMD,3195,MEC,CAM,BLADE,OFF")
+    def toggle_ground_cam(self):
+        if self.ground_cam:
+            self.ground_cam_off()
+            self.ground_cam = False
+        elif not self.ground_cam:
+            self.ground_cam_on()
+            self.ground_cam = True
+    def ground_cam_on(self):
+        self.GROUND_CAM_toggle.setText("GROUND CAM\nOFF")
+        self.comm.send_command("CMD,3195,MEC,CAM,GROUND,ON")
+    def ground_cam_off(self):
+        self.GROUND_CAM_toggle.setText("GROUND CAM\nON")
+        self.comm.send_command("CMD,3195,MEC,CAM,GROUND,OFF")
     def cal_camera_stabilization(self):
         self.comm.send_command("CMD,3195,MEC,CAM_STABLE")
 
@@ -482,18 +514,6 @@ class GroundStation(QMainWindow):
         self.temperatureGraph.reset_graph()
         self.rotationGraph.reset_graph()
         self.voltageGraph.reset_graph()
-
-    def get_available_serial_ports(self):
-        ports = [f"COM{i}" for i in range(1, 20)]
-        available_ports = []
-        for port in ports:
-            try:
-                s = serial.Serial(port)
-                s.close()
-                available_ports.append(port)
-            except (OSError, serial.SerialException):
-                pass
-        return available_ports
 
     def change_serial_port(self):
         selected_port = self.serial_port_dropdown.currentText()
