@@ -1,11 +1,12 @@
 import serial
 import csv
 import time
+import threading
 
 class Communication:
 
     def __init__(self, serial_port, baud_rate=9600, timeout = 4, csv_filename = 'Flight_3195.csv'):
-        #Initialize communication parameters
+        # Initialize communication parameters
         self.serial_port = serial_port
         self.baud_rate = baud_rate
         self.timeout = timeout
@@ -14,9 +15,12 @@ class Communication:
         self.csv_filename = csv_filename
         self.receivedPacketCount = 0
         self.lastPacket = ""
-        #simulation parameters
-        self.simEnabled = False
+        self.command_queue = []
+        self.command_lock = threading.Lock()
+        self.read_thread = None
+        self.send_thread = None
         self.simulation = False
+        self.simEnabled = False
 
         #Create a CSV file to store telemetry data
         with open(self.csv_filename, mode='a', newline='') as file:
@@ -28,16 +32,21 @@ class Communication:
                                  'MAG_P', 'MAG_Y', 'AUTO_GYRO_ROTATION RATE', 'GPS_TIME', 'GPS_ALTITUDE',
                                  'GPS_LATITUDE', 'GPS_LONGITUDE', 'GPS_SATS', 'CMD_ECHO', 'TEAM_NAME'])
 
-    #Read data from serial port
-    def read(self, signal_emitter):
+    def start_communication(self, signal_emitter):
         self.reading = True
+        self.read_thread = threading.Thread(target=self.read, args=(signal_emitter,))
+        self.send_thread = threading.Thread(target=self.send_commands)
+        self.read_thread.start()
+        self.send_thread.start()
+
+    def read(self, signal_emitter):
         with serial.Serial(self.serial_port, self.baud_rate, timeout=self.timeout) as ser:
             print(f"Serial port {self.serial_port} opened successfully.")
             with open(self.csv_filename, mode='a', newline='') as file:
                 writer = csv.writer(file)
                 while self.reading:
                     try:
-                        #Reads line until 'COSMOS' is found
+                        # Reads line until 'COSMOS' is found
                         line = ser.read_until(b'COSMOS').decode('utf-8').strip()
                         self.lastPacket = line
                         if line:
@@ -48,15 +57,31 @@ class Communication:
                     except Exception as e:
                         print(f"Error: {e}")
 
-    #Send command to serial port
+    def send_commands(self):
+        while self.reading:
+            with self.command_lock:
+                if self.command_queue:
+                    command = self.command_queue.pop(0)
+                    try:
+                        with serial.Serial(self.serial_port, self.baud_rate, timeout=self.timeout) as ser:
+                            command_to_send = f"{command}\n"
+                            ser.write(command_to_send.encode('utf-8'))
+                            print(f"Command sent: {command}")
+                    except serial.SerialException as e:
+                        print(f"Failed to send command: {e}")
+            time.sleep(0.1)  # Adjust the sleep time as needed
+
     def send_command(self, command):
-        try:
-            with serial.Serial(self.serial_port, self.baud_rate, timeout=self.timeout) as ser:
-                command_to_send = f"{command}\n"
-                ser.write(command_to_send.encode('utf-8'))
-                print(f"Command sent: {command}")
-        except serial.SerialException as e:
-            print(f"Failed to send command: {e}")
+        with self.command_lock:
+            self.command_queue.append(command)
+
+    def stop_communication(self):
+        self.reading = False
+        if self.read_thread:
+            self.read_thread.join()
+        if self.send_thread:
+            self.send_thread.join()
+        print("Communication stopped.")
 
     #Simulation mode, reads data from a CSV file and sends it to the serial port
     def simulation_mode(self):

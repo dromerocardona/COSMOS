@@ -375,18 +375,14 @@ class GroundStation(QMainWindow):
         self.reading_data = True
         self.start_stop_button.setText("CXOFF")
         self.comm.send_command("CMD,3195,CX,ON")
-        self.reader_thread = threading.Thread(target=self.comm.read, args=(self.signal_emitter,))
-        self.reader_thread.start()
+        self.comm.start_communication(self.signal_emitter)
 
     #stop data transmission
     def stop_data_transmission(self):
         self.reading_data = False
         self.start_stop_button.setText("CXON")
         self.comm.send_command("CMD,3195,CX,OFF")
-        if self.reader_thread and self.reader_thread.is_alive():
-            self.comm.stop_reading()
-            self.reader_thread.join()
-            self.reader_thread = None
+        self.comm.stop_communication()
 
     #send/execute commands
     def set_utc_time(self):
@@ -480,7 +476,7 @@ class GroundStation(QMainWindow):
 
     #update graphs
     def update_graphs(self):
-        current_time = time()
+        current_time = time.time()
 
         altitude = self.comm.get_ALTITUDE()
         if altitude is not None:
