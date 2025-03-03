@@ -84,9 +84,9 @@ class Communication:
         print("Communication stopped.")
 
     #Simulation mode, reads data from a CSV file and sends it to the serial port
-    def simulation_mode(self):
+    def simulation_mode(self, csv_filename):
         self.simulation = True
-        with open('simulated_pressure.csv', mode='r') as file:
+        with open(csv_filename, mode='r') as file:
             csv_reader = csv.reader(file)
             for line in csv_reader:
                 if not self.simulation:

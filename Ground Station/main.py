@@ -1,7 +1,7 @@
 import sys
 import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QPushButton, \
-    QSpacerItem, QGridLayout, QProgressBar, QGroupBox, QComboBox
+    QSpacerItem, QGridLayout, QProgressBar, QGroupBox, QComboBox, QFileDialog
 from PyQt5.QtCore import Qt, pyqtSignal, QObject, QTimer
 from PyQt5.QtGui import QFont, QPixmap, QIcon
 from communication import Communication
@@ -214,6 +214,9 @@ class GroundStation(QMainWindow):
         self.liveGPSAltitude = QLabel("GPS Altitude: N/A")
         self.liveGPSAltitude.setFont(QFont("Arial", 11, QFont.Bold))
         self.liveGPSAltitude.setStyleSheet("color: black; font-weight: bold;")
+        self.gyroRotation = QLabel("Gyro Rotation: N/A")
+        self.gyroRotation.setFont(QFont("Arial", 11, QFont.Bold))
+        self.gyroRotation.setStyleSheet("color: black; font-weight: bold;")
         self.liveCMDEcho = QLabel("CMD Echo: N/A")
         self.liveCMDEcho.setFont(QFont("Arial", 11, QFont.Bold))
         self.liveCMDEcho.setStyleSheet("color: black; font-weight: bold;")
@@ -224,6 +227,7 @@ class GroundStation(QMainWindow):
         sidebar_groupbox_layout.addWidget(self.livePacketCount)
         sidebar_groupbox_layout.addWidget(self.liveReceivedPackets)
         sidebar_groupbox_layout.addWidget(self.liveGPSAltitude)
+        sidebar_groupbox_layout.addWidget(self.gyroRotation)
         sidebar_groupbox_layout.addWidget(self.liveCMDEcho)
 
         # Add the QGroupBox to the sidebar layout
@@ -314,6 +318,10 @@ class GroundStation(QMainWindow):
         self.accelerationRPY.setStyleSheet("color: black; font-weight: bold;")
         self.magnetometerRPY = QLabel("Magnetometer R,P,Y: N/A")
         self.magnetometerRPY.setStyleSheet("color: black; font-weight: bold;")
+        self.GPS_LATITUDE = QLabel("GPS Latitude: N/A")
+        self.GPS_LATITUDE.setStyleSheet("color: black; font-weight: bold;")
+        self.GPS_LONGITUDE = QLabel("GPS Longitude: N/A")
+        self.GPS_LONGITUDE.setStyleSheet("color: black; font-weight: bold;")
         self.telemetry = QLabel("Telemetry: N/A")
         self.telemetry.setStyleSheet("color: black; font-weight: bold;")
         footer_layout.addWidget(self.telemetry)
@@ -340,7 +348,9 @@ class GroundStation(QMainWindow):
         graphs_grid.addWidget(self.voltageGraph.win, 1, 1)
         graphs_grid.addWidget(self.GPS.win, 1, 2)
         graphs_grid.addWidget(self.accelerationRPY, 3, 0)
+        graphs_grid.addWidget(self.GPS_LATITUDE, 3, 2, alignment=Qt.AlignRight)
         graphs_grid.addWidget(self.magnetometerRPY, 4, 0)
+        graphs_grid.addWidget(self.GPS_LONGITUDE, 4, 2, alignment=Qt.AlignRight)
 
         graphs_layout.addLayout(graphs_grid)
 
@@ -404,7 +414,9 @@ class GroundStation(QMainWindow):
     def sim_activate(self):
         if self.comm.simEnabled:
             self.comm.send_command("CMD,3195,SIM,ACTIVATE")
-            self.comm.simulation_mode()
+            csv_filename, _ = QFileDialog.getOpenFileName(self, "Select CSV file", "", "CSV Files (*.csv)")
+            if csv_filename:
+                self.comm.simulation_mode(csv_filename)
     def sim_disable(self):
         self.comm.simulation = False
         self.SIM_toggle_button.setText("SIM\nEnable")
@@ -461,10 +473,15 @@ class GroundStation(QMainWindow):
         self.liveGPSTime.setText(f"GPS Time: {self.comm.get_GPS_TIME() or 'N/A'}")
         self.livePacketCount.setText(f"Packet Count: {self.comm.get_PACKET_COUNT() or 'N/A'}")
         self.liveReceivedPackets.setText(f"Received Packets: {self.comm.receivedPacketCount or 'N/A'}")
-        self.liveGPSAltitude.setText(f"GPS Altitude: {self.comm.get_GPS_ALTITUDE() or 'N/A'}")
+        self.liveGPSAltitude.setText(f"GPS Altitude: {self.comm.get_GPS_ALTITUDE() or 'N/A'} m")
+        self.gyroRotation.setStyleSheet(f"Gyro Rate: {self.comm.get_AUTO_GYRO_ROTATION_RATE() or 'N/A'} °/s")
         self.liveCMDEcho.setText(f"CMD Echo: {self.comm.get_CMD_ECHO() or 'N/A'}")
+
         self.accelerationRPY.setText(f"Acceleration R,P,Y: {f"{self.comm.get_ACCEL_R()}, {self.comm.get_ACCEL_P()}, {self.comm.get_ACCEL_Y()}" or 'N/A'}")
         self.magnetometerRPY.setText(f"Magnetometer R,P,Y: {f"{self.comm.get_MAG_R()}, {self.comm.get_MAG_P()}, {self.comm.get_MAG_Y()}" or 'N/A'}")
+        self.GPS_LATITUDE.setText(f"GPS Latitude: {self.comm.get_GPS_LATITUDE() or 'N/A'}")
+        self.GPS_LONGITUDE.setText(f"GPS Longitude: {self.comm.get_GPS_LONGITUDE() or 'N/A'}")
+
         self.telemetry.setText(f"Telemetry: {self.comm.lastPacket or 'N/A'}")
 
         #update GPS data

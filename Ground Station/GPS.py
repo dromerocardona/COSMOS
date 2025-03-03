@@ -47,7 +47,8 @@ class GPSMap(QWidget, QObject):
         self.longitude = longitude
 
         folium_map = folium.Map(location=[latitude, longitude], zoom_start=15)
-        folium.Marker([latitude, longitude], tooltip="Current Position").add_to(folium_map)
+        icon = folium.CustomIcon('COSMOS_logo.png', icon_size=(30, 30))
+        folium.Marker([latitude, longitude], tooltip="Current Position", icon=icon).add_to(folium_map)
 
         # Save map to file
         folium_map.save(self.map_file)
@@ -64,8 +65,8 @@ class GPSMap(QWidget, QObject):
     def create_initial_map(self):
         """Create an initial map with a default location."""
         # Replace with desired default location
-        initial_latitude = 34.722719
-        initial_longitude = -86.638421
+        initial_latitude = 31.11922492905565
+        initial_longitude = -86.09000126183433
 
         folium_map = folium.Map(location=[initial_latitude, initial_longitude], zoom_start=10)
         folium_map.save(self.map_file)
