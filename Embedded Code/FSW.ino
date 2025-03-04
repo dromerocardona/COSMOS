@@ -31,6 +31,19 @@
 #define TEAM_ID "3195"
 
 
+/*-----STATE MANAGEMENT VARIABLE-----*/
+enum State {
+  LAUNCH,
+  ASCENT,
+  SEPARATED,
+  DEPLOYED,
+  LANDED
+};
+
+//use to change state
+State currentState = LAUNCH; // Initial state
+// call with currentState
+
 
 
 
@@ -122,6 +135,52 @@ float lastInterruptTime = 0;
 bool simulationMode = false;
 float simulatedPressure = 1013.25;  // Default sea level pressure in hPa
 float simulatedAltitude = 0.0;      // Altitude derived from simulated pressure
+
+
+
+const int historySize = 10; // Fixed size of the history arrays
+float altitudeHistory[historySize];
+float velocityHistory[historySize];
+unsigned long timestampHistory[historySize]; // To store time in milliseconds
+
+// Function to update the altitude history array
+void updateAltitudeHistory(float altitudeHistory[], unsigned long timestampHistory[], float newAltitude, int size) {
+    // Shift all elements in altitudeHistory and timestampHistory to the right
+    for (int i = size - 1; i > 0; i--) {
+        altitudeHistory[i] = altitudeHistory[i - 1];
+        timestampHistory[i] = timestampHistory[i - 1];
+    }
+
+    // Update the first element with the new altitude and current timestamp
+    altitudeHistory[0] = newAltitude;
+    timestampHistory[0] = millis();
+}
+
+// Function to calculate velocity and update the velocity history array
+void updateVelocityHistory(float altitudeHistory[], float velocityHistory[], unsigned long timestampHistory[], int size) {
+    // Calculate the time difference between the two most recent updates in milliseconds
+    unsigned long timeDifferenceMillis = timestampHistory[0] - timestampHistory[1];
+    float timeDifferenceSeconds = timeDifferenceMillis / 1000.0; // Convert to seconds
+
+    // Calculate the latest velocity
+    float latestVelocity = (altitudeHistory[0] - altitudeHistory[1]) / timeDifferenceSeconds;
+
+    // Shift all elements in velocityHistory to the right
+    for (int i = size - 1; i > 0; i--) {
+        velocityHistory[i] = velocityHistory[i - 1];
+    }
+
+    // Update the first element with the latest velocity
+    velocityHistory[0] = latestVelocity;
+}
+float avg(float arr[], int size) {
+  float sum = 0.0;
+  for (int i = 0; i < size; i++) {
+      sum += arr[i];
+  }
+  return sum / size;
+}
+
 
 // PID tuning parameters
 const float K_proportional = 1.0; // Proportional gain
@@ -414,25 +473,26 @@ void loop() {
   /*------------------TELEMETRY TRASMISSION----------------------------------------------------*/
   // Telemetry Transmission
   if (telemetryEnabled) {
-      String telemetry = String(TEAM_ID) + "," + "Time: " + missionTime + "s," + packetCount + ",FLIGHT,ACTIVE," + 
-                        gpsAltitude + "," + currentVoltage + "," + x + "," + y + "," + z + "," +
-                        gyroEvent.gyro.x + "," + gyroEvent.gyro.y + "," + gyroEvent.gyro.z + "," +
-                        magEvent.magnetic.x + "," + magEvent.magnetic.y + "," + magEvent.magnetic.z + "," +
-                        latitude + "," + longitude + "," + satellites + "," +
-                        "Temperature(C):" + temperature + "," + "Pressure(hPa):" + pressure;
+    if ()
+        String telemetry = String(TEAM_ID) + "," + "Time: " + missionTime + "s," + packetCount + ",FLIGHT,ACTIVE," + 
+                          gpsAltitude + "," + currentVoltage + "," + x + "," + y + "," + z + "," +
+                          gyroEvent.gyro.x + "," + gyroEvent.gyro.y + "," + gyroEvent.gyro.z + "," +
+                          magEvent.magnetic.x + "," + magEvent.magnetic.y + "," + magEvent.magnetic.z + "," +
+                          latitude + "," + longitude + "," + satellites + "," +
+                          "Temperature(C):" + temperature + "," + "Pressure(hPa):" + pressure;
 
-      Serial1.println(telemetry);
+        Serial1.println(telemetry);
 
-      // Save telemetry to SD card
-      dataFile = SD.open("telemetry.txt", FILE_WRITE);
-      if (dataFile) {
-          dataFile.println(telemetry);
-          dataFile.close();
-      } else {
-          Serial.println("Error writing to SD card!");
-      }
+        // Save telemetry to SD card
+        dataFile = SD.open("telemetry.txt", FILE_WRITE);
+        if (dataFile) {
+            dataFile.println(telemetry);
+            dataFile.close();
+        } else {
+            Serial.println("Error writing to SD card!");
+        }
 
-      packetCount++; // Increment packet count
+        packetCount++; // Increment packet count
   }
 
 
@@ -442,48 +502,85 @@ void loop() {
   heading = heading * 180 / PI; // Convert to degrees
   if (heading < 0) heading += 360; // Ensure 0-360 range
 
-
+  //used for some state trasitions
+  updateAltitudeHistory(altitudeHistory[], gpsAltitude, historySize)//GPS ALTITUDE IS NOT SUFICIENT FOR THIS FUNCTION!!! REMOVE AS SOON AS POSSIBLE!!!
+  updateVelocityHistory(altitudeHistory[], velocityHistory[], historySize)
+  updateTime(String &currentTime)//needs to have proper arguments
   /*---------------------------------STATE DEPENDENT OPERATIONS---------------------------------*/
 
-  /*---------------------------------STATE DEPENDENT OPERATIONS----PID--------------------------*/
-  //THIS IS THE PID CONTROL
-  if (STATE........){//state wrapper logic for the PID control
-    // get input from the system
-    input = heading;
 
-    // Calculate the error
-    error = setpoint - input; // Calculate the error based on difference between setpoint and input
-      //this method of error calculation may need to be changed based on the system
+  
 
-    // Calculate the integral term
-    integral += error;
+  //it is very important to fill this with the correct logic for trasitions and contents for each state ex. PID control in separated and deployed
+  switch (currentState) {//switch statement so we have smooth-looking code :)
+////////////////////////////////////////////////////////////////////////
+    case LAUNCH:
+      // Code for launch state
+      if (/* condition to transition to ASCENT */) {
+        currentState = ASCENT;
+      }
+      break;
+////////////////////////////////////////////////////////////////////////
+    case ASCENT:
+      // Code for ascent state
+      if (/* condition to transition to SEPARATED */) {
+        currentState = SEPARATED;
+      }
+      break;
+////////////////////////////////////////////////////////////////////////
+    case SEPARATED:
+      // Code for separated state
+      if (/* condition to transition to DEPLOYED */) {
+        currentState = DEPLOYED;
+      }
+      break;
+////////////////////////////////////////////////////////////////////////
+    case DEPLOYED:
+      /*---------------------------------STATE DEPENDENT OPERATIONS----PID--------------------------*/
+      if (STATE........){//state wrapper logic for the PID control
+        // get input from the system
+        input = heading;
 
-    // Calculate the derivative term
-    float derivative = error - lastError;
+        // Calculate the error
+        error = setpoint - input; // Calculate the error based on difference between setpoint and input
+          //this method of error calculation may need to be changed based on the system
 
-    // Calculate the PID output
-    output = K_proportional * error + K_integral * integral + K_derivative * derivative;
+        // Calculate the integral term
+        integral += error;
 
-    // Update the system based on the PID output
-    updateSystem(output);
+        // Calculate the derivative term
+        float derivative = error - lastError;
 
-    // Store the current error as the last error to prepare for the next iteration
-    lastError = error;
+        // Calculate the PID output
+        output = K_proportional * error + K_integral * integral + K_derivative * derivative;
 
-    // Print the current values for debugging
-    //Serial.print("Input: ");
-    //Serial.print(input);
-    //Serial.print(", Output: ");
-    //Serial.println(output);
+        // Update the system based on the PID output
+        updateSystem(output);
 
-    //END OF PID CONTROL
+        // Store the current error as the last error to prepare for the next iteration
+        lastError = error;
 
-      // Serial.print("Heading: ");
-      // Serial.print(heading);
-      // Serial.print("°  Servo angle: ");
-      // Serial.println(targetAngle);
+        // Print the current values for debugging
+        //Serial.print("Input: ");
+        //Serial.print(input);
+        //Serial.print(", Output: ");
+        //Serial.println(output);
 
-      
+        //END OF PID CONTROL
+
+        // Serial.print("Heading: ");
+        // Serial.print(heading);
+        // Serial.print("°  Servo angle: ");
+        // Serial.println(targetAngle);
+        if (avg(velocityHistory[], historySize)<1) {
+          currentState = LANDED;
+        }
+        break;
+////////////////////////////////////////////////////////////////////////
+        case LANDED:
+          // Code for landed state
+          break;
+      }
   }
   
   /*-------------------------------------------REPEAT-------------------------------------------*/
