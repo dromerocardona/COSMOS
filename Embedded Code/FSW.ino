@@ -537,50 +537,55 @@ void loop() {
 ////////////////////////////////////////////////////////////////////////
     case DEPLOYED:
       /*---------------------------------STATE DEPENDENT OPERATIONS----PID--------------------------*/
-      if (STATE........){//state wrapper logic for the PID control
-        // get input from the system
-        input = heading;
+      // get input from the system
+      input = heading;
 
-        // Calculate the error
-        error = setpoint - input; // Calculate the error based on difference between setpoint and input
-          //this method of error calculation may need to be changed based on the system
-
-        // Calculate the integral term
-        integral += error;
-
-        // Calculate the derivative term
-        float derivative = error - lastError;
-
-        // Calculate the PID output
-        output = K_proportional * error + K_integral * integral + K_derivative * derivative;
-
-        // Update the system based on the PID output
-        updateSystem(output);
-
-        // Store the current error as the last error to prepare for the next iteration
-        lastError = error;
-
-        // Print the current values for debugging
-        //Serial.print("Input: ");
-        //Serial.print(input);
-        //Serial.print(", Output: ");
-        //Serial.println(output);
-
-        //END OF PID CONTROL
-
-        // Serial.print("Heading: ");
-        // Serial.print(heading);
-        // Serial.print("°  Servo angle: ");
-        // Serial.println(targetAngle);
-        if (avg(velocityHistory[], historySize)<1) {
-          currentState = LANDED;
-        }
-        break;
-////////////////////////////////////////////////////////////////////////
-        case LANDED:
-          // Code for landed state
-          break;
+      // Calculate the error
+      error = setpoint - input; // Calculate the error based on difference between setpoint and input
+      if error > 180 {
+        error = error - 360;// account for the clossest path to the setpoint being across the 0° line
       }
+      else if error < -180 {
+        error = error + 360;// account for the clossest path to the setpoint being across the 0° line the other way
+      }
+      //this method of error calculation may need to be changed based on the system
+
+      // Calculate the integral term
+      integral += error;
+
+      // Calculate the derivative term
+      float derivative = error - lastError;
+
+      // Calculate the PID output
+      output = K_proportional * error + K_integral * integral + K_derivative * derivative;
+
+      // Update the system based on the PID output
+      updateSystem(output);
+
+      // Store the current error as the last error to prepare for the next iteration
+      lastError = error;
+
+      // Print the current values for debugging
+      //Serial.print("Input: ");
+      //Serial.print(input);
+      //Serial.print(", Output: ");
+      //Serial.println(output);
+
+      //END OF PID CONTROL
+
+      // Serial.print("Heading: ");
+      // Serial.print(heading);
+      // Serial.print("°  Servo angle: ");
+      // Serial.println(targetAngle);
+      if (avg(velocityHistory[], historySize)<1) {
+        currentState = LANDED;
+      }
+      break;
+////////////////////////////////////////////////////////////////////////
+      case LANDED:
+        // Code for landed state
+        break;
+    }
   }
   
   /*-------------------------------------------REPEAT-------------------------------------------*/
