@@ -223,6 +223,8 @@ void rpmISR() {
 // Variables
 float receivedPressure = 0.0;  // Variable to store received pressure value from ground station
 
+
+/*//OLD COMAND HANDLER FUNCTION
 void handleCommand(String command) {
   command.trim();  // Remove any leading or trailing spaces
 
@@ -266,7 +268,89 @@ void handleCommand(String command) {
     telemetryEnabled = false; // Stop telemetry
     Serial.println("Telemetry stopped.");
   }
+    ------------------
+}*///////////TRANSFER TO NEW STRUCTURE BELOW!!!
+//--------------------
+
+//new command handler
+void handleCommand(const std::string& command) {
+  // Split the command into fields using a delimiter (e.g., ',')
+  std::vector<std::string> fields = splitCommand(command);
+
+  // Check if the command has enough fields
+  if (fields.size() < 4) {
+    std::cerr << "Invalid command: " << command << std::endl;
+    return;
+  }
+
+  // Extract the relevant fields
+  std::string cmdType = fields[2]; // Command type
+  std::string action = fields[3];  // Action or parameter
+
+  // Execute the corresponding logic
+  if (cmdType == "CX") {
+    if (action == "ON") {
+      telemetryEnabled = true;  // Start telemetry
+      Serial.println("Telemetry started.");
+    } else if (action == "OFF") {
+      telemetryEnabled = false; // Stop telemetry
+      Serial.println("Telemetry stopped.");  
+    }
+  } else if (cmdType == "ST") {
+    if (action == "UTC_TIME") {
+      // Run code for CMD, 3195, ST, UTC_TIME
+    } else if (action == "GPS") {
+      // Run code for CMD, 3195, ST, GPS
+    }
+  } else if (cmdType == "SIM") {
+    if (action == "ENABLE") {
+      simulationMode = true;
+      Serial.println("Simulation mode enabled.");
+    } else if (action == "ACTIVATE") {
+      // Run code for CMD, 3195, SIM, ACTIVATE
+    } else if (action == "DISABLE") {
+      // Run code for CMD, 3195, SIM, DISABLE
+    }
+  } else if (cmdType == "SIMP") {
+    // Run code for CMD, 3195, SIMP, [INPUT]
+  } else if (cmdType == "CAL") {
+    // Run code for CMD, 3195, CAL
+  } else if (cmdType == "MEC") {
+    if (action == "RELEASE") {
+      std::string releaseAction = fields[4]; // ON or OFF
+      if (releaseAction == "ON") {
+        // Run code for CMD, 3195, MEC, RELEASE, ON
+      } else if (releaseAction == "OFF") {
+        // Run code for CMD, 3195, MEC, RELEASE, OFF
+      }
+    } else if (action == "CAMERA") {
+      std::string cameraAction = fields[4]; // BLADE, GROUND, or CAM_STABLE
+      if (cameraAction == "BLADE") {
+        std::string bladeAction = fields[5]; // ON or OFF
+        if (bladeAction == "ON") {
+          // Run code for CMD, 3195, MEC, CAMERA, BLADE, ON
+        } else if (bladeAction == "OFF") {
+          // Run code for CMD, 3195, MEC, CAMERA, BLADE, OFF
+        }
+      } else if (cameraAction == "GROUND") {
+        std::string groundAction = fields[5]; // ON or OFF
+        if (groundAction == "ON") {
+          // Run code for CMD, 3195, MEC, CAMERA, GROUND, ON
+        } else if (groundAction == "OFF") {
+          // Run code for CMD, 3195, MEC, CAMERA, GROUND, OFF
+        }
+      } else if (cameraAction == "CAM_STABLE") {
+        // Run code for CMD, 3195, MEC, CAM_STABLE
+      }
+    }
+  } else {
+      std::cerr << "Unknown command type: " << cmdType << std::endl;
+  }
 }
+//USAGE!!!!
+std::string command = "CMD, 3195, CX, ON";
+handleCommand(command);
+
 
 // ENS220 Sensor Initialization
 void ContinuousModeWithFIFO_setup()
@@ -413,15 +497,21 @@ void loop() {
   }
 
   /*------------------CORE OPERATIONS----Sensor Data--------------------------------------------*/
-  unsigned long missionTime = millis() / 1000; // Mission time in seconds
+  //potentioal consideration for PID stability later:
+  //the MOST TIME SENSITIVE OPERATIONS go first, things like altitude can wait and not be updated
+  //on every loop iteration to prioritize accel/gyro/mag and timer updates
+  //  this could be accomplished by having a tenth second timer or something similar
 
-  // Read battery voltage
-  float currentVoltage = analogRead(BATTERY_PIN) * (5.0 / 1023.0) * voltageDividerFactor;
+  unsigned long missionTime = millis() / 1000; // Mission time in seconds
 
   // Calculate instantaneous RPM
   float rpm = (60000 / timeDifference); // Calculate RPM
   lastRpmTime = millis();  // Imediately update last RPM time for min error
-  rpmCount = 0; 
+  rpmCount = 0;
+
+  // Read battery voltage
+  float currentVoltage = analogRead(BATTERY_PIN) * (5.0 / 1023.0) * voltageDividerFactor;
+ 
   
   // Read GPS data
   float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
@@ -475,7 +565,7 @@ void loop() {
 
   /*------------------TELEMETRY TRASMISSION----------------------------------------------------*/
   // Telemetry Transmission
-  if(lastTransmissionTime+1000<millis()) {
+  if(lastTransmissionTime+1000<millis()) {// delay wraper:Transmit telemetry every second
     lastTransmissionTime = millis();
     if (telemetryEnabled) {
           String telemetry = String(TEAM_ID) + "," + "Time: " + missionTime + "s," + packetCount + ",FLIGHT,ACTIVE," + 
