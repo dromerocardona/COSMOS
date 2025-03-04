@@ -123,6 +123,9 @@ float voltageDividerFactor = 5.0; // Adjust based on resistor values in voltage 
 unsigned int packetCount = 0;
 File dataFile;
 bool telemetryEnabled = false;  // Telemetry Control
+float lastTransmissionTime = 0; // Last time of telemetry transmission
+
+
 // Camera stabilization variables
 float cameraposition = 0;
 unsigned long lastRpmTime = 0; // last time of an magnet detection
@@ -472,29 +475,30 @@ void loop() {
 
   /*------------------TELEMETRY TRASMISSION----------------------------------------------------*/
   // Telemetry Transmission
-  if (telemetryEnabled) {
-    if ()
-        String telemetry = String(TEAM_ID) + "," + "Time: " + missionTime + "s," + packetCount + ",FLIGHT,ACTIVE," + 
-                          gpsAltitude + "," + currentVoltage + "," + x + "," + y + "," + z + "," +
-                          gyroEvent.gyro.x + "," + gyroEvent.gyro.y + "," + gyroEvent.gyro.z + "," +
-                          magEvent.magnetic.x + "," + magEvent.magnetic.y + "," + magEvent.magnetic.z + "," +
-                          latitude + "," + longitude + "," + satellites + "," +
-                          "Temperature(C):" + temperature + "," + "Pressure(hPa):" + pressure;
+  if(lastTransmissionTime+1000<millis()) {
+    lastTransmissionTime = millis();
+    if (telemetryEnabled) {
+          String telemetry = String(TEAM_ID) + "," + "Time: " + missionTime + "s," + packetCount + ",FLIGHT,ACTIVE," + 
+                            gpsAltitude + "," + currentVoltage + "," + x + "," + y + "," + z + "," +
+                            gyroEvent.gyro.x + "," + gyroEvent.gyro.y + "," + gyroEvent.gyro.z + "," +
+                            magEvent.magnetic.x + "," + magEvent.magnetic.y + "," + magEvent.magnetic.z + "," +
+                            latitude + "," + longitude + "," + satellites + "," +
+                            "Temperature(C):" + temperature + "," + "Pressure(hPa):" + pressure;
 
-        Serial1.println(telemetry);
+          Serial1.println(telemetry);
 
-        // Save telemetry to SD card
-        dataFile = SD.open("telemetry.txt", FILE_WRITE);
-        if (dataFile) {
-            dataFile.println(telemetry);
-            dataFile.close();
-        } else {
-            Serial.println("Error writing to SD card!");
-        }
+          // Save telemetry to SD card
+          dataFile = SD.open("telemetry.txt", FILE_WRITE);
+          if (dataFile) {
+              dataFile.println(telemetry);
+              dataFile.close();
+          } else {
+              Serial.println("Error writing to SD card!");
+          }
 
-        packetCount++; // Increment packet count
+          packetCount++; // Increment packet count
+    }
   }
-
 
   /*------------------CALCULATIONS-------------------------------------------------------------*/
   // Calculate heading
@@ -513,28 +517,28 @@ void loop() {
 
   //it is very important to fill this with the correct logic for trasitions and contents for each state ex. PID control in separated and deployed
   switch (currentState) {//switch statement so we have smooth-looking code :)
-////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////
     case LAUNCH:
       // Code for launch state
       if (/* condition to transition to ASCENT */) {
         currentState = ASCENT;
       }
       break;
-////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////
     case ASCENT:
       // Code for ascent state
       if (/* condition to transition to SEPARATED */) {
         currentState = SEPARATED;
       }
       break;
-////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////
     case SEPARATED:
       // Code for separated state
       if (/* condition to transition to DEPLOYED */) {
         currentState = DEPLOYED;
       }
       break;
-////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////
     case DEPLOYED:
       /*---------------------------------STATE DEPENDENT OPERATIONS----PID--------------------------*/
       // get input from the system
@@ -581,12 +585,11 @@ void loop() {
         currentState = LANDED;
       }
       break;
-////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////
       case LANDED:
         // Code for landed state
         break;
-    }
   }
+}
   
   /*-------------------------------------------REPEAT-------------------------------------------*/
-}
