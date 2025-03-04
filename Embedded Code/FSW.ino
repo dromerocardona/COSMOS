@@ -44,6 +44,48 @@ please look at the mission guide for examples of mode and state, follow them exa
 altitude must be calculated using pressure sensor (why it is calibrated)
 also get gpsTime, the ground station will either set the time to the time on the gps or the computer time
 for the lastCommand variable, return only a simplified version (e.g. CXON, CAM_ON, etc.)
+--------------------------------------------------------------------------------------------------------------------------------------
+Also- since time is being attained from either the GCS or GPS only once, the FSW needs to increment the time. Here is a program that
+could work to do this if implemented:
+
+String currentTime = "00:00:00"; //replace with the time given by either GCS or GPS
+
+// Variables to track timing
+unsigned long previousMillis = 0;
+const long interval = 1000;
+
+void loop() {
+  unsigned long currentMillis = millis();
+  
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    
+    // Extract hours, minutes, seconds from string
+    int hours = currentTime.substring(0, 2).toInt();
+    int minutes = currentTime.substring(3, 5).toInt();
+    int seconds = currentTime.substring(6, 8).toInt();
+    
+    // Increment time
+    seconds++;
+    if (seconds >= 60) {
+      seconds = 0;
+      minutes++;
+      if (minutes >= 60) {
+        minutes = 0;
+        hours++;
+        if (hours >= 24) {
+          hours = 0;
+        }
+      }
+    }
+    
+    // Convert back to string with leading zeros
+    currentTime = String(hours < 10 ? "0" : "") + String(hours) + ":"
+                + (minutes < 10 ? "0" : "") + String(minutes) + ":"
+                + (seconds < 10 ? "0" : "") + String(seconds);
+  }
+}
+
 */
 
 // Sensor objects
