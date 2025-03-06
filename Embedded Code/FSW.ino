@@ -601,12 +601,14 @@ void loop() {
   if(lastTransmissionTime+1000<millis()) {// delay wraper:Transmit telemetry every second
     lastTransmissionTime = millis();
     if (telemetryEnabled) {
-          String telemetry = String(TEAM_ID) + "," + "Time: " + missionTime + "s," + packetCount + ",FLIGHT,ACTIVE," + 
-                            gpsAltitude + "," + currentVoltage + "," + x + "," + y + "," + z + "," +
-                            gyroEvent.gyro.x + "," + gyroEvent.gyro.y + "," + gyroEvent.gyro.z + "," +
-                            magEvent.magnetic.x + "," + magEvent.magnetic.y + "," + magEvent.magnetic.z + "," +
-                            latitude + "," + longitude + "," + satellites + "," +
-                            "Temperature(C):" + temperature + "," + "Pressure(hPa):" + pressure;
+          String telemetry = String(TEAM_ID) + "," + String(missionTime) + "," + String(packetCount) + ",F,ACTIVE," + 
+                          String(gpsAltitude, 1) + "," + String(temperature, 1) + "," + String(pressure, 1) + "," + 
+                          String(currentVoltage, 1) + "," + String(gyroEvent.gyro.x, 1) + "," + String(gyroEvent.gyro.y, 1) + "," + 
+                          String(gyroEvent.gyro.z, 1) + "," + String(x, 1) + "," + String(y, 1) + "," + String(z, 1) + "," + 
+                          String(magEvent.magnetic.x, 1) + "," + String(magEvent.magnetic.y, 1) + "," + String(magEvent.magnetic.z, 1) + "," + 
+                          String(rpm, 1) + "," + "N/A," + String(gpsAltitude, 1) + "," + 
+                          String(latitude, 4) + "," + String(longitude, 4) + "," + String(satellites) + ",CMD_ECHO";
+
 
           Serial1.println(telemetry);
 
