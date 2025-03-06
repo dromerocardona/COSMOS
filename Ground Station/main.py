@@ -1,8 +1,8 @@
 import sys
 import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QPushButton, \
-    QSpacerItem, QGridLayout, QProgressBar, QGroupBox, QComboBox, QFileDialog
-from PyQt5.QtCore import Qt, pyqtSignal, QObject, QTimer
+    QSpacerItem, QGridLayout, QProgressBar, QGroupBox, QComboBox, QFileDialog, QGraphicsOpacityEffect
+from PyQt5.QtCore import Qt, pyqtSignal, QObject, QTimer, QPropertyAnimation
 from PyQt5.QtGui import QFont, QPixmap, QIcon
 from communication import Communication
 from autogyroRotationGraph import AutoGyroRotationGraph
@@ -30,45 +30,86 @@ def get_available_serial_ports():
 
 # Loading screen
 class LoadingScreen(QWidget):
+    def center_window(self):
+        screen_geometry = QApplication.desktop().screenGeometry()
+        x = (screen_geometry.width() - self.width()) // 2
+        y = (screen_geometry.height() - self.height()) // 2
+        self.move(x, y)
+
     def __init__(self):
         super().__init__()
 
-        #Set title, size, icon
+        # Set title, size, icon
         self.setWindowTitle("Loading...")
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
         self.setGeometry(100, 100, 1200, 800)
         self.setWindowIcon(QIcon('COSMOS_logo.png'))
         threading.Thread(target=playsound, args=('gcs_startup.mp3',), daemon=True).start()
 
-        layout = QVBoxLayout()
+        # Set background image and color
+        self.setStyleSheet("""
+            QWidget {
+                background-image: url('loading_background.png');
+                background-repeat: no-repeat;
+                background-position: center;
+                background size: cover;
+            }
+        """)
 
-        #Add loading image
+        layout = QVBoxLayout(self)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        # Add loading image
+        central_widget = QWidget(self)
+        central_layout = QVBoxLayout(central_widget)
+        central_layout.setSpacing(0)
+        central_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Add loading image
         loading_pixmap = QPixmap('COSMOS_logo.png')  # Update with the correct path to your image
-        self.image_width,image_height = 300,300
+        self.image_width, image_height = 500, 500
         loading_pixmap = loading_pixmap.scaled(self.image_width, image_height)
         self.image_label = QLabel()
         self.image_label.setPixmap(loading_pixmap)
         self.image_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.image_label)
+        central_layout.addWidget(self.image_label)
 
-        #Add loading text
-        self.label = QLabel("Loading...")
-        self.label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.label)
+        layout.addWidget(central_widget)
 
-        #Add progress bar
+        # Add progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 2px solid #8f8f91;
+                border-radius: 5px;
+                text-align: center;
+            }
+            QProgressBar::chunk {
+                background-color: #b0aee7;
+                width: 20px;
+            }
+        """)
         layout.addWidget(self.progress_bar)
 
-        self.setLayout(layout)
-
-        #Start timer
+        # Start timer
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_progress)
         self.timer.start(100)
 
-    #Update progress bar
+        # Add fade-in effect
+        self.opacity_effect = QGraphicsOpacityEffect()
+        self.setGraphicsEffect(self.opacity_effect)
+        self.opacity_animation = QPropertyAnimation(self.opacity_effect, b"opacity")
+        self.opacity_animation.setDuration(2000)
+        self.opacity_animation.setStartValue(0)
+        self.opacity_animation.setEndValue(1)
+        self.opacity_animation.start()
+
+        self.center_window()
+
+    # Update progress bar
     def update_progress(self):
         current_value = self.progress_bar.value()
         if current_value < 100:
@@ -106,7 +147,6 @@ class GroundStation(QMainWindow):
         header_layout = QHBoxLayout()
 
         self.sats = QLabel("N/A")
-        sats_icon = QPixmap('sats_icon.png')
 
         # Left side of the header
         left_header_layout = QHBoxLayout()
@@ -231,11 +271,12 @@ class GroundStation(QMainWindow):
         sidebar_groupbox_layout.addWidget(self.liveCMDEcho)
 
         # Add the QGroupBox to the sidebar layout
+        sidebar_groupbox.setStyleSheet("QGroupBox { background-color: #d1d1f0; border: 1px solid black; }")
         sidebar_layout.addWidget(sidebar_groupbox)
 
         # Add command buttons to sidebar layout
         button_width = 100
-        button_height = 100
+        button_height = 80
         self.reset_graphs_button = QPushButton("Reset\nGraphs")
         self.reset_graphs_button.clicked.connect(self.reset_graphs)
         self.reset_graphs_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
@@ -348,9 +389,17 @@ class GroundStation(QMainWindow):
         graphs_grid.addWidget(self.voltageGraph.win, 1, 1)
         graphs_grid.addWidget(self.GPS.win, 1, 2)
         graphs_grid.addWidget(self.accelerationRPY, 3, 0)
-        graphs_grid.addWidget(self.GPS_LATITUDE, 3, 2, alignment=Qt.AlignRight)
+        latitude_longitude_layout = QHBoxLayout()
+        latitude_longitude_layout.addWidget(self.GPS_LATITUDE)
+        latitude_longitude_layout.addWidget(self.GPS_LONGITUDE)
+        graphs_grid.addLayout(latitude_longitude_layout, 3, 2, alignment=Qt.AlignCenter)
         graphs_grid.addWidget(self.magnetometerRPY, 4, 0)
-        graphs_grid.addWidget(self.GPS_LONGITUDE, 4, 2, alignment=Qt.AlignRight)
+
+        # Set the style for the labels to be in a colored box
+        self.accelerationRPY.setStyleSheet("background-color: #d1d1f0; padding: 5px; border-radius: 5px; border: 1px solid black;")
+        self.GPS_LATITUDE.setStyleSheet("background-color: #d1d1f0; padding: 5px; border-radius: 5px; border: 1px solid black;")
+        self.magnetometerRPY.setStyleSheet("background-color: #d1d1f0; padding: 5px; border-radius: 5px; border: 1px solid black;")
+        self.GPS_LONGITUDE.setStyleSheet("background-color: #d1d1f0; padding: 5px; border-radius: 5px; border: 1px solid black;")
 
         graphs_layout.addLayout(graphs_grid)
 
@@ -359,6 +408,8 @@ class GroundStation(QMainWindow):
         content_layout.addWidget(graphs_widget)
         main_layout.addLayout(content_layout)
         main_layout.addWidget(footer_widget)
+
+        self.showMaximized()
 
         # Communication setup
         self.comm = Communication(serial_port=self.serial_port_dropdown.currentText())  # Initialize with selected serial port
