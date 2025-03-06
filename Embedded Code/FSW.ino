@@ -222,7 +222,7 @@ void rpmISR() {
 
 void FlightState(float altitude, float velocity, float x, float y, float z) {
 switch (flightState) {
-case IDLE:
+case LAUNCH_PAD:
 if (altitude > 5 && velocity > 5) {
 flightState = ASCENT;
 Serial.println("Flight state: ASCENT");
