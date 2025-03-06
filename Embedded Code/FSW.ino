@@ -26,7 +26,11 @@
 #define SERIAL_BAUDRATE 57600 // Speed of Serial Communication with the computer (ENS220)
 #define INTN_1 2 // Interrupt pin for ENS220
 #define CAMERA_PIN 7 // RunCam
-// #define FEEDBACK_PIN 2 // Feedback signal pin for servo control
+// #define FEEDBACK_PIN 2 // Feedback signal pin for servo control#define DATA_PIN    3
+
+CRGB leds[NUM_LEDS];
+FastLED.addLeds<WS2812B,5,GRB>(leds, 5)
+    .setCorrection(TypicalLEDStrip)
 
 // Team ID
 #define TEAM_ID "3195"
