@@ -119,7 +119,7 @@ Adafruit_LIS3MDL lis3mdl;// Magnetometer
 // FeedBackServo servo = FeedBackServo(FEEDBACK_PIN);
 
 // Variables
-float voltageDividerFactor = 5.0; // Adjust based on resistor values in voltage divider
+float voltageDividerFactor = 0.012089; // Adjust based on resistor values in voltage divider
 unsigned int packetCount = 0;
 File dataFile;
 bool telemetryEnabled = false;  // Telemetry Control
@@ -543,7 +543,7 @@ void loop() {
   rpmCount = 0;
 
   // Read battery voltage
-  float currentVoltage = analogRead(BATTERY_PIN) * (5.0 / 1023.0) * voltageDividerFactor;
+  float currentVoltage = analogRead(BATTERY_PIN) * voltageDividerFactor;
  
   
   // Read GPS data
