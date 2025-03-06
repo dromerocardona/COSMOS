@@ -47,7 +47,7 @@ class GPSMap(QWidget, QObject):
         self.longitude = longitude
 
         folium_map = folium.Map(location=[latitude, longitude], zoom_start=15)
-        icon = folium.CustomIcon('COSMOS_logo.png', icon_size=(30, 30))
+        icon = folium.CustomIcon('COSMOS_logo.png', icon_size=(36, 30))
         folium.Marker([latitude, longitude], tooltip="Current Position", icon=icon).add_to(folium_map)
 
         # Save map to file

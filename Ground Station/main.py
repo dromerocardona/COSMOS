@@ -68,7 +68,7 @@ class LoadingScreen(QWidget):
 
         # Add loading image
         loading_pixmap = QPixmap('COSMOS_logo.png')  # Update with the correct path to your image
-        self.image_width, image_height = 500, 500
+        self.image_width, image_height = 605, 500
         loading_pixmap = loading_pixmap.scaled(self.image_width, image_height)
         self.image_label = QLabel()
         self.image_label.setPixmap(loading_pixmap)
@@ -152,7 +152,7 @@ class GroundStation(QMainWindow):
         left_header_layout = QHBoxLayout()
         logo_label = QLabel()
         logo_pixmap = QPixmap('COSMOS_logo.png')
-        logo_pixmap = logo_pixmap.scaled(50, 50, Qt.KeepAspectRatio)
+        logo_pixmap = logo_pixmap.scaled(60, 50, Qt.KeepAspectRatio)
         logo_label.setPixmap(logo_pixmap)
         team_label = QLabel("TEAM #3195")
         team_label.setFont(QFont("Arial", 16, QFont.Bold))
@@ -393,7 +393,7 @@ class GroundStation(QMainWindow):
         latitude_longitude_layout.addWidget(self.GPS_LATITUDE)
         latitude_longitude_layout.addWidget(self.GPS_LONGITUDE)
         graphs_grid.addLayout(latitude_longitude_layout, 3, 2, alignment=Qt.AlignCenter)
-        graphs_grid.addWidget(self.magnetometerRPY, 4, 0)
+        graphs_grid.addWidget(self.magnetometerRPY, 3, 1)
 
         # Set the style for the labels to be in a colored box
         self.accelerationRPY.setStyleSheet("background-color: #d1d1f0; padding: 5px; border-radius: 5px; border: 1px solid black;")
