@@ -220,9 +220,9 @@ void rpmISR() {
   // instantaneousRPM = 60000.0 / timeDifference;
 }
 
-void FlightState(float altitude, float velocity, float x, float y, float z) {
+void updateFlightState(float altitude, float velocity, float x, float y, float z) {
 switch (flightState) {
-case IDLE:
+case LAUNCH_PAD:
 if (altitude > 5 && velocity > 5) {
 flightState = ASCENT;
 Serial.println("Flight state: ASCENT");
