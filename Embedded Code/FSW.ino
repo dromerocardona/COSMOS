@@ -221,38 +221,39 @@ void rpmISR() {
 }
 
 void updateFlightState(float altitude, float velocity, float x, float y, float z) {
-switch (flightState) {
-case LAUNCH_PAD:
-if (altitude > 5 && velocity > 5) {
-flightState = ASCENT;
-Serial.println("Flight state: ASCENT");
+  switch (flightState) {
+    case LAUNCH_PAD:
+      if (altitude > 5 && velocity > 5) {
+        flightState = ASCENT;
+        Serial.println("Flight state: ASCENT");
+      }
+    break;
+    case ASCENT:
+      if (velocity <= -1) {
+        flightState = APOGEE;
+        apogeeAltitude = altitude;
+        Serial.println("Flight state: APOGEE");
+      }
+    break;
+    case APOGEE:
+      if (velocity < 0) {
+        flightState = DESCENT;
+        Serial.println("Flight state: DESCENT");
+      }
+    break;
+    case DESCENT:
+      if (velocity == 0 && millis() - lastOrientationTime > 10000 && 
+        x == lastOrientationX && y == lastOrientationY && z == lastOrientationZ) {
+        flightState = LANDED;
+        landedTime = millis();
+        Serial.println("Flight state: LANDED");
+      }
+    break;
+    case LANDED:
+      {}
+    break;
+  }
 }
-break;
-case ASCENT:
-if (velocity <= -1) {
-flightState = APOGEE;
-apogeeAltitude = altitude;
-Serial.println("Flight state: APOGEE");
-}
-break;
-case APOGEE:
-if (velocity < 0) {
-flightState = DESCENT;
-Serial.println("Flight state: DESCENT");
-}
-break;
-case DESCENT:
-if (velocity == 0 && millis() - lastOrientationTime > 10000 && 
-x == lastOrientationX && y == lastOrientationY && z == lastOrientationZ) {
-flightState = LANDED;
-landedTime = millis();
-Serial.println("Flight state: LANDED");
-}
-break;
-case LANDED:
-break;
-}
-
 // Variables
 float receivedPressure = 0.0;  // Variable to store received pressure value from ground station
 
@@ -643,12 +644,17 @@ void loop() {
   //it is very important to fill this with the correct logic for trasitions and contents for each state ex. PID control in separated and deployed
   switch (FlightState) {//switch statement so we have smooth-looking code :)
   ////////////////////////////////////////////////////////////////////////
-    case LAUNCH:
+    case LAUNCH_PAD:
       // Code for launch state
       updateFlightState(float altitude, float velocity, float x, float y, float z)
       break;
   ////////////////////////////////////////////////////////////////////////
     case ASCENT:
+      // Code for ascent state
+      updateFlightState(float altitude, float velocity, float x, float y, float z)
+      break;
+  ////////////////////////////////////////////////////////////////////////
+      case ASCENT:
       // Code for ascent state
       updateFlightState(float altitude, float velocity, float x, float y, float z)
       break;
