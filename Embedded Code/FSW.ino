@@ -641,27 +641,18 @@ void loop() {
   
 
   //it is very important to fill this with the correct logic for trasitions and contents for each state ex. PID control in separated and deployed
-  switch (currentState) {//switch statement so we have smooth-looking code :)
+  switch (FlightState) {//switch statement so we have smooth-looking code :)
   ////////////////////////////////////////////////////////////////////////
     case LAUNCH:
       // Code for launch state
-      if (/* condition to transition to ASCENT */) {
-        currentState = ASCENT;
-      }
       break;
   ////////////////////////////////////////////////////////////////////////
     case ASCENT:
       // Code for ascent state
-      if (/* condition to transition to SEPARATED */) {
-        currentState = SEPARATED;
-      }
       break;
   ////////////////////////////////////////////////////////////////////////
     case SEPARATED:
       // Code for separated state
-      if (/* condition to transition to DEPLOYED */) {
-        currentState = DEPLOYED;
-      }
       break;
   ////////////////////////////////////////////////////////////////////////
     case DEPLOYED:
