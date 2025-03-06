@@ -645,14 +645,17 @@ void loop() {
   ////////////////////////////////////////////////////////////////////////
     case LAUNCH:
       // Code for launch state
+      updateFlightState(float altitude, float velocity, float x, float y, float z)
       break;
   ////////////////////////////////////////////////////////////////////////
     case ASCENT:
       // Code for ascent state
+      updateFlightState(float altitude, float velocity, float x, float y, float z)
       break;
   ////////////////////////////////////////////////////////////////////////
     case SEPARATED:
       // Code for separated state
+      updateFlightState(float altitude, float velocity, float x, float y, float z)
       break;
   ////////////////////////////////////////////////////////////////////////
     case DEPLOYED:
@@ -697,6 +700,7 @@ void loop() {
       // Serial.print(heading);
       // Serial.print("°  Servo angle: ");
       // Serial.println(targetAngle);
+      updateFlightState(float altitude, float velocity, float x, float y, float z)
       if (avg(velocityHistory[], historySize)<1) {
         currentState = LANDED;
       }
@@ -704,6 +708,7 @@ void loop() {
   ////////////////////////////////////////////////////////////////////////
       case LANDED:
         // Code for landed state
+        updateFlightState(float altitude, float velocity, float x, float y, float z)
         break;
   }
 }
