@@ -32,16 +32,16 @@
 
 
 /*-----STATE MANAGEMENT VARIABLE-----*/
-enum State {
-  LAUNCH,
+enum FlightState {
+  LAUNCH_PAD,
   ASCENT,
-  SEPARATED,
-  DEPLOYED,
+  APOGEE,
+  DESCENT,
   LANDED
 };
 
 //use to change state
-State currentState = LAUNCH; // Initial state
+FlightState flightState = LAUNCH_PAD; // Initial state
 // call with currentState
 
 
@@ -218,6 +218,39 @@ void rpmISR() {
   // |  We could potentialy calculate the instantaneous RPM in break instead of in loop
   // V
   // instantaneousRPM = 60000.0 / timeDifference;
+}
+
+void FlightState(float altitude, float velocity, float x, float y, float z) {
+switch (flightState) {
+case IDLE:
+if (altitude > 5 && velocity > 5) {
+flightState = ASCENT;
+Serial.println("Flight state: ASCENT");
+}
+break;
+case ASCENT:
+if (velocity <= -1) {
+flightState = APOGEE;
+apogeeAltitude = altitude;
+Serial.println("Flight state: APOGEE");
+}
+break;
+case APOGEE:
+if (velocity < 0) {
+flightState = DESCENT;
+Serial.println("Flight state: DESCENT");
+}
+break;
+case DESCENT:
+if (velocity == 0 && millis() - lastOrientationTime > 10000 && 
+x == lastOrientationX && y == lastOrientationY && z == lastOrientationZ) {
+flightState = LANDED;
+landedTime = millis();
+Serial.println("Flight state: LANDED");
+}
+break;
+case LANDED:
+break;
 }
 
 // Variables
