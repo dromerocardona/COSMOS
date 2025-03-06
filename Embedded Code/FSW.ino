@@ -654,10 +654,10 @@ void loop() {
       updateFlightState(float altitude, float velocity, float x, float y, float z)
       break;
   ////////////////////////////////////////////////////////////////////////
-      case ASCENT:
+    case APOGEE:
       // Code for ascent state
       updateFlightState(float altitude, float velocity, float x, float y, float z)
-      break;
+    break;
   ////////////////////////////////////////////////////////////////////////
     case SEPARATED:
       // Code for separated state
