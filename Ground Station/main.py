@@ -181,6 +181,7 @@ class GroundStation(QMainWindow):
         self.serial_port_dropdown = QComboBox()
         self.serial_port_dropdown.addItems(get_available_serial_ports())
         self.serial_port_dropdown.currentIndexChanged.connect(self.change_serial_port)
+        self.serial_port_dropdown.setStyleSheet("background-color: white;")
         right_header_layout.addWidget(self.serial_port_dropdown)
 
         # Enclose sats in a white box
@@ -189,22 +190,23 @@ class GroundStation(QMainWindow):
         sats_box_layout = QVBoxLayout()
         sats_box.setLayout(sats_box_layout)
 
-        # Enclose sats in a white box
-        sats_box = QGroupBox()
-        sats_box.setStyleSheet("background-color: white;")
-        sats_box_layout = QVBoxLayout()
-        sats_box.setLayout(sats_box_layout)
-
+        # Create QLabel for text
         self.sats = QLabel("N/A")
         self.sats.setAlignment(Qt.AlignCenter)
+
+        # Create QLabel for the image
         sats_icon = QPixmap('sats_icon.png')
         sats_icon = sats_icon.scaled(25, 25, Qt.KeepAspectRatio)
         sats_icon_label = QLabel()
         sats_icon_label.setPixmap(sats_icon)
 
-        sats_box_layout.addWidget(sats_icon_label)
-        sats_box_layout.addWidget(self.sats)
+        # Create a horizontal layout
+        h_layout = QHBoxLayout()
+        h_layout.addWidget(sats_icon_label)
+        h_layout.addWidget(self.sats)
+        sats_box_layout.addLayout(h_layout)
 
+        # Add the sats box to the right header layout
         right_header_layout.addWidget(sats_box)
         header_layout.addLayout(right_header_layout)
 
@@ -538,9 +540,6 @@ class GroundStation(QMainWindow):
         #update GPS data
         latitude = self.comm.get_GPS_LATITUDE()
         longitude = self.comm.get_GPS_LONGITUDE()
-        if latitude is not None and longitude is not None:
-            self.GPS.location_updated.connect(self.GPS.update_map)
-            self.GPS.location_updated.emit(latitude, longitude)
 
     #update graphs
     def update_graphs(self):

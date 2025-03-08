@@ -5,8 +5,7 @@ import threading
 
 class Communication:
 
-    def __init__(self, serial_port, baud_rate=9600, timeout = 4, csv_filename = 'Flight_3195.csv'):
-        # Initialize communication parameters
+    def __init__(self, serial_port, baud_rate=9600, timeout=4, csv_filename='Flight_3195.csv'):
         self.serial_port = serial_port
         self.baud_rate = baud_rate
         self.timeout = timeout
@@ -22,17 +21,25 @@ class Communication:
         self.simulation = False
         self.simEnabled = False
 
-        #Create a CSV file to store telemetry data
+        try:
+            self.ser = serial.Serial(self.serial_port, self.baud_rate, timeout=self.timeout)
+        except serial.SerialException as e:
+            print(f"Failed to open serial port {self.serial_port}: {e}")
+            self.ser = None
+
         with open(self.csv_filename, mode='a', newline='') as file:
             writer = csv.writer(file)
             if not file.tell():
                 writer.writerow(['TEAM_ID', 'MISSION_TIME', 'PACKET_COUNT', 'MODE', 'STATE',
                                  'ALTITUDE', 'TEMPERATURE', 'PRESSURE', 'VOLTAGE', 'GYRO_R',
                                  'GYRO_P', 'GYRO_Y', 'ACCEL_R', 'ACCEL_P', 'ACCEL_Y', 'MAG_R',
-                                 'MAG_P', 'MAG_Y', 'AUTO_GYRO_ROTATION RATE', 'GPS_TIME', 'GPS_ALTITUDE',
+                                 'MAG_P', 'MAG_Y', 'AUTO_GYRO_ROTATION_RATE', 'GPS_TIME', 'GPS_ALTITUDE',
                                  'GPS_LATITUDE', 'GPS_LONGITUDE', 'GPS_SATS', 'CMD_ECHO', 'TEAM_NAME'])
 
     def start_communication(self, signal_emitter):
+        if self.ser is None:
+            print("Serial port is not available.")
+            return
         self.reading = True
         self.read_thread = threading.Thread(target=self.read, args=(signal_emitter,))
         self.send_thread = threading.Thread(target=self.send_commands)
@@ -40,22 +47,23 @@ class Communication:
         self.send_thread.start()
 
     def read(self, signal_emitter):
-        with serial.Serial(self.serial_port, self.baud_rate, timeout=self.timeout) as ser:
-            print(f"Serial port {self.serial_port} opened successfully.")
-            with open(self.csv_filename, mode='a', newline='') as file:
-                writer = csv.writer(file)
-                while self.reading:
-                    try:
-                        # Reads line until 'COSMOS' is found
-                        line = ser.read_until(b'COSMOS').decode('utf-8').strip()
-                        self.lastPacket = line
-                        if line:
-                            self.receivedPacketCount += 1
-                            self.parse_csv_data(line)
-                            signal_emitter.emit_signal()
-                            writer.writerow(line.split(','))
-                    except Exception as e:
-                        print(f"Error: {e}")
+        print(f"Serial port {self.serial_port} opened successfully.")
+        with open(self.csv_filename, mode='a', newline='') as file:
+            writer = csv.writer(file)
+            while self.reading:
+                try:
+                    line = self.ser.read_until(b'COSMOS').decode('utf-8').strip()
+                    self.lastPacket = line
+                    if line:
+                        self.receivedPacketCount += 1
+                        self.parse_csv_data(line)
+                        signal_emitter.emit_signal()
+                        writer.writerow(line.split(','))
+                    time.sleep(1)
+                except serial.SerialException as e:
+                    print(f"Serial error: {e}")
+                except Exception as e:
+                    print(f"Error: {e}")
 
     def send_commands(self):
         while self.reading:
@@ -63,13 +71,12 @@ class Communication:
                 if self.command_queue:
                     command = self.command_queue.pop(0)
                     try:
-                        with serial.Serial(self.serial_port, self.baud_rate, timeout=self.timeout) as ser:
-                            command_to_send = f"{command}\n"
-                            ser.write(command_to_send.encode('utf-8'))
-                            print(f"Command sent: {command}")
+                        command_to_send = f"{command}\n"
+                        self.ser.write(command_to_send.encode('utf-8'))
+                        print(f"Command sent: {command}")
                     except serial.SerialException as e:
                         print(f"Failed to send command: {e}")
-            time.sleep(0.1)  # Adjust the sleep time as needed
+            time.sleep(0.1)
 
     def send_command(self, command):
         with self.command_lock:
@@ -81,9 +88,10 @@ class Communication:
             self.read_thread.join()
         if self.send_thread:
             self.send_thread.join()
+        if self.ser:
+            self.ser.close()
         print("Communication stopped.")
 
-    #Simulation mode, reads data from a CSV file and sends it to the serial port
     def simulation_mode(self, csv_filename):
         self.simulation = True
         with open(csv_filename, mode='r') as file:
@@ -92,23 +100,21 @@ class Communication:
                 if not self.simulation:
                     break
                 self.send_command(f'CMD,3195,SIMP,{line}')
-                time.sleep(1)  # Add a delay to simulate real-time data sending
+                time.sleep(1)
 
-    #Stops reading data from serial port
     def stop_reading(self):
         self.reading = False
         print("Reading stopped.")
 
-    #Splits lines with commas and appends them to a list
     def parse_csv_data(self, data):
         csv_data = data.split(',')
         self.data_list.append(csv_data)
+        self.data_list = self.data_list[-20:]
 
-    #Returns data list
     def get_data(self):
         return self.data_list
 
-    #Telemetry data getters
+    # Telemetry data getters
     def get_TEAM_ID(self):
         if self.data_list:
             try:
@@ -132,7 +138,7 @@ class Communication:
             except (IndexError, ValueError):
                 return None
         return None
-    
+
     def get_MODE(self):
         if self.data_list:
             try:

@@ -34,8 +34,8 @@ class TemperatureGraph:
 
         self.data.append(temperature)
         self.timestamps.append(elapsed_time)
-        #self.data = self.data[-20:]
-        #self.timestamps = self.timestamps[-20:]
+        self.data = self.data[-20:]
+        self.timestamps = self.timestamps[-20:]
 
     def update_gui(self):
         self.curve.setData(self.timestamps, self.data)
