@@ -15,6 +15,7 @@ import time
 from playsound3 import playsound
 import datetime
 import serial
+import shutil
 
 def get_available_serial_ports():
     ports = [f"COM{i}" for i in range(1, 20)]
@@ -327,6 +328,10 @@ class GroundStation(QMainWindow):
         self.calCamStabilization.clicked.connect(self.cal_camera_stabilization)
         self.calCamStabilization.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
         self.calCamStabilization.setFixedHeight(button_height)
+        self.copyCSV = QPushButton("Download\nCSV")
+        self.copyCSV.clicked.connect(self.copy_csv)
+        self.copyCSV.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
+        self.copyCSV.setFixedHeight(button_height)
 
         buttons_grid.addWidget(self.reset_graphs_button, 0, 0)
         buttons_grid.addWidget(self.set_UTC_time_button, 0, 1)
@@ -335,10 +340,11 @@ class GroundStation(QMainWindow):
         buttons_grid.addWidget(self.SIM_activate_button, 1, 1)
         buttons_grid.addWidget(self.CAL_button, 1, 2)
         buttons_grid.addWidget(self.RELEASE_toggle, 2, 0)
-        buttons_grid.addWidget(self.BLADE_CAM_toggle, 3, 1)
-        buttons_grid.addWidget(self.GROUND_CAM_toggle, 3, 2)
+        buttons_grid.addWidget(self.BLADE_CAM_toggle, 3, 0)
+        buttons_grid.addWidget(self.GROUND_CAM_toggle, 3, 1)
         buttons_grid.addWidget(self.start_stop_button, 2, 2)
         buttons_grid.addWidget(self.calCamStabilization, 2, 1)
+        buttons_grid.addWidget(self.copyCSV, 3, 2)
 
         # Create a widget for the buttons grid and add it to the sidebar layout
         buttons_widget = QWidget()
@@ -518,8 +524,22 @@ class GroundStation(QMainWindow):
     def cal_camera_stabilization(self):
         self.comm.send_command("CMD,3195,MEC,CAM_STABLE")
 
+    def copy_csv(self):
+        destination_folder = QFileDialog.getExistingDirectory(self, "Select Destination Folder")
+        if destination_folder:
+            source_file = 'Flight_3195.csv'
+            destination_file = f"{destination_folder}/Flight_3195.csv"
+            try:
+                shutil.copy(source_file, destination_file)
+                print(f"File copied to {destination_file}")
+            except Exception as e:
+                print(f"Error copying file: {e}")
+
     #update telemetry on GCS
     def update_live_data(self):
+        if self.comm.receivedPacketCount == 0:
+            return
+
         self.liveMode.setText(f"Mode: {self.comm.get_MODE() or 'N/A'}")
         self.liveState.setText(f"State: {self.comm.get_STATE() or 'N/A'}")
         self.liveMissionTime.setText(f"Mission Time: {self.comm.get_MISSION_TIME() or 'N/A'}")
@@ -527,7 +547,7 @@ class GroundStation(QMainWindow):
         self.livePacketCount.setText(f"Packet Count: {self.comm.get_PACKET_COUNT() or 'N/A'}")
         self.liveReceivedPackets.setText(f"Received Packets: {self.comm.receivedPacketCount or 'N/A'}")
         self.liveGPSAltitude.setText(f"GPS Altitude: {self.comm.get_GPS_ALTITUDE() or 'N/A'} m")
-        self.gyroRotation.setStyleSheet(f"Gyro Rate: {self.comm.get_AUTO_GYRO_ROTATION_RATE() or 'N/A'} °/s")
+        self.gyroRotation.setText(f"Gyro Rate: {self.comm.get_AUTO_GYRO_ROTATION_RATE() or 'N/A'} °/s")
         self.liveCMDEcho.setText(f"CMD Echo: {self.comm.get_CMD_ECHO() or 'N/A'}")
 
         self.accelerationRPY.setText(f"Acceleration R,P,Y: {f"{self.comm.get_ACCEL_R()}, {self.comm.get_ACCEL_P()}, {self.comm.get_ACCEL_Y()}" or 'N/A'}")
@@ -536,10 +556,6 @@ class GroundStation(QMainWindow):
         self.GPS_LONGITUDE.setText(f"GPS Longitude: {self.comm.get_GPS_LONGITUDE() or 'N/A'}")
 
         self.telemetry.setText(f"Telemetry: {self.comm.lastPacket or 'N/A'}")
-
-        #update GPS data
-        latitude = self.comm.get_GPS_LATITUDE()
-        longitude = self.comm.get_GPS_LONGITUDE()
 
     #update graphs
     def update_graphs(self):
