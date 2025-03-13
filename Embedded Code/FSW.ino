@@ -263,133 +263,129 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
 // Variables
 float receivedPressure = 0.0;  // Variable to store received pressure value from ground station
 
+// Global variables
+bool telemetryEnabled = false;
+bool simulationMode = false;
+float simulatedPressure = 0.0;
+float receivedPressure = 0.0; // For SIM_ACTIVATE pressure input
+#define CAMERA_PIN 2  // Define CAMERA_PIN (adjust as needed)
 
-/*//OLD COMAND HANDLER FUNCTION
-void handleCommand(String command) {
-  command.trim();  // Remove any leading or trailing spaces
+// Function to handle commands
+void handleCommand(const char* command) {
+    char field1[10], field2[10], field3[10], field4[10];
+    int num = sscanf(command, "CMD, %*d, %9[^,], %9[^,], %9[^,], %9[^,]", field1, field2, field3, field4);
 
-  if (command == "SIM_ENABLE") {
-    simulationMode = true;
-    Serial.println("Simulation mode enabled.");
-  } else if (command == "SIM_ACTIVATE") {
-    if (simulationMode) {
-      Serial.println("Simulation activated. Waiting for pressure input...");
-      // Wait for the ground station to send pressure data via XBee
-      while (!Serial1.available()) {
-        // Keep waiting for data
-        delay(1); // Wait for 1ms for lowest latency on completion CHECK FOR STABILITY HERE
-      }
-      String pressureInput = Serial1.readStringUntil('\n');  // Read the pressure string from ground station
-      pressureInput.trim();  // Clean any trailing/leading spaces
-      receivedPressure = pressureInput.toFloat();  // Convert the string to a float
-      if (receivedPressure > 0.0) {
-        simulatedPressure = receivedPressure;  // Set simulated pressure
-        Serial.println("Simulated pressure updated.");
-      } else {
-        Serial.println("Invalid pressure value received. Using default pressure.");
-      }
-    } else {
-      Serial.println("Simulation mode not enabled yet.");
+    // Check if parsing failed
+    if (num < 1) {
+        Serial.println("Invalid command");
+        return;
     }
-  } 
-  else if (command == "CAMERA_ON") {
-    digitalWrite(CAMERA_PIN, HIGH); // Turn camera ON
-    Serial.println("Camera powered ON.");
-  } 
-  else if (command == "CAMERA_OFF") {
-    digitalWrite(CAMERA_PIN, LOW);  // Turn camera OFF
-    Serial.println("Camera powered OFF.");
-  } 
-  else if (command == "CX_ON") {
-    telemetryEnabled = true;  // Start telemetry
-    Serial.println("Telemetry started.");
-  }
-  else if (command == "CX_OFF") {
-    telemetryEnabled = false; // Stop telemetry
-    Serial.println("Telemetry stopped.");
-  }
-    ------------------
-}*///////////TRANSFER TO NEW STRUCTURE BELOW!!!
-//--------------------
 
-//new command handler
-void handleCommand(const std::string& command) {
-  // Split the command into fields using a delimiter (e.g., ',')
-  std::vector<std::string> fields = splitCommand(command);
-
-  // Check if the command has enough fields
-  if (fields.size() < 4) {
-    std::cerr << "Invalid command: " << command << std::endl;
-    return;
-  }
-
-  // Extract the relevant fields
-  std::string cmdType = fields[2]; // Command type
-  std::string action = fields[3];  // Action or parameter
-
-  // Execute the corresponding logic
-  if (cmdType == "CX") {
-    if (action == "ON") {
-      telemetryEnabled = true;  // Start telemetry
-      Serial.println("Telemetry started.");
-    } else if (action == "OFF") {
-      telemetryEnabled = false; // Stop telemetry
-      Serial.println("Telemetry stopped.");  
-    }
-  } else if (cmdType == "ST") {
-    if (action == "UTC_TIME") {
-      // Run code for CMD, 3195, ST, UTC_TIME
-    } else if (action == "GPS") {
-      // Run code for CMD, 3195, ST, GPS
-    }
-  } else if (cmdType == "SIM") {
-    if (action == "ENABLE") {
-      simulationMode = true;
-      Serial.println("Simulation mode enabled.");
-    } else if (action == "ACTIVATE") {
-      // Run code for CMD, 3195, SIM, ACTIVATE
-    } else if (action == "DISABLE") {
-      // Run code for CMD, 3195, SIM, DISABLE
-    }
-  } else if (cmdType == "SIMP") {
-    // Run code for CMD, 3195, SIMP, [INPUT]
-  } else if (cmdType == "CAL") {
-    // Run code for CMD, 3195, CAL
-  } else if (cmdType == "MEC") {
-    if (action == "RELEASE") {
-      std::string releaseAction = fields[4]; // ON or OFF
-      if (releaseAction == "ON") {
-        // Run code for CMD, 3195, MEC, RELEASE, ON
-      } else if (releaseAction == "OFF") {
-        // Run code for CMD, 3195, MEC, RELEASE, OFF
-      }
-    } else if (action == "CAMERA") {
-      std::string cameraAction = fields[4]; // BLADE, GROUND, or CAM_STABLE
-      if (cameraAction == "BLADE") {
-        std::string bladeAction = fields[5]; // ON or OFF
-        if (bladeAction == "ON") {
-          // Run code for CMD, 3195, MEC, CAMERA, BLADE, ON
-        } else if (bladeAction == "OFF") {
-          // Run code for CMD, 3195, MEC, CAMERA, BLADE, OFF
+    // Handle CX commands
+    if (strcmp(field1, "CX") == 0 && num >= 2) {
+        if (strcmp(field2, "ON") == 0) {
+            telemetryEnabled = true;
+            Serial.println("Telemetry started.");
+        } else if (strcmp(field2, "OFF") == 0) {
+            telemetryEnabled = false;
+            Serial.println("Telemetry stopped.");
         }
-      } else if (cameraAction == "GROUND") {
-        std::string groundAction = fields[5]; // ON or OFF
-        if (groundAction == "ON") {
-          // Run code for CMD, 3195, MEC, CAMERA, GROUND, ON
-        } else if (groundAction == "OFF") {
-          // Run code for CMD, 3195, MEC, CAMERA, GROUND, OFF
-        }
-      } else if (cameraAction == "CAM_STABLE") {
-        // Run code for CMD, 3195, MEC, CAM_STABLE
-      }
     }
-  } else {
-      std::cerr << "Unknown command type: " << cmdType << std::endl;
-  }
+    // Handle ST commands
+    else if (strcmp(field1, "ST") == 0 && num >= 2) {
+        if (strcmp(field2, "UTC_TIME") == 0) {
+            Serial.println("ST UTC_TIME command received.");
+            // Add specific UTC_TIME action here if needed
+        } else if (strcmp(field2, "GPS") == 0) {
+            Serial.println("ST GPS command received.");
+            // Add specific GPS action here if needed
+        }
+    }
+    // Handle SIM commands
+    else if (strcmp(field1, "SIM") == 0 && num >= 2) {
+        if (strcmp(field2, "ENABLE") == 0) {
+            simulationMode = true;
+            Serial.println("Simulation mode enabled.");
+        } else if (strcmp(field2, "ACTIVATE") == 0) {
+            if (simulationMode) {
+                Serial.println("Simulation activated. Waiting for pressure input...");
+                while (!Serial1.available()) {
+                    delay(1); // Wait for data from Serial1 (e.g., XBee)
+                }
+                String pressureInput = Serial1.readStringUntil('\n');
+                pressureInput.trim();
+                receivedPressure = pressureInput.toFloat();
+                if (receivedPressure > 0.0) {
+                    simulatedPressure = receivedPressure;
+                    Serial.println("Simulated pressure updated.");
+                } else {
+                    Serial.println("Invalid pressure value received. Using default pressure.");
+                }
+            } else {
+                Serial.println("Simulation mode not enabled yet.");
+            }
+        } else if (strcmp(field2, "DISABLE") == 0) {
+            simulationMode = false;
+            Serial.println("Simulation mode disabled.");
+        }
+    }
+    // Handle SIMP command
+    else if (strcmp(field1, "SIMP") == 0 && num >= 2) {
+        float pressure = atof(field2);
+        if (pressure > 0.0) {
+            simulatedPressure = pressure;
+            Serial.println("Simulated pressure set via SIMP.");
+        } else {
+            Serial.println("Invalid pressure value in SIMP command.");
+        }
+    }
+    // Handle CAL command
+    else if (strcmp(field1, "CAL") == 0) {
+        Serial.println("CAL command received.");
+        // Add calibration action here if needed
+    }
+    // Handle MEC commands
+    else if (strcmp(field1, "MEC") == 0 && num >= 2) {
+        if (strcmp(field2, "RELEASE") == 0 && num >= 3) {
+            if (strcmp(field3, "ON") == 0) {
+                Serial.println("MEC RELEASE ON command received.");
+                // Add release ON action here
+            } else if (strcmp(field3, "OFF") == 0) {
+                Serial.println("MEC RELEASE OFF command received.");
+                // Add release OFF action here
+            }
+        } else if (strcmp(field2, "CAMERA") == 0 && num >= 3) {
+            if (strcmp(field3, "BLADE") == 0 && num >= 4) {
+                if (strcmp(field4, "ON") == 0) {
+                    digitalWrite(CAMERA_PIN, HIGH); // Using CAMERA_PIN for simplicity
+                    Serial.println("MEC CAMERA BLADE ON - Camera powered ON.");
+                } else if (strcmp(field4, "OFF") == 0) {
+                    digitalWrite(CAMERA_PIN, LOW);
+                    Serial.println("MEC CAMERA BLADE OFF - Camera powered OFF.");
+                }
+            } else if (strcmp(field3, "GROUND") == 0 && num >= 4) {
+                if (strcmp(field4, "ON") == 0) {
+                    digitalWrite(CAMERA_PIN, HIGH); // Using CAMERA_PIN for simplicity
+                    Serial.println("MEC CAMERA GROUND ON - Camera powered ON.");
+                } else if (strcmp(field4, "OFF") == 0) {
+                    digitalWrite(CAMERA_PIN, LOW);
+                    Serial.println("MEC CAMERA GROUND OFF - Camera powered OFF.");
+                }
+            }
+        } else if (strcmp(field2, "CAM_STABLE") == 0) {
+            Serial.println("MEC CAM_STABLE command received.");
+            // Add camera stabilization action here
+        }
+    }
+    // Unknown command type
+    else {
+        Serial.println("Unknown command type");
+    }
 }
-//USAGE!!!!
-std::string command = "CMD, 3195, CX, ON";
-handleCommand(command);
+// USAGE!!!!
+// Define the command as a modifiable C-style string (array of characters)
+char command[] = "CMD, 3195, CX, ON";
+handleCommand(command); // Pass the command to the function
 
 
 // ENS220 Sensor Initialization
