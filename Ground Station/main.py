@@ -504,10 +504,10 @@ class GroundStation(QMainWindow):
             self.blade_cam = True
     def blade_cam_on(self):
         self.BLADE_CAM_toggle.setText("BLADE CAM\nOFF")
-        self.comm.send_command("CMD,3195,MEC,CAM,BLADE,ON")
+        self.comm.send_command("CMD,3195,MEC,CAMERA,BLADE,ON")
     def blade_cam_off(self):
         self.BLADE_CAM_toggle.setText("BLADE CAM\nON")
-        self.comm.send_command("CMD,3195,MEC,CAM,BLADE,OFF")
+        self.comm.send_command("CMD,3195,MEC,CAMERA,BLADE,OFF")
     def toggle_ground_cam(self):
         if self.ground_cam:
             self.ground_cam_off()
@@ -517,12 +517,12 @@ class GroundStation(QMainWindow):
             self.ground_cam = True
     def ground_cam_on(self):
         self.GROUND_CAM_toggle.setText("GROUND CAM\nOFF")
-        self.comm.send_command("CMD,3195,MEC,CAM,GROUND,ON")
+        self.comm.send_command("CMD,3195,MEC,CAMERA,GROUND,ON")
     def ground_cam_off(self):
         self.GROUND_CAM_toggle.setText("GROUND CAM\nON")
-        self.comm.send_command("CMD,3195,MEC,CAM,GROUND,OFF")
+        self.comm.send_command("CMD,3195,MEC,CAMERA,GROUND,OFF")
     def cal_camera_stabilization(self):
-        self.comm.send_command("CMD,3195,MEC,CAM_STABLE")
+        self.comm.send_command("CMD,3195,MEC,CAMERA,STABLE")
 
     def copy_csv(self):
         destination_folder = QFileDialog.getExistingDirectory(self, "Select Destination Folder")
