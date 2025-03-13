@@ -13,6 +13,7 @@
 #include "i2c_interface.h"
 #include "FeedBackServo.h"
 #include <FastLED.h>
+#include <string> // HAS BEEN ADDED!!! ENSURE IT IS INSTALLED ON YOUR IDE!!!
 
 
 
