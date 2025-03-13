@@ -43,34 +43,43 @@ class GPSMap(QWidget, QObject):
     @pyqtSlot(float, float)
     def update_map(self, latitude, longitude):
         """Update the map HTML file with new GPS coordinates."""
-        self.latitude = latitude
-        self.longitude = longitude
+        try:
+            self.latitude = latitude
+            self.longitude = longitude
 
-        folium_map = folium.Map(location=[latitude, longitude], zoom_start=15)
-        icon = folium.CustomIcon('COSMOS_logo.png', icon_size=(30, 30))
-        folium.Marker([latitude, longitude], tooltip="Current Position", icon=icon).add_to(folium_map)
+            folium_map = folium.Map(location=[latitude, longitude], zoom_start=15)
+            icon = folium.CustomIcon('COSMOS_logo.png', icon_size=(36, 30))
+            folium.Marker([latitude, longitude], tooltip="Current Position", icon=icon).add_to(folium_map)
 
-        # Save map to file
-        folium_map.save(self.map_file)
+            # Save map to file
+            folium_map.save(self.map_file)
+        except Exception as e:
+            print(f"Error updating map: {e}")
 
     def update_gui(self):
         """Fetch live telemetry and update the map view."""
-        if self.latitude and self.longitude:
-            # Update the folium map file
-            self.update_map(self.latitude, self.longitude)
+        try:
+            if self.latitude and self.longitude:
+                # Update the folium map file
+                self.update_map(self.latitude, self.longitude)
 
-            # Load the updated map in the web view
-            self.browser.setUrl(QtCore.QUrl.fromLocalFile(os.path.abspath(self.map_file)))
+                # Load the updated map in the web view
+                self.browser.setUrl(QtCore.QUrl.fromLocalFile(os.path.abspath(self.map_file)))
+        except Exception as e:
+            print(f"Error updating GUI: {e}")
 
     def create_initial_map(self):
         """Create an initial map with a default location."""
-        # Replace with desired default location
-        initial_latitude = 31.11922492905565
-        initial_longitude = -86.09000126183433
+        try:
+            # Replace with desired default location
+            initial_latitude = 31.11922492905565
+            initial_longitude = -86.09000126183433
 
-        folium_map = folium.Map(location=[initial_latitude, initial_longitude], zoom_start=10)
-        folium_map.save(self.map_file)
-        self.browser.setUrl(QtCore.QUrl.fromLocalFile(os.path.abspath(self.map_file)))
+            folium_map = folium.Map(location=[initial_latitude, initial_longitude], zoom_start=10)
+            folium_map.save(self.map_file)
+            self.browser.setUrl(QtCore.QUrl.fromLocalFile(os.path.abspath(self.map_file)))
+        except Exception as e:
+            print(f"Error creating initial map: {e}")
 
     def start(self):
         """Start the application."""
