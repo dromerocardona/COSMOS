@@ -371,10 +371,10 @@ void handleCommand(const char* command) {
                     digitalWrite(CAMERA_PIN, LOW);
                     Serial.println("MEC CAMERA GROUND OFF - Camera powered OFF.");
                 }
+            } else if (strcmp(field3, "STABLE") == 0 && num >= 4) {
+              Serial.println("MEC CAMERA STABLE command received.");
+              // Add camera stabilization action here
             }
-        } else if (strcmp(field2, "CAM_STABLE") == 0) {
-            Serial.println("MEC CAM_STABLE command received.");
-            // Add camera stabilization action here
         }
     }
     // Unknown command type
