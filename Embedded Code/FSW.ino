@@ -123,6 +123,10 @@ TinyGPSPlus gps; // GPS sensor
 Adafruit_LIS3MDL lis3mdl;// Magnetometer
 // Set feedback signal pin number for the servo
 // FeedBackServo servo = FeedBackServo(FEEDBACK_PIN);
+float apogeeAltitude = 0.0;
+unsigned long landedTime = 0;
+unsigned long lastOrientationTime = 0;
+float lastOrientationX = 0.0, lastOrientationY = 0.0, lastOrientationZ = 0.0;
 
 // Variables
 float voltageDividerFactor = 0.012089; // Adjust based on resistor values in voltage divider
@@ -151,6 +155,8 @@ const int historySize = 10; // Fixed size of the history arrays
 float altitudeHistory[historySize];
 float velocityHistory[historySize];
 unsigned long timestampHistory[historySize]; // To store time in milliseconds
+
+
 
 // Function to update the altitude history array
 void updateAltitudeHistory(float altitudeHistory[], unsigned long timestampHistory[], float newAltitude, int size) {
@@ -262,6 +268,13 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
 }
 // Variables
 float receivedPressure = 0.0;  // Variable to store received pressure value from ground station
+
+// Update last orientation values
+    lastOrientationTime = millis();
+    lastOrientationX = x;
+    lastOrientationY = y;
+    lastOrientationZ = z;
+}
 
 // Global variables
 bool telemetryEnabled = false;
