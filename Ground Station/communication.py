@@ -114,6 +114,15 @@ class Communication:
     def get_data(self):
         return self.data_list
 
+    def reset_csv(self):
+        with open(self.csv_filename, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(['TEAM_ID', 'MISSION_TIME', 'PACKET_COUNT', 'MODE', 'STATE',
+                             'ALTITUDE', 'TEMPERATURE', 'PRESSURE', 'VOLTAGE', 'GYRO_R',
+                             'GYRO_P', 'GYRO_Y', 'ACCEL_R', 'ACCEL_P', 'ACCEL_Y', 'MAG_R',
+                             'MAG_P', 'MAG_Y', 'AUTO_GYRO_ROTATION_RATE', 'GPS_TIME', 'GPS_ALTITUDE',
+                             'GPS_LATITUDE', 'GPS_LONGITUDE', 'GPS_SATS', 'CMD_ECHO', 'TEAM_NAME'])
+
     # Telemetry data getters
     def get_TEAM_ID(self):
         if self.data_list:
