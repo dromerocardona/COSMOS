@@ -74,11 +74,6 @@ could work to do this if implemented:
 String currentTime = "00:00:00"; //replace with the time given by either GCS or GPS
 */
 
-// Variables to track timing
-unsigned long previousMillis = 0;
-const long interval = 1000;
-//updateTime(currentTime); calling this function.  input a string
-
 // Sensor objects
 ScioSense::ENS220 ens220;
 //TinyGPS gps; // GPS sensor
