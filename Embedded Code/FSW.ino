@@ -113,7 +113,7 @@ float lastInterruptTime = 0;
 bool simulationMode = false;
 float simulatedPressure = 0.0;
 float receivedPressure = 0.0; // For SIM_ACTIVATE pressure input
-float referencePressure = 1013.25 // Default reference point (sea level)
+float referencePressure = 1013.25; // Default reference point (sea level)
 
 
 float simulatedAltitude = 0.0;      // Altitude derived from simulated pressure
