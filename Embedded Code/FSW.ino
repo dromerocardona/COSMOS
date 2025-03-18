@@ -12,11 +12,6 @@
 #include <Arduino.h>
 #include "i2c_interface.h"
 #include "FeedBackServo.h"
-/*
-#include <FastLED.h>
-FastLED.addLeds<WS2812B,5,GRB>(leds, 5)
-    .setCorrection(TypicalLEDStrip)
-*/
 
 
 // PINS AND DEFINITIONS
