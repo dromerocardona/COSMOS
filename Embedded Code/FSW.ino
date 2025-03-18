@@ -30,11 +30,13 @@ FastLED.addLeds<WS2812B,5,GRB>(leds, 5)
 // #define FEEDBACK_PIN 2 // Feedback signal pin for servo control#define DATA_PIN    3
 #define NUM_LEDS 5 // Number of LEDs for FastLED
 
+/*
 CRGB leds[NUM_LEDS];
 #define LED_PIN 5 // Define the pin for FastLED
 void setupFastLED() {
   FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
 }
+*/
 
 // Team ID
 #define TEAM_ID "3195"
@@ -82,8 +84,7 @@ const long interval = 1000;
 
 // Sensor objects
 ScioSense::ENS220 ens220;
-ENS220 ens220; // sensor object ENS220
-TinyGPSPlus gps; // GPS sensor
+TinyGPS gps; // GPS sensor
 Adafruit_LIS3MDL lis3mdl;// Magnetometer
 // Set feedback signal pin number for the servo
 // FeedBackServo servo = FeedBackServo(FEEDBACK_PIN);
@@ -505,7 +506,7 @@ void setup(){
 #endif
 
   // Initialize FastLED
-  setupFastLED();
+  //setupFastLED();
 
   // Initialize variables
   //lastRpmTime = millis();
