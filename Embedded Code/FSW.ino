@@ -112,6 +112,7 @@ float lastInterruptTime = 0;
 bool simulationMode = false;
 float simulatedPressure = 0.0;
 float receivedPressure = 0.0; // For SIM_ACTIVATE pressure input
+float referencePressure = 1013.25 // Default reference point (sea level)
 #define CAMERA_PIN 2  // Define CAMERA_PIN (adjust as needed)
 
 float simulatedAltitude = 0.0;      // Altitude derived from simulated pressure
@@ -120,6 +121,21 @@ const int historySize = 10; // Fixed size of the history arrays
 float altitudeHistory[historySize];
 float velocityHistory[historySize];
 unsigned long timestampHistory[historySize]; // To store time in milliseconds
+
+// Function to calculate altitude from pressure
+float calculateAltitude(float pressure) {
+    // Constants for the barometric formula
+    const float temperatureLapseRate = 0.0065; // Temperature lapse rate in K/m
+    const float seaLevelTemperature = 288.15; // Sea level standard temperature in K
+    const float gasConstant = 8.3144598; // Universal gas constant in J/(mol*K)
+    const float molarMass = 0.0289644; // Molar mass of Earth's air in kg/mol
+    const float gravity = 9.80665; // Acceleration due to gravity in m/s^2
+
+    // Calculate altitude using the barometric formula
+    float altitude = (seaLevelTemperature / temperatureLapseRate) * 
+                     (1 - pow((pressure / referencePressure), (gasConstant * temperatureLapseRate) / (gravity * molarMass)));
+    return altitude;
+}
 
 // Function to update the altitude history array
 void updateAltitudeHistory(float altitudeHistory[], unsigned long timestampHistory[], float newAltitude, int size) {
@@ -308,7 +324,9 @@ void handleCommand(const char* command) {
     // Handle CAL command
     else if (strcmp(field1, "CAL") == 0) {
         Serial.println("CAL command received.");
-        // Add calibration action here if needed
+        referencePressure = ens220.getPressureHectoPascal();
+        Serial.print("Calibration complete. Reference pressure set to: ");
+        Serial.println(referencePressure);
     }
     // Handle MEC commands
     else if (strcmp(field1, "MEC") == 0 && num >= 2) {
@@ -585,6 +603,9 @@ void loop() {
   float temperature = ens220.getTempCelsius();
   float pressure = ens220.getPressureHectoPascal();
 
+  // Calculate altitude from pressure
+  float altitude = calculateAltitude(pressure);
+
   // ENS220 Continuous mode data reading
   ContinuousModeWithFIFO_loop();
 
@@ -612,10 +633,10 @@ void loop() {
         default: state = "UNKNOWN"; break;
       }
       snprintf(telemetry, sizeof(telemetry),
-               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%s,%.1f,%.4f,%.4f,%u,%s,COSMOS",
-               TEAM_ID, currentTime, packetCount, mode, state, gpsAltitude, temperature, pressure, currentVoltage,
+               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%s,%.1f,%.1f,%.4f,%.4f,%u,%s,COSMOS",
+               TEAM_ID, currentTime, packetCount, mode, state, altitude, temperature, pressure, currentVoltage,
                gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
-               magEvent.magnetic.x, magEvent.magnetic.y, magEvent.magnetic.z, rpm, gpsTime,
+               magEvent.magnetic.x, magEvent.magnetic.y, magEvent.magnetic.z, rpm, gpsTime, gpsAltitude,
                latitude, longitude, satellites, lastCommand);
 
       Serial1.println(telemetry);
@@ -640,7 +661,7 @@ void loop() {
   if (heading < 0) heading += 360; // Ensure 0-360 range
 
   //used for some state trasitions
-  updateAltitudeHistory(altitudeHistory, timestampHistory, gpsAltitude, historySize); //GPS ALTITUDE IS NOT SUFICIENT FOR THIS FUNCTION!!! REMOVE AS SOON AS POSSIBLE!!!
+  updateAltitudeHistory(altitudeHistory, timestampHistory, altitude, historySize);
   updateVelocityHistory(altitudeHistory, velocityHistory, timestampHistory, historySize);
   /*---------------------------------STATE DEPENDENT OPERATIONS---------------------------------*/
 
