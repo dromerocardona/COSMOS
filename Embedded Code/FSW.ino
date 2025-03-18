@@ -365,13 +365,13 @@ Serial.println("Starting ENS220 example 03_FIFO_I2C_Continuous");
 // Start the communication, confirm the device PART_ID, and read the device UID
 I2cInterface i2c_1;
 i2c_1.begin(Wire, I2C_ADDRESS);
-
+//FIX!!------------------------------------------------------------------------------------------------------------
 while (ens220.begin(&i2c_1) != true)
 {
   Serial.println("Waiting for I2C to start");
   delay(1000);
 }
-
+//FIX!!------------------------------------------------------------------------------------------------------------
 Serial.print("Device UID: "); Serial.println(ens220.getUID(), HEX);
 
 // Set up ENS220 configuration
@@ -483,7 +483,10 @@ void setup(){
   if (! lis3mdl.begin_I2C()) {          // hardware I2C mode,
     Serial.println("Failed to find LIS3MDL chip");
   }
-  Serial.println("LIS3MDL Found!");
+  else{
+    Serial.println("LIS3MDL Found!");
+  }
+  
 
   // Set up LIS3MDL settings
   lis3mdl.setPerformanceMode(LIS3MDL_MEDIUMMODE);
