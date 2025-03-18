@@ -456,7 +456,8 @@ void setup(){
   // Initialize SD card
   if (!SD.begin(SD_CS_PIN)) {
     Serial.println("SD card initialization failed!");
-    while (1);
+    pixels.setPixelColor(2, pixels.Color(150, 0, 0));
+    //while (1); //fix/remove this, could prevent FC from restarting if sd card becomes disconnected
   }
 
   // Initialize RPM sensor
@@ -500,8 +501,7 @@ void setup(){
   ScioSense::ens220.enableDebugging(Serial);
 #endif
 
-  // Initialize FastLED
-  //setupFastLED();
+  pixels.begin()
 
   // Initialize variables
   //lastRpmTime = millis();
