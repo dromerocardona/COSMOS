@@ -79,7 +79,7 @@ const long interval = 1000;
 //updateTime(currentTime); calling this function.  input a string
 
 // Sensor objects
-ScioSense::ENS220. ens220;
+ScioSense::ENS220 ens220;
 TinyGPS gps; // GPS sensor
 Adafruit_LIS3MDL lis3mdl;// Magnetometer
 // Set feedback signal pin number for the servo
