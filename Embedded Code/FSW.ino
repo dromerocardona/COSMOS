@@ -8,7 +8,7 @@
 #include <utils.h>
 #include <SPI.h>
 #include <SD.h>
-#include <TinyGPS++.h>
+//#include <TinyGPS.h>  REMOVE IN FUTURE
 #include <Arduino.h>
 #include "i2c_interface.h"
 #include "FeedBackServo.h"
@@ -80,7 +80,7 @@ const long interval = 1000;
 
 // Sensor objects
 ScioSense::ENS220 ens220;
-TinyGPS gps; // GPS sensor
+//TinyGPS gps; // GPS sensor
 Adafruit_LIS3MDL lis3mdl;// Magnetometer
 // Set feedback signal pin number for the servo
 // FeedBackServo servo = FeedBackServo(FEEDBACK_PIN);
@@ -539,7 +539,9 @@ void loop() {
 
   // Read battery voltage
   float currentVoltage = analogRead(BATTERY_PIN) * voltageDividerFactor;
- 
+  float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
+
+  /*
   // Read GPS data
   float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
   unsigned int satellites = 0;
@@ -559,7 +561,7 @@ void loop() {
   if (gps._time.isValid()) {
     snprintf(gpsTime, sizeof(gpsTime), "%02d:%02d:%02d", gps._time.hour(), gps._time.minute(), gps._time.second());
   }
-
+*/
   // Read magnetometer data
   sensors_event_t magEvent;
   lis3mdl.getEvent(&magEvent);
