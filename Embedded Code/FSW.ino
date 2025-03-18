@@ -235,9 +235,6 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
     lastOrientationZ = z;
 }
 
-// Variables
-float receivedPressure = 0.0;  // Variable to store received pressure value from ground station
-
 // Function to handle commands
 void handleCommand(const char* command) {
     char field1[10], field2[10], field3[10], field4[10];
