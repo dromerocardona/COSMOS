@@ -81,7 +81,7 @@ const long interval = 1000;
 //updateTime(currentTime); calling this function.  input a string
 
 // Sensor objects
-using namespace ScioSense; // ENS220
+ScioSense::ENS220 ens220;
 ENS220 ens220; // sensor object ENS220
 TinyGPSPlus gps; // GPS sensor
 Adafruit_LIS3MDL lis3mdl;// Magnetometer
@@ -112,7 +112,6 @@ float lastInterruptTime = 0;
 
 // Simulation mode variables
 // Global variables
-bool telemetryEnabled = false;
 bool simulationMode = false;
 float simulatedPressure = 0.0;
 float receivedPressure = 0.0; // For SIM_ACTIVATE pressure input
@@ -370,51 +369,51 @@ Serial.println("Starting ENS220 example 03_FIFO_I2C_Continuous");
 I2cInterface i2c_1;
 i2c_1.begin(Wire, I2C_ADDRESS);
 
-while (ens220.begin(&i2c_1) != true)
+while (ScioSense::ens220.begin(&i2c_1) != true)
 {
   Serial.println("Waiting for I2C to start");
   delay(1000);
 }
 
-Serial.print("Device UID: "); Serial.println(ens220.getUID(), HEX);
+Serial.print("Device UID: "); Serial.println(ScioSense::ens220.getUID(), HEX);
 
 // Set up ENS220 configuration
-ens220.setDefaultConfiguration();
-ens220.setPressureConversionTime(ENS220::PressureConversionTime::T_16_4);
-ens220.setOversamplingOfPressure(ENS220::Oversampling::N_16);
-ens220.setOversamplingOfTemperature(ENS220::Oversampling::N_16);
-ens220.setPressureTemperatureRatio(ENS220::PressureTemperatureRatio::PT_32);        
-ens220.setPressureDataPath(ENS220::PressureDataPath::Fifo);
-ens220.setInterfaceConfiguration(ENS220::InterfaceConfiguration::InterruptEnable);
-ens220.setInterruptConfiguration(ENS220::InterruptConfiguration::TemperatureDataReady | ENS220::InterruptConfiguration::PressureFifoFull); 
-ens220.setInterruptPin(INTN_1);
+ScioSense::ens220.setDefaultConfiguration();
+ScioSense::ens220.setPressureConversionTime(ENS220::PressureConversionTime::T_16_4);
+ScioSense::ens220.setOversamplingOfPressure(ENS220::Oversampling::N_16);
+ScioSense::ens220.setOversamplingOfTemperature(ENS220::Oversampling::N_16);
+ScioSense::ens220.setPressureTemperatureRatio(ENS220::PressureTemperatureRatio::PT_32);        
+ScioSense::ens220.setPressureDataPath(ENS220::PressureDataPath::Fifo);
+ScioSense::ens220.setInterfaceConfiguration(ENS220::InterfaceConfiguration::InterruptEnable);
+ScioSense::ens220.setInterruptConfiguration(ENS220::InterruptConfiguration::TemperatureDataReady | ENS220::InterruptConfiguration::PressureFifoFull); 
+ScioSense::ens220.setInterruptPin(INTN_1);
 
-ens220.writeConfiguration();
-ens220.startContinuousMeasure(ENS220::Sensor::TemperatureAndPressure);
+ScioSense::ens220.writeConfiguration();
+ScioSense::ens220.startContinuousMeasure(ENS220::Sensor::TemperatureAndPressure);
 }
 
 void ContinuousModeWithFIFO_loop(){    
   // Poll the interrupt pin until a new value is available
-  ens220.waitInterrupt();
+  ScioSense::ens220.waitInterrupt();
 
   // Check the DATA_STAT from the sensor. If data is available, it reads it
-  auto result= ens220.update();
+  auto result= ScioSense::ens220.update();
   if(result == ENS220::Result::Ok)
   {      
-    if(hasFlag(ens220.getInterruptStatus(), ENS220::InterruptStatus::FifoFull))
+    if(hasFlag(ScioSense::ens220.getInterruptStatus(), ENS220::InterruptStatus::FifoFull))
     {
       for(int i=0; i<32; i++)
       {
-        // Send the pressure value that was collected during the ens220.update()
+        // Send the pressure value that was collected during the ScioSense::ens220.update()
         Serial.print("P[hPa]:");
-        Serial.println(ens220.getPressureHectoPascal(i));
+        Serial.println(ScioSense::ens220.getPressureHectoPascal(i));
       }
     }
-    if(hasFlag(ens220.getInterruptStatus(), ENS220::InterruptStatus::Temperature))
+    if(hasFlag(ScioSense::ens220.getInterruptStatus(), ENS220::InterruptStatus::Temperature))
     {
-      // Send the temperature value that was collected during the ens220.update()
+      // Send the temperature value that was collected during the ScioSense::ens220.update()
       Serial.print("T[C]:");
-      Serial.println(ens220.getTempCelsius());
+      Serial.println(ScioSense::ens220.getTempCelsius());
     }
   }
 }
@@ -502,7 +501,7 @@ void setup(){
 
   // Initialize ENS220 sensor
 #ifdef DEBUG_ENS220
-  ens220.enableDebugging(Serial);
+  ScioSense::ens220.enableDebugging(Serial);
 #endif
 
   // Initialize FastLED
@@ -588,8 +587,8 @@ void loop() {
   }
   
   // Retrieve Temperature and Pressure from ENS220
-  float temperature = ens220.getTempCelsius();
-  float pressure = ens220.getPressureHectoPascal();
+  float temperature = ScioSense::ens220.getTempCelsius();
+  float pressure = ScioSense::ens220.getPressureHectoPascal();
 
   // ENS220 Continuous mode data reading
   ContinuousModeWithFIFO_loop();
