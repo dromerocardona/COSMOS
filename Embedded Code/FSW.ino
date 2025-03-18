@@ -379,7 +379,7 @@ void handleCommand(const char* command) {
     }
     // Unknown command type
     else {
-        Serial.println("Unknown command type");
+        Serial.println("Unknown command type or transmission error");
     }
 }
 // USAGE!!!!
