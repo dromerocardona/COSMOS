@@ -23,11 +23,12 @@
 #define I2C_ADDRESS 0x20 // I2C Address for ENS 220
 #define SERIAL_BAUDRATE 57600 // Speed of Serial Communication with the computer (ENS220)
 #define INTN_1 2 // Interrupt pin for ENS220
-#define CAMERA_PIN 7 // RunCam
+#define CAMERA1_PIN 7 //name these something like GND_CAM and BLADE_CAM
 // #define FEEDBACK_PIN 2 // Feedback signal pin for servo control
 // #define DATA_PIN    3
 #define LED_DATA 5
 #define NUM_LEDS 5 // Number of LEDs for FastLED
+#define CAMERA2_PIN 2  //name these something like GND_CAM and BLADE_CAM
 
 
 Adafruit_NeoPixel pixels(NUM_LEDS, LED_DATA, NEO_GRB + NEO_KHZ800);
@@ -113,7 +114,7 @@ bool simulationMode = false;
 float simulatedPressure = 0.0;
 float receivedPressure = 0.0; // For SIM_ACTIVATE pressure input
 float referencePressure = 1013.25 // Default reference point (sea level)
-#define CAMERA_PIN 2  // Define CAMERA_PIN (adjust as needed)
+
 
 float simulatedAltitude = 0.0;      // Altitude derived from simulated pressure
 

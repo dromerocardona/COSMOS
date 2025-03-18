@@ -29,6 +29,7 @@
 // #define DATA_PIN    3
 #define LED_DATA 5
 #define NUM_LEDS 5 // Number of LEDs for FastLED
+#define CAMERA_PIN 2  // Define CAMERA_PIN (adjust as needed)
 
 
 Adafruit_NeoPixel pixels(NUM_LEDS, LED_DATA, NEO_GRB + NEO_KHZ800);
@@ -115,8 +116,7 @@ float lastInterruptTime = 0;
 // Global variables
 bool simulationMode = false;
 float simulatedPressure = 0.0;
-float receivedPressure = 0.0; // For SIM_ACTIVATE pressure input
-#define CAMERA_PIN 2  // Define CAMERA_PIN (adjust as needed)
+#define CAMERA_PIN 2  // Define CAMERA_PIN (adjust as needed)float receivedPressure = 0.0; // For SIM_ACTIVATE pressure input
 
 float simulatedAltitude = 0.0;      // Altitude derived from simulated pressure
 
