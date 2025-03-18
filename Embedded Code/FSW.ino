@@ -11,12 +11,7 @@
 #include <TinyGPS++.h>
 #include <Arduino.h>
 #include "i2c_interface.h"
-#include "FeedBackServo.h"
 #include <FastLED.h>
-#include <string> // HAS BEEN ADDED!!! ENSURE IT IS INSTALLED ON YOUR IDE!!!
-
-
-
 
 // PINS AND DEFINITIONS
 #define BATTERY_PIN A0 // Analog pin for voltage divider circuit
@@ -28,14 +23,16 @@
 #define INTN_1 2 // Interrupt pin for ENS220
 #define CAMERA_PIN 7 // RunCam
 // #define FEEDBACK_PIN 2 // Feedback signal pin for servo control#define DATA_PIN    3
+#define NUM_LEDS 5 // Number of LEDs for FastLED
 
 CRGB leds[NUM_LEDS];
-FastLED.addLeds<WS2812B,5,GRB>(leds, 5)
-    .setCorrection(TypicalLEDStrip)
+#define LED_PIN 5 // Define the pin for FastLED
+void setupFastLED() {
+  FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+}
 
 // Team ID
 #define TEAM_ID "3195"
-
 
 /*-----STATE MANAGEMENT VARIABLE-----*/
 enum FlightState {
@@ -49,9 +46,6 @@ enum FlightState {
 //use to change state
 FlightState flightState = LAUNCH_PAD; // Initial state
 // call with currentState
-
-
-
 
 /*DIEGO'S NOTES:
 This is what the telemetry should ultimately look like:
@@ -75,54 +69,17 @@ could work to do this if implemented:
 
 String currentTime = "00:00:00"; //replace with the time given by either GCS or GPS
 */
+
 // Variables to track timing
 unsigned long previousMillis = 0;
 const long interval = 1000;
 //updateTime(currentTime); calling this function.  input a string
-
-void updateTime(String &currentTime) {
-  static unsigned long previousMillis = 0;
-  const unsigned long interval = 1000; // 1 second interval
-  unsigned long currentMillis = millis();
-  
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
-    
-    // Extract hours, minutes, seconds from string
-    int hours = currentTime.substring(0, 2).toInt();
-    int minutes = currentTime.substring(3, 5).toInt();
-    int seconds = currentTime.substring(6, 8).toInt();
-    
-    // Increment time
-    seconds++;
-    if (seconds >= 60) {
-      seconds = 0;
-      minutes++;
-      if (minutes >= 60) {
-        minutes = 0;
-        hours++;
-        if (hours >= 24) {
-          hours = 0;
-        }
-      }
-    }
-    
-    // Convert back to string with leading zeros
-    currentTime = String(hours < 10 ? "0" : "") + String(hours) + ":"
-                + (minutes < 10 ? "0" : "") + String(minutes) + ":"
-                + (seconds < 10 ? "0" : "") + String(seconds);
-  }
-}
-
-
 
 // Sensor objects
 using namespace ScioSense; // ENS220
 ENS220 ens220; // sensor object ENS220
 TinyGPSPlus gps; // GPS sensor
 Adafruit_LIS3MDL lis3mdl;// Magnetometer
-// Set feedback signal pin number for the servo
-// FeedBackServo servo = FeedBackServo(FEEDBACK_PIN);
 float apogeeAltitude = 0.0;
 unsigned long landedTime = 0;
 unsigned long lastOrientationTime = 0;
@@ -134,7 +91,9 @@ unsigned int packetCount = 0;
 File dataFile;
 bool telemetryEnabled = false;  // Telemetry Control
 float lastTransmissionTime = 0; // Last time of telemetry transmission
-
+char currentTime[9] = "00:00:00"; // Mission time in "HH:MM:SS"
+char lastCommand[32] = ""; // Last received command
+char gpsTime[9] = "00:00:00"; // GPS time in "HH:MM:SS"
 
 // Camera stabilization variables
 float cameraposition = 0;
@@ -149,14 +108,10 @@ bool simulationMode = false;
 float simulatedPressure = 1013.25;  // Default sea level pressure in hPa
 float simulatedAltitude = 0.0;      // Altitude derived from simulated pressure
 
-
-
 const int historySize = 10; // Fixed size of the history arrays
 float altitudeHistory[historySize];
 float velocityHistory[historySize];
 unsigned long timestampHistory[historySize]; // To store time in milliseconds
-
-
 
 // Function to update the altitude history array
 void updateAltitudeHistory(float altitudeHistory[], unsigned long timestampHistory[], float newAltitude, int size) {
@@ -188,6 +143,7 @@ void updateVelocityHistory(float altitudeHistory[], float velocityHistory[], uns
     // Update the first element with the latest velocity
     velocityHistory[0] = latestVelocity;
 }
+
 float avg(float arr[], int size) {
   float sum = 0.0;
   for (int i = 0; i < size; i++) {
@@ -195,7 +151,6 @@ float avg(float arr[], int size) {
   }
   return sum / size;
 }
-
 
 // PID tuning parameters
 const float K_proportional = 1.0; // Proportional gain
@@ -265,23 +220,15 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
       {}
     break;
   }
-}
-// Variables
-float receivedPressure = 0.0;  // Variable to store received pressure value from ground station
-
-// Update last orientation values
+  // Update last orientation values
     lastOrientationTime = millis();
     lastOrientationX = x;
     lastOrientationY = y;
     lastOrientationZ = z;
 }
 
-// Global variables
-bool telemetryEnabled = false;
-bool simulationMode = false;
-float simulatedPressure = 0.0;
-float receivedPressure = 0.0; // For SIM_ACTIVATE pressure input
-#define CAMERA_PIN 2  // Define CAMERA_PIN (adjust as needed)
+// Variables
+float receivedPressure = 0.0;  // Variable to store received pressure value from ground station
 
 // Function to handle commands
 void handleCommand(const char* command) {
@@ -322,12 +269,13 @@ void handleCommand(const char* command) {
         } else if (strcmp(field2, "ACTIVATE") == 0) {
             if (simulationMode) {
                 Serial.println("Simulation activated. Waiting for pressure input...");
+                char pressureInput[16];
                 while (!Serial1.available()) {
                     delay(1); // Wait for data from Serial1 (e.g., XBee)
                 }
-                String pressureInput = Serial1.readStringUntil('\n');
-                pressureInput.trim();
-                receivedPressure = pressureInput.toFloat();
+                Serial1.readBytesUntil('\n', pressureInput, sizeof(pressureInput) - 1);
+                pressureInput[sizeof(pressureInput) - 1] = '\0';
+                receivedPressure = atof(pressureInput);
                 if (receivedPressure > 0.0) {
                     simulatedPressure = receivedPressure;
                     Serial.println("Simulated pressure updated.");
@@ -398,14 +346,10 @@ void handleCommand(const char* command) {
 // USAGE!!!!
 // Define the command as a modifiable C-style string (array of characters)
 char command[] = "CMD, 3195, CX, ON";
-handleCommand(command); // Pass the command to the function
-
+// handleCommand(command); // Pass the command to the function
 
 // ENS220 Sensor Initialization
-void ContinuousModeWithFIFO_setup()
-
-
-{
+void ContinuousModeWithFIFO_setup() {
 Serial.println("Starting ENS220 example 03_FIFO_I2C_Continuous");
 
 // Start the communication, confirm the device PART_ID, and read the device UID
@@ -435,7 +379,6 @@ ens220.writeConfiguration();
 ens220.startContinuousMeasure(ENS220::Sensor::TemperatureAndPressure);
 }
 
-
 void ContinuousModeWithFIFO_loop(){    
   // Poll the interrupt pin until a new value is available
   ens220.waitInterrupt();
@@ -458,6 +401,36 @@ void ContinuousModeWithFIFO_loop(){
       // Send the temperature value that was collected during the ens220.update()
       Serial.print("T[C]:");
       Serial.println(ens220.getTempCelsius());
+    }
+  }
+}
+
+void updateTime(char *currentTime, size_t size) {
+  static unsigned long previousMillis = 0;
+  const unsigned long interval = 1000; // 1 second interval
+  unsigned long currentMillis = millis();
+  
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    
+    // Extract hours, minutes, seconds from string
+    int hours, minutes, seconds;
+    if (sscanf(currentTime, "%2d:%2d:%2d", &hours, &minutes, &seconds) == 3) {
+      // Increment time
+      seconds++;
+      if (seconds >= 60) {
+        seconds = 0;
+        minutes++;
+        if (minutes >= 60) {
+          minutes = 0;
+          hours++;
+          if (hours >= 24) {
+            hours = 0;
+          }
+        }
+      }
+      // Convert back to string with leading zeros
+      snprintf(currentTime, size, "%02d:%02d:%02d", hours, minutes, seconds);
     }
   }
 }
@@ -512,23 +485,18 @@ void setup(){
 
   //servo.setServoControl(SERVO_PIN);
   //servo.setKp(1.0);  // You can adjust the PID controller gain
-}
 
-
-// Initialize ENS220 sensor
-#ifdef DEBUG_ENS220;
-ens220.enableDebugging(Serial);
+  // Initialize ENS220 sensor
+#ifdef DEBUG_ENS220
+  ens220.enableDebugging(Serial);
 #endif
 
-// Initialize variables
-//lastRpmTime = millis();
+  // Initialize FastLED
+  setupFastLED();
 
-
-
-
-
-
-
+  // Initialize variables
+  //lastRpmTime = millis();
+}
 
 /*____________________________________________________________________________________________________*/
 /*________________________________________________MAIN________________________________________________*/
@@ -537,12 +505,16 @@ void loop() {
 
   /*------------------CORE OPERATIONS-----------------------------------------------------------*/
   //these run every loop regardless of state
+  updateTime(currentTime, sizeof(currentTime));
 
   /*------------------CORE OPERATIONS----Read Comands-------------------------------------------*/
   // Read data from XBee or Serial1
-  if (Serial1.available()) {
-    String command = Serial1.readStringUntil('\n');  // Read command from XBee
+  char command[64];
+  if (Serial1.readBytesUntil('\n', command, sizeof(command) - 1) > 0) {
+    command[sizeof(command) - 1] = '\0'; // Ensure null-termination
     handleCommand(command);  // Process the command
+    strncpy(lastCommand, command, sizeof(lastCommand) - 1);
+    lastCommand[sizeof(lastCommand) - 1] = '\0';
   }
 
   /*------------------CORE OPERATIONS----Sensor Data--------------------------------------------*/
@@ -554,14 +526,13 @@ void loop() {
   unsigned long missionTime = millis() / 1000; // Mission time in seconds
 
   // Calculate instantaneous RPM
-  float rpm = (60000 / timeDifference); // Calculate RPM
+  float rpm = (timeDifference > 0) ? (60000 / timeDifference) : 0; // Calculate RPM
   lastRpmTime = millis();  // Imediately update last RPM time for min error
   rpmCount = 0;
 
   // Read battery voltage
   float currentVoltage = analogRead(BATTERY_PIN) * voltageDividerFactor;
  
-  
   // Read GPS data
   float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
   unsigned int satellites = 0;
@@ -578,6 +549,9 @@ void loop() {
   if (gps.satellites.isValid()) {
     satellites = gps.satellites.value();
   }
+  if (gps.time.isValid()) {
+    snprintf(gpsTime, sizeof(gpsTime), "%02d:%02d:%02d", gps.time.hour(), gps.time.minute(), gps.time.second());
+  }
 
   // Read magnetometer data
   sensors_event_t magEvent;
@@ -585,18 +559,20 @@ void loop() {
 
   
   // Read accelerometer and gyroscope data
-  sensors_event_t accelEvent, gyroEvent;
-  float x, y, z;
+  float accelX, accelY, accelZ;
+  float gyroX, gyroY, gyroZ;
   if (IMU.accelerationAvailable()) {
-    IMU.readAcceleration(x, y, z);
-    Serial.print(x);
+    IMU.readAcceleration(accelX, accelY, accelZ);
+    Serial.print(accelX);
     Serial.print('\t');
-    Serial.print(y);
+    Serial.print(accelY);
     Serial.print('\t');
-    Serial.println(z);
+    Serial.println(accelZ);
   }
-  lis3mdl.getEvent(&magEvent);  // Read magnetometer
-
+  if (IMU.gyroscopeAvailable()) {
+    IMU.readGyroscope(gyroX, gyroY, gyroZ);
+  }
+  
   // Retrieve Temperature and Pressure from ENS220
   float temperature = ens220.getTempCelsius();
   float pressure = ens220.getPressureHectoPascal();
@@ -611,33 +587,41 @@ void loop() {
     gpsAltitude = simulatedAltitude;
   }
 
-
   /*------------------TELEMETRY TRASMISSION----------------------------------------------------*/
   // Telemetry Transmission
   if(lastTransmissionTime+1000<millis()) {// delay wraper:Transmit telemetry every second
     lastTransmissionTime = millis();
     if (telemetryEnabled) {
-          String telemetry = String(TEAM_ID) + "," + String(missionTime) + "," + String(packetCount) + ",F,ACTIVE," + 
-                          String(gpsAltitude, 1) + "," + String(temperature, 1) + "," + String(pressure, 1) + "," + 
-                          String(currentVoltage, 1) + "," + String(gyroEvent.gyro.x, 1) + "," + String(gyroEvent.gyro.y, 1) + "," + 
-                          String(gyroEvent.gyro.z, 1) + "," + String(x, 1) + "," + String(y, 1) + "," + String(z, 1) + "," + 
-                          String(magEvent.magnetic.x, 1) + "," + String(magEvent.magnetic.y, 1) + "," + String(magEvent.magnetic.z, 1) + "," + 
-                          String(rpm, 1) + "," + "N/A," + String(gpsAltitude, 1) + "," + 
-                          String(latitude, 4) + "," + String(longitude, 4) + "," + String(satellites) + ",CMD_ECHO";
+      char telemetry[256];
+      const char* mode = simulationMode ? "S" : "F";
+      const char* state;
+      switch (flightState) {
+        case LAUNCH_PAD: state = "LAUNCH_PAD"; break;
+        case ASCENT: state = "ASCENT"; break;
+        case APOGEE: state = "APOGEE"; break;
+        case DESCENT: state = "DESCENT"; break;
+        case LANDED: state = "LANDED"; break;
+        default: state = "UNKNOWN"; break;
+      }
+      snprintf(telemetry, sizeof(telemetry),
+               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%s,%.1f,%.4f,%.4f,%u,%s,COSMOS",
+               TEAM_ID, currentTime, packetCount, mode, state, gpsAltitude, temperature, pressure, currentVoltage,
+               gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
+               magEvent.magnetic.x, magEvent.magnetic.y, magEvent.magnetic.z, rpm, gpsTime,
+               latitude, longitude, satellites, lastCommand);
 
+      Serial1.println(telemetry);
 
-          Serial1.println(telemetry);
+      // Save telemetry to SD card
+      dataFile = SD.open("telemetry.txt", FILE_WRITE);
+      if (dataFile) {
+          dataFile.println(telemetry);
+          dataFile.close();
+      } else {
+          Serial.println("Error writing to SD card!");
+      }
 
-          // Save telemetry to SD card
-          dataFile = SD.open("telemetry.txt", FILE_WRITE);
-          if (dataFile) {
-              dataFile.println(telemetry);
-              dataFile.close();
-          } else {
-              Serial.println("Error writing to SD card!");
-          }
-
-          packetCount++; // Increment packet count
+      packetCount++; // Increment packet count
     }
   }
 
@@ -648,48 +632,44 @@ void loop() {
   if (heading < 0) heading += 360; // Ensure 0-360 range
 
   //used for some state trasitions
-  updateAltitudeHistory(altitudeHistory[], gpsAltitude, historySize)//GPS ALTITUDE IS NOT SUFICIENT FOR THIS FUNCTION!!! REMOVE AS SOON AS POSSIBLE!!!
-  updateVelocityHistory(altitudeHistory[], velocityHistory[], historySize)
-  updateTime(String &currentTime)//needs to have proper arguments
+  updateAltitudeHistory(altitudeHistory, timestampHistory, gpsAltitude, historySize); //GPS ALTITUDE IS NOT SUFICIENT FOR THIS FUNCTION!!! REMOVE AS SOON AS POSSIBLE!!!
+  updateVelocityHistory(altitudeHistory, velocityHistory, timestampHistory, historySize);
   /*---------------------------------STATE DEPENDENT OPERATIONS---------------------------------*/
 
-
-  
-
   //it is very important to fill this with the correct logic for trasitions and contents for each state ex. PID control in separated and deployed
-  switch (FlightState) {//switch statement so we have smooth-looking code :)
+  switch (flightState) {//switch statement so we have smooth-looking code :)
   ////////////////////////////////////////////////////////////////////////
     case LAUNCH_PAD:
       // Code for launch state
-      updateFlightState(float altitude, float velocity, float x, float y, float z)
+      updateFlightState(gpsAltitude, velocityHistory[0], accelX, accelY, accelZ);
       break;
   ////////////////////////////////////////////////////////////////////////
     case ASCENT:
       // Code for ascent state
-      updateFlightState(float altitude, float velocity, float x, float y, float z)
+      updateFlightState(gpsAltitude, velocityHistory[0], accelX, accelY, accelZ);
       break;
   ////////////////////////////////////////////////////////////////////////
     case APOGEE:
       // Code for ascent state
-      updateFlightState(float altitude, float velocity, float x, float y, float z)
+      updateFlightState(gpsAltitude, velocityHistory[0], accelX, accelY, accelZ);
     break;
   ////////////////////////////////////////////////////////////////////////
-    case SEPARATED:
+    case DESCENT:
       // Code for separated state
-      updateFlightState(float altitude, float velocity, float x, float y, float z)
+      updateFlightState(gpsAltitude, velocityHistory[0], accelX, accelY, accelZ);
       break;
   ////////////////////////////////////////////////////////////////////////
-    case DEPLOYED:
+    case LANDED:
       /*---------------------------------STATE DEPENDENT OPERATIONS----PID--------------------------*/
       // get input from the system
       input = heading;
 
       // Calculate the error
       error = setpoint - input; // Calculate the error based on difference between setpoint and input
-      if error > 180 {
+      if (error > 180) {
         error = error - 360;// account for the clossest path to the setpoint being across the 0° line
       }
-      else if error < -180 {
+      else if (error < -180) {
         error = error + 360;// account for the clossest path to the setpoint being across the 0° line the other way
       }
       //this method of error calculation may need to be changed based on the system
@@ -704,7 +684,7 @@ void loop() {
       output = K_proportional * error + K_integral * integral + K_derivative * derivative;
 
       // Update the system based on the PID output
-      updateSystem(output);
+      // updateSystem(output);
 
       // Store the current error as the last error to prepare for the next iteration
       lastError = error;
@@ -721,16 +701,12 @@ void loop() {
       // Serial.print(heading);
       // Serial.print("°  Servo angle: ");
       // Serial.println(targetAngle);
-      updateFlightState(float altitude, float velocity, float x, float y, float z)
-      if (avg(velocityHistory[], historySize)<1) {
-        currentState = LANDED;
+      updateFlightState(gpsAltitude, velocityHistory[0], accelX, accelY, accelZ);
+      if (avg(velocityHistory, historySize) < 1) {
+        flightState = LANDED;
       }
       break;
   ////////////////////////////////////////////////////////////////////////
-      case LANDED:
-        // Code for landed state
-        updateFlightState(float altitude, float velocity, float x, float y, float z)
-        break;
   }
 }
 /*-------------------------------------------REPEAT-------------------------------------------*/
