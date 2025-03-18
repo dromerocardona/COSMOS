@@ -497,7 +497,7 @@ void setup(){
   ens220.enableDebugging(Serial);
 #endif
 
-  pixels.begin()
+  pixels.begin();
 
   // Initialize variables
   //lastRpmTime = millis();
