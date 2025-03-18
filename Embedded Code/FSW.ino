@@ -452,6 +452,7 @@ void setup(){
   // Initialize SD card
   if (!SD.begin(SD_CS_PIN)) {
     Serial.println("SD card initialization failed!");
+    pixels.setPixelColor(150, 0, 0);
   }
 
   // Initialize RPM sensor
