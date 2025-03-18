@@ -12,6 +12,7 @@
 #include <Arduino.h>
 #include "i2c_interface.h"
 #include "FeedBackServo.h"
+#include <Adafruit_NeoPixel.h>
 
 
 // PINS AND DEFINITIONS
