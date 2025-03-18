@@ -89,6 +89,8 @@ float apogeeAltitude = 0.0;
 unsigned long landedTime = 0;
 unsigned long lastOrientationTime = 0;
 float lastOrientationX = 0.0, lastOrientationY = 0.0, lastOrientationZ = 0.0;
+TinyGPSPlus gps;
+uint8_t satellites = 0;
 
 // Variables
 float voltageDividerFactor = 0.012089; // Adjust based on resistor values in voltage divider
@@ -588,6 +590,8 @@ void loop() {
   sensors_event_t magEvent;
   lis3mdl.getEvent(&magEvent);
 
+//Satellites
+satellites=gps.satellites.value();
   
   // Read accelerometer and gyroscope data
   float accelX, accelY, accelZ;
