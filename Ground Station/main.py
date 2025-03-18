@@ -185,6 +185,10 @@ class GroundStation(QMainWindow):
         self.serial_port_dropdown.setStyleSheet("background-color: white;")
         right_header_layout.addWidget(self.serial_port_dropdown)
 
+        # initialize connection to communication
+        self.comm = Communication(
+            serial_port=self.serial_port_dropdown.currentText())  # Initialize with selected serial port
+
         # Enclose sats in a white box
         sats_box = QGroupBox()
         sats_box.setStyleSheet("background-color: white;")
@@ -280,11 +284,11 @@ class GroundStation(QMainWindow):
         # Add command buttons to sidebar layout
         button_width = 100
         button_height = 80
-        self.reset_graphs_button = QPushButton("Reset\nGraphs")
-        self.reset_graphs_button.clicked.connect(self.reset_graphs)
-        self.reset_graphs_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
-        self.reset_graphs_button.setFixedWidth(button_width)
-        self.reset_graphs_button.setFixedHeight(button_height)
+        self.reset_csv_button = QPushButton("Reset\nCSV")
+        self.reset_csv_button.clicked.connect(self.comm.reset_csv)
+        self.reset_csv_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
+        self.reset_csv_button.setFixedWidth(button_width)
+        self.reset_csv_button.setFixedHeight(button_height)
         self.set_UTC_time_button = QPushButton("Set\nUTC Time")
         self.set_UTC_time_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
         self.set_UTC_time_button.clicked.connect(self.set_utc_time)
@@ -333,7 +337,7 @@ class GroundStation(QMainWindow):
         self.copyCSV.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
         self.copyCSV.setFixedHeight(button_height)
 
-        buttons_grid.addWidget(self.reset_graphs_button, 0, 0)
+        buttons_grid.addWidget(self.reset_csv_button, 0, 0)
         buttons_grid.addWidget(self.set_UTC_time_button, 0, 1)
         buttons_grid.addWidget(self.set_GPS_time_button, 0, 2)
         buttons_grid.addWidget(self.SIM_toggle_button, 1, 0)
@@ -420,7 +424,6 @@ class GroundStation(QMainWindow):
         self.showMaximized()
 
         # Communication setup
-        self.comm = Communication(serial_port=self.serial_port_dropdown.currentText())  # Initialize with selected serial port
         self.reader_thread = None
         self.reading_data = False
 
@@ -431,6 +434,11 @@ class GroundStation(QMainWindow):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_live_data)
         self.timer.start(1000)
+
+        # Timer for updating serial ports
+        self.serial_timer = QTimer(self)
+        self.serial_timer.timeout.connect(self.update_serial_ports)
+        self.serial_timer.start(5000)  # Update every 5 seconds
 
     #enables/disables data transmission
     def toggle_data_transmission(self):
@@ -471,7 +479,7 @@ class GroundStation(QMainWindow):
         self.SIM_toggle_button.setText("SIM\nDisable")
         self.comm.send_command("CMD,3195,SIM,ENABLE")
     def sim_activate(self):
-        if self.comm.simEnabled:
+        if self.comm.simEnabled and self.comm.serial_port:
             self.comm.send_command("CMD,3195,SIM,ACTIVATE")
             csv_filename, _ = QFileDialog.getOpenFileName(self, "Select CSV file", "", "CSV Files (*.csv)")
             if csv_filename:
@@ -504,10 +512,10 @@ class GroundStation(QMainWindow):
             self.blade_cam = True
     def blade_cam_on(self):
         self.BLADE_CAM_toggle.setText("BLADE CAM\nOFF")
-        self.comm.send_command("CMD,3195,MEC,CAM,BLADE,ON")
+        self.comm.send_command("CMD,3195,MEC,CAMERA,BLADE,ON")
     def blade_cam_off(self):
         self.BLADE_CAM_toggle.setText("BLADE CAM\nON")
-        self.comm.send_command("CMD,3195,MEC,CAM,BLADE,OFF")
+        self.comm.send_command("CMD,3195,MEC,CAMERA,BLADE,OFF")
     def toggle_ground_cam(self):
         if self.ground_cam:
             self.ground_cam_off()
@@ -517,12 +525,12 @@ class GroundStation(QMainWindow):
             self.ground_cam = True
     def ground_cam_on(self):
         self.GROUND_CAM_toggle.setText("GROUND CAM\nOFF")
-        self.comm.send_command("CMD,3195,MEC,CAM,GROUND,ON")
+        self.comm.send_command("CMD,3195,MEC,CAMERA,GROUND,ON")
     def ground_cam_off(self):
         self.GROUND_CAM_toggle.setText("GROUND CAM\nON")
-        self.comm.send_command("CMD,3195,MEC,CAM,GROUND,OFF")
+        self.comm.send_command("CMD,3195,MEC,CAMERA,GROUND,OFF")
     def cal_camera_stabilization(self):
-        self.comm.send_command("CMD,3195,MEC,CAM_STABLE")
+        self.comm.send_command("CMD,3195,MEC,CAMERA,STABLE")
 
     def copy_csv(self):
         destination_folder = QFileDialog.getExistingDirectory(self, "Select Destination Folder")
@@ -598,6 +606,13 @@ class GroundStation(QMainWindow):
         selected_port = self.serial_port_dropdown.currentText()
         self.comm.serial_port = selected_port
         print(f"Serial port changed to {selected_port}")
+
+    def update_serial_ports(self):
+        current_ports = set(self.serial_port_dropdown.currentText())
+        available_ports = set(get_available_serial_ports())
+        if current_ports != available_ports:
+            self.serial_port_dropdown.clear()
+            self.serial_port_dropdown.addItems(available_ports)
 
     #close window/program
     def closeEvent(self, event):

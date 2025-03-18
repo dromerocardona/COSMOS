@@ -1,0 +1,7 @@
+setuptools~=75.6.0
+folium~=0.19.4
+offline_folium~=0.1.2
+PyQt5~=5.15.11
+pyserial~=3.5
+playsound3~=2.5.2
+pyqtgraph~=0.13.7
