@@ -456,8 +456,6 @@ void setup(){
   // Initialize SD card
   if (!SD.begin(SD_CS_PIN)) {
     Serial.println("SD card initialization failed!");
-    pixels.setPixelColor(2, pixels.Color(150, 0, 0));
-    //while (1); //fix/remove this, could prevent FC from restarting if sd card becomes disconnected
   }
 
   // Initialize RPM sensor
@@ -470,7 +468,7 @@ void setup(){
   // Initialize LSM6DSO32 (Accelerometer and Gyroscope)
   if (!IMU.begin()) {  // Corrected reference to the lsm6dso32 object
     Serial.println("Error initializing LSM6DSOX!");
-    while (1);
+    ;
   }
 
   Serial.print("Accelerometer sample rate = ");
@@ -483,7 +481,6 @@ void setup(){
   // Initialize LIS3MDL (Magnetometer)
   if (! lis3mdl.begin_I2C()) {          // hardware I2C mode,
     Serial.println("Failed to find LIS3MDL chip");
-    while (1) { delay(1); }// Wait for 1ms for lowest latency on completion CHECK FOR STABILITY HERE
   }
   Serial.println("LIS3MDL Found!");
 
