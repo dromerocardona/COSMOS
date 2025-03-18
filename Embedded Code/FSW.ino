@@ -342,18 +342,18 @@ void handleCommand(const char* command) {
         } else if (strcmp(field2, "CAMERA") == 0 && num >= 3) {
             if (strcmp(field3, "BLADE") == 0 && num >= 4) {
                 if (strcmp(field4, "ON") == 0) {
-                    digitalWrite(CAMERA_PIN, HIGH); // Using CAMERA_PIN for simplicity
+                    digitalWrite(CAMERA1_PIN, HIGH); // Using CAMERA_PIN for simplicity
                     Serial.println("MEC CAMERA BLADE ON - Camera powered ON.");
                 } else if (strcmp(field4, "OFF") == 0) {
-                    digitalWrite(CAMERA_PIN, LOW);
+                    digitalWrite(CAMERA1_PIN, LOW);
                     Serial.println("MEC CAMERA BLADE OFF - Camera powered OFF.");
                 }
             } else if (strcmp(field3, "GROUND") == 0 && num >= 4) {
                 if (strcmp(field4, "ON") == 0) {
-                    digitalWrite(CAMERA_PIN, HIGH); // Using CAMERA_PIN for simplicity
+                    digitalWrite(CAMERA2_PIN, HIGH); // Using CAMERA_PIN for simplicity
                     Serial.println("MEC CAMERA GROUND ON - Camera powered ON.");
                 } else if (strcmp(field4, "OFF") == 0) {
-                    digitalWrite(CAMERA_PIN, LOW);
+                    digitalWrite(CAMERA2_PIN, LOW);
                     Serial.println("MEC CAMERA GROUND OFF - Camera powered OFF.");
                 }
             } else if (strcmp(field3, "STABLE") == 0 && num >= 4) {
@@ -464,9 +464,13 @@ void setup(){
   Serial1.begin(9600);          // XBee communication
   Wire.begin();
 
-  // Initialize camera control pin (e.g., for power on/off)
-  pinMode(CAMERA_PIN, OUTPUT);  // Set camera control pin to output
-  digitalWrite(CAMERA_PIN, LOW);  // Make sure camera is OFF initially
+  // Initialize camera 1 control pin (e.g., for power on/off)
+  pinMode(CAMERA1_PIN, OUTPUT);  // Set camera control pin to output
+  digitalWrite(CAMERA1_PIN, LOW);  // Make sure camera is OFF initially
+
+  // Camera 2 control
+ pinMode(CAMERA2_PIN, OUTPUT);  // Set camera control pin to output
+  digitalWrite(CAMERA2_PIN, LOW);  // Make sure camera is OFF initially
 
   // Initialize SD card
   if (!SD.begin(SD_CS_PIN)) {
