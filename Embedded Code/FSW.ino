@@ -614,7 +614,7 @@ void loop() {
   // Use simulated pressure if in simulation mode
   if (simulationMode) {
     simulatedAltitude = (1 - pow(simulatedPressure / 1013.25, 0.190284)) * 145366.45;  // Approximation formula
-    gpsAltitude = simulatedAltitude;
+    altitude = simulatedAltitude;
   }
 
   /*------------------TELEMETRY TRASMISSION----------------------------------------------------*/
@@ -671,22 +671,22 @@ void loop() {
   ////////////////////////////////////////////////////////////////////////
     case LAUNCH_PAD:
       // Code for launch state
-      updateFlightState(gpsAltitude, velocityHistory[0], accelX, accelY, accelZ);
+      updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
       break;
   ////////////////////////////////////////////////////////////////////////
     case ASCENT:
       // Code for ascent state
-      updateFlightState(gpsAltitude, velocityHistory[0], accelX, accelY, accelZ);
+      updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
       break;
   ////////////////////////////////////////////////////////////////////////
     case APOGEE:
       // Code for ascent state
-      updateFlightState(gpsAltitude, velocityHistory[0], accelX, accelY, accelZ);
+      updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
     break;
   ////////////////////////////////////////////////////////////////////////
     case DESCENT:
       // Code for separated state
-      updateFlightState(gpsAltitude, velocityHistory[0], accelX, accelY, accelZ);
+      updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
       break;
   ////////////////////////////////////////////////////////////////////////
     case LANDED:
@@ -731,7 +731,7 @@ void loop() {
       // Serial.print(heading);
       // Serial.print("°  Servo angle: ");
       // Serial.println(targetAngle);
-      updateFlightState(gpsAltitude, velocityHistory[0], accelX, accelY, accelZ);
+      updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
       if (avg(velocityHistory, historySize) < 1) {
         flightState = LANDED;
       }
