@@ -556,8 +556,8 @@ void loop() {
   if (gps.satellites.isValid()) {
     satellites = gps.satellites.value();
   }
-  if (gps.time.isValid()) {
-    snprintf(gpsTime, sizeof(gpsTime), "%02d:%02d:%02d", gps.time.hour(), gps.time.minute(), gps.time.second());
+  if (gps._time.isValid()) {
+    snprintf(gpsTime, sizeof(gpsTime), "%02d:%02d:%02d", gps._time.hour(), gps._time.minute(), gps._time.second());
   }
 
   // Read magnetometer data
