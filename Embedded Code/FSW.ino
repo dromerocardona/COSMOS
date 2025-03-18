@@ -114,8 +114,6 @@ float simulatedPressure = 0.0;
 float receivedPressure = 0.0; // For SIM_ACTIVATE pressure input
 #define CAMERA_PIN 2  // Define CAMERA_PIN (adjust as needed)
 
-bool simulationMode = false;
-float simulatedPressure = 1013.25;  // Default sea level pressure in hPa
 float simulatedAltitude = 0.0;      // Altitude derived from simulated pressure
 
 const int historySize = 10; // Fixed size of the history arrays
