@@ -18,6 +18,7 @@ FastLED.addLeds<WS2812B,5,GRB>(leds, 5)
     .setCorrection(TypicalLEDStrip)
 */
 
+
 // PINS AND DEFINITIONS
 #define BATTERY_PIN A0 // Analog pin for voltage divider circuit
 #define RPM_PIN 2      // Pin for Hall effect sensor
@@ -27,14 +28,15 @@ FastLED.addLeds<WS2812B,5,GRB>(leds, 5)
 #define SERIAL_BAUDRATE 57600 // Speed of Serial Communication with the computer (ENS220)
 #define INTN_1 2 // Interrupt pin for ENS220
 #define CAMERA_PIN 7 // RunCam
-// #define FEEDBACK_PIN 2 // Feedback signal pin for servo control#define DATA_PIN    3
+// #define FEEDBACK_PIN 2 // Feedback signal pin for servo control
+// #define DATA_PIN    3
+#define LED_DATA 5
 #define NUM_LEDS 5 // Number of LEDs for FastLED
 
-CRGB leds[NUM_LEDS];
-#define LED_PIN 5 // Define the pin for FastLED
-void setupFastLED() {
-  FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
-}
+
+Adafruit_NeoPixel pixels(NUM_LEDS, LED_DATA, NEO_GRB + NEO_KHZ800);
+
+
 
 // Team ID
 #define TEAM_ID "3195"
