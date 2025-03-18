@@ -11,7 +11,12 @@
 #include <TinyGPS++.h>
 #include <Arduino.h>
 #include "i2c_interface.h"
+#include "FeedBackServo.h"
+/*
 #include <FastLED.h>
+FastLED.addLeds<WS2812B,5,GRB>(leds, 5)
+    .setCorrection(TypicalLEDStrip)
+*/
 
 // PINS AND DEFINITIONS
 #define BATTERY_PIN A0 // Analog pin for voltage divider circuit
@@ -80,6 +85,8 @@ using namespace ScioSense; // ENS220
 ENS220 ens220; // sensor object ENS220
 TinyGPSPlus gps; // GPS sensor
 Adafruit_LIS3MDL lis3mdl;// Magnetometer
+// Set feedback signal pin number for the servo
+// FeedBackServo servo = FeedBackServo(FEEDBACK_PIN);
 float apogeeAltitude = 0.0;
 unsigned long landedTime = 0;
 unsigned long lastOrientationTime = 0;
@@ -104,6 +111,13 @@ float timeDifference = 0; // Time difference between two consecutive interrupts
 float lastInterruptTime = 0;
 
 // Simulation mode variables
+// Global variables
+bool telemetryEnabled = false;
+bool simulationMode = false;
+float simulatedPressure = 0.0;
+float receivedPressure = 0.0; // For SIM_ACTIVATE pressure input
+#define CAMERA_PIN 2  // Define CAMERA_PIN (adjust as needed)
+
 bool simulationMode = false;
 float simulatedPressure = 1013.25;  // Default sea level pressure in hPa
 float simulatedAltitude = 0.0;      // Altitude derived from simulated pressure
