@@ -483,7 +483,10 @@ void setup(){
   if (! lis3mdl.begin_I2C()) {          // hardware I2C mode,
     Serial.println("Failed to find LIS3MDL chip");
   }
-  Serial.println("LIS3MDL Found!");
+  else{
+    Serial.println("LIS3MDL Found!");
+  }
+  
 
   // Set up LIS3MDL settings
   lis3mdl.setPerformanceMode(LIS3MDL_MEDIUMMODE);
