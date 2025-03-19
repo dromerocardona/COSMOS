@@ -57,8 +57,8 @@ FlightState flightState = LAUNCH_PAD; // Initial state
 // Sensor objects
 ScioSense::ENS220 ens220;
 Adafruit_LIS3MDL lis3mdl;// Magnetometer
-Adafruit_LIS3MDL lis3mdl1;  // First magnetometer
-Adafruit_LIS3MDL lis3mdl2;  // Second magnetometer
+Adafruit_LIS3MDL lis3mdl_FC;  // First magnetometer
+Adafruit_LIS3MDL lis3mdl_CAM;  // Second magnetometer
 float apogeeAltitude = 0.0;
 unsigned long landedTime = 0;
 unsigned long lastOrientationTime = 0;
@@ -478,25 +478,25 @@ void setup() {
   }
 
 
-if (!lis3mdl1.begin_I2C(MAG1_I2C_ADDRESS)) {
+if (!lis3mdl_FC.begin_I2C(MAG1_I2C_ADDRESS)) {
     Serial.println("Failed to find LIS3MDL #1");
   } else {
     Serial.println("LIS3MDL #1 Found!");
-    lis3mdl1.setPerformanceMode(LIS3MDL_MEDIUMMODE);
-    lis3mdl1.setOperationMode(LIS3MDL_CONTINUOUSMODE);
-    lis3mdl1.setDataRate(LIS3MDL_DATARATE_155_HZ);
-    lis3mdl1.setRange(LIS3MDL_RANGE_4_GAUSS);
+    lis3mdl_FC.setPerformanceMode(LIS3MDL_MEDIUMMODE);
+    lis3mdl_FC.setOperationMode(LIS3MDL_CONTINUOUSMODE);
+    lis3mdl_FC.setDataRate(LIS3MDL_DATARATE_155_HZ);
+    lis3mdl_FC.setRange(LIS3MDL_RANGE_4_GAUSS);
   }
 
   // Initialize second magnetometer
-  if (!lis3mdl2.begin_I2C(MAG2_I2C_ADDRESS)) {
+  if (!lis3mdl_CAM.begin_I2C(MAG2_I2C_ADDRESS)) {
     Serial.println("Failed to find LIS3MDL #2");
   } else {
     Serial.println("LIS3MDL #2 Found!");
-    lis3mdl2.setPerformanceMode(LIS3MDL_MEDIUMMODE);
-    lis3mdl2.setOperationMode(LIS3MDL_CONTINUOUSMODE);
-    lis3mdl2.setDataRate(LIS3MDL_DATARATE_155_HZ);
-    lis3mdl2.setRange(LIS3MDL_RANGE_4_GAUSS);
+    lis3mdl_CAM.setPerformanceMode(LIS3MDL_MEDIUMMODE);
+    lis3mdl_CAM.setOperationMode(LIS3MDL_CONTINUOUSMODE);
+    lis3mdl_CAM.setDataRate(LIS3MDL_DATARATE_155_HZ);
+    lis3mdl_CAM.setRange(LIS3MDL_RANGE_4_GAUSS);
   }
 
   // Initialize first IMU (LSM6DS3)
@@ -587,7 +587,7 @@ void loop() {
 
   // Read second magnetometer
   sensors_event_t magEvent2;
-  lis3mdl2.getEvent(&magEvent2);
+  lis3mdl_CAM.getEvent(&magEvent2);
   mag2X = magEvent2.magnetic.x;
   mag2Y = magEvent2.magnetic.y;
   mag2Z = magEvent2.magnetic.z;
