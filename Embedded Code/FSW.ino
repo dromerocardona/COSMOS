@@ -431,7 +431,7 @@ void updateTime(char *currentTime, size_t size) {
   }
 }
 
-void setup(){
+void setup() {
   Serial.begin(115200);         // Debugging output
   Serial1.begin(9600);          // XBee communication
   Wire.begin();
@@ -441,17 +441,19 @@ void setup(){
   digitalWrite(CAMERA1_PIN, LOW);  // Make sure camera is OFF initially
 
   // Camera 2 control
- pinMode(CAMERA2_PIN, OUTPUT);  // Set camera control pin to output
+  pinMode(CAMERA2_PIN, OUTPUT);  // Set camera control pin to output
   digitalWrite(CAMERA2_PIN, LOW);  // Make sure camera is OFF initially
 
   // Initialize SD card
   if (!SD.begin(SD_CS_PIN)) {
     Serial.println("SD card initialization failed!");
-    }else{
+  } else {
     Serial.println("SD card initialized successfully");
   }
-    pixels.setPixelColor(150, 0, 0);
-  }
+  
+  // NeoPixel initialization
+  pixels.setPixelColor(0, 255, 0, 0);  // Set first pixel to red
+  pixels.show();  // Update the pixels
 
   // Initialize RPM sensor
   pinMode(RPM_PIN, INPUT_PULLUP);
@@ -462,13 +464,12 @@ void setup(){
 
   // Initialize GNSS v3 (using Serial1 to communicate with GPS)
   if (!gps.begin()) {
-      Serial.println("GNSS v3 initialization failed!");
+    Serial.println("GNSS v3 initialization failed!");
   }
 
   // Initialize LSM6DSO32 (Accelerometer and Gyroscope)
   if (!IMU.begin()) {  // Corrected reference to the lsm6dso32 object
     Serial.println("Error initializing LSM6DSOX!");
-    ;
   }
 
   Serial.print("Accelerometer sample rate = ");
@@ -479,27 +480,17 @@ void setup(){
   Serial.println("X\tY\tZ");
 
   // Initialize LIS3MDL (Magnetometer)
-  if (! lis3mdl.begin_I2C()) {          // hardware I2C mode,
+  if (!lis3mdl.begin_I2C()) {          // hardware I2C mode
     Serial.println("Failed to find LIS3MDL chip");
-  }
-  else{
+  } else {
     Serial.println("LIS3MDL Found!");
   }
-  
 
   // Set up LIS3MDL settings
   lis3mdl.setPerformanceMode(LIS3MDL_MEDIUMMODE);
   lis3mdl.setOperationMode(LIS3MDL_CONTINUOUSMODE);
   lis3mdl.setDataRate(LIS3MDL_DATARATE_155_HZ);
   lis3mdl.setRange(LIS3MDL_RANGE_4_GAUSS);
-
-  //servo.setServoControl(SERVO_PIN);
-  //servo.setKp(1.0);  // You can adjust the PID controller gain
-
-  // Initialize ENS220 sensor
-#ifdef DEBUG_ENS220
-  ens220.enableDebugging(Serial);
-#endif
 
   pixels.begin();
 
