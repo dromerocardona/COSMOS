@@ -8,7 +8,7 @@
 #include <utils.h>
 #include <SPI.h>
 #include <SD.h>
-#include <TinyGPS++.h> 
+#include <SparkFun_u-blox_GNSS_v3.h>
 #include <Arduino.h>
 #include "i2c_interface.h"
 #include "FeedBackServo.h"
@@ -53,7 +53,6 @@ FlightState flightState = LAUNCH_PAD; // Initial state
 
 // Sensor objects
 ScioSense::ENS220 ens220;
-//TinyGPS gps; // GPS sensor
 Adafruit_LIS3MDL lis3mdl;// Magnetometer
 // Set feedback signal pin number for the servo
 // FeedBackServo servo = FeedBackServo(FEEDBACK_PIN);
@@ -61,7 +60,7 @@ float apogeeAltitude = 0.0;
 unsigned long landedTime = 0;
 unsigned long lastOrientationTime = 0;
 float lastOrientationX = 0.0, lastOrientationY = 0.0, lastOrientationZ = 0.0;
-TinyGPSPlus gps;
+SFE_UBLOX_GNSS gps;
 uint8_t satellites = 0;
 Servo servo;
 
@@ -461,6 +460,11 @@ void setup(){
   // Initialize GPS (using Serial1 to communicate with GPS)
   Serial1.begin(9600);
 
+  // Initialize GNSS v3 (using Serial1 to communicate with GPS)
+  if (!gps.begin()) {
+      Serial.println("GNSS v3 initialization failed!");
+  }
+
   // Initialize LSM6DSO32 (Accelerometer and Gyroscope)
   if (!IMU.begin()) {  // Corrected reference to the lsm6dso32 object
     Serial.println("Error initializing LSM6DSOX!");
@@ -539,33 +543,21 @@ void loop() {
   float currentVoltage = analogRead(BATTERY_PIN) * voltageDividerFactor;
   float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
 
-  /*
   // Read GPS data
   float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
   unsigned int satellites = 0;
-  while (Serial1.available() > 0) {
-    gps.encode(Serial1.read());
+  
+  if (gps.getFixType() >= 3) { // Check if we have a 3D fix
+      latitude = gps.getLatitude() / 10000000.0; // Convert to degrees
+      longitude = gps.getLongitude() / 10000000.0; // Convert to degrees
+      gpsAltitude = gps.getAltitude() / 1000.0; // Convert to meters
+      satellites = gps.getSIV();
+      snprintf(gpsTime, sizeof(gpsTime), "%02d:%02d:%02d", gps.getHour(), gps.getMinute(), gps.getSecond());
   }
-  if (gps.location.isValid()) {
-    latitude = gps.location.lat();
-    longitude = gps.location.lng();
-  }
-  if (gps.altitude.isValid()) {
-    gpsAltitude = gps.altitude.meters();
-  }
-  if (gps.satellites.isValid()) {
-    satellites = gps.satellites.value();
-  }
-  if (gps._time.isValid()) {
-    snprintf(gpsTime, sizeof(gpsTime), "%02d:%02d:%02d", gps._time.hour(), gps._time.minute(), gps._time.second());
-  }
-*/
+  
   // Read magnetometer data
   sensors_event_t magEvent;
   lis3mdl.getEvent(&magEvent);
-
-//Satellites
-satellites=gps.satellites.value();
   
   // Read accelerometer and gyroscope data
   float accelX, accelY, accelZ;
