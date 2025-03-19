@@ -532,7 +532,6 @@ void loop() {
 
   // Read battery voltage
   float currentVoltage = analogRead(BATTERY_PIN) * voltageDividerFactor;
-  float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
 
   // Read GPS data
   float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
