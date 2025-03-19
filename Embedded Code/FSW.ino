@@ -251,10 +251,10 @@ void handleCommand(const char* command) {
     else if (strcmp(field1, "ST") == 0 && num >= 2) {
         if (strcmp(field2, "UTC_TIME") == 0) {
             Serial.println("ST UTC_TIME command received.");
-            // Add specific UTC_TIME action here if needed
+            strncpy(currentTime, field3);
         } else if (strcmp(field2, "GPS") == 0) {
             Serial.println("ST GPS command received.");
-            // Add specific GPS action here if needed
+            strncpy(currentTime, gpsTime);
         }
     }
     // Handle SIM commands
