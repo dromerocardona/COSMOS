@@ -36,8 +36,6 @@
 
 Adafruit_NeoPixel pixels(NUM_LEDS, LED_DATA, NEO_GRB + NEO_KHZ800);
 
-
-
 // Team ID
 #define TEAM_ID "3195"
 
@@ -184,6 +182,57 @@ float output = 0.0; // PID output
 float error = 0.0; // Current error
 float lastError = 0.0; // Previous error
 float integral = 0.0; // tracks cumulative error
+
+// Funtion for PID Camera Stabalization
+void pidControl(float input, float setpoint, float &lastError, float &integral, Servo &servo) {
+    // PID tuning parameters
+    const float K_proportional = 1.0; // Proportional gain
+    const float K_integral = 0.1; // Integral gain
+    const float K_derivative = 0.01; // Derivative gain
+
+    // Calculate the error
+    float error = setpoint - input; // Calculate the error based on difference between setpoint and input
+    if (error > 180) {
+        error = error - 360; // account for the closest path to the setpoint being across the 0° line
+    } else if (error < -180) {
+        error = error + 360; // account for the closest path to the setpoint being across the 0° line the other way
+    }
+
+    // Calculate the integral term
+    integral += error;
+
+    // Calculate the derivative term
+    float derivative = error - lastError;
+
+    // Calculate the PID output
+    float output = K_proportional * error + K_integral * integral + K_derivative * derivative;
+
+    // Store the current error as the last error to prepare for the next iteration
+    lastError = error;
+
+    // Map heading to servo angle (assuming servo range is 0-180°)
+    int currentAngle = servo.read(); // Read current servo position
+    int targetAngle = map(input, 0, 360, 0, 180); // Adjust based on servo range
+    int adjustedAngle = currentAngle - (int)output; // Adjusting servo based on the PID output
+
+    // Constrain to servo range (0-180°)
+    if (adjustedAngle < 0) adjustedAngle = 0;
+    if (adjustedAngle > 180) adjustedAngle = 180;
+    servo.write(targetAngle); // Set servo to target angle
+
+    // Read feedback and correct (optional, depends on FeedBackServo implementation)
+    if (abs(currentAngle - targetAngle) > 5) { // Tolerance of 5 degrees
+        servo.write(targetAngle); // Reapply correction
+    }
+
+    // Debug output
+    Serial.print("Heading: ");
+    Serial.print(input);
+    Serial.print("°  Target Servo Angle: ");
+    Serial.print(targetAngle);
+    Serial.print("°  Current Servo Angle: ");
+    Serial.println(currentAngle);
+}
 
 // Interrupt Service Routine for RPM counting
 void rpmISR() {
@@ -342,7 +391,8 @@ void handleCommand(const char* command) {
                 }
             } else if (strcmp(field3, "STABLE") == 0 && num >= 4) {
               Serial.println("MEC CAMERA STABLE command received.");
-              // Add camera stabilization action here
+              // PID Camera Stabalization
+              pidControl(heading, setpoint, lastError, integral, servo);
             }
         }
     }
@@ -694,61 +744,11 @@ void loop() {
     case DESCENT:
       // Code for separated state
       updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
+      // PID Camera Stabilization
+      pidControl(heading, setpoint, lastError, integral, servo);
       break;
   ////////////////////////////////////////////////////////////////////////
     case LANDED:
-      /*---------------------------------STATE DEPENDENT OPERATIONS----PID--------------------------*/
-      // get input from the system
-      input = heading;
-
-      // Calculate the error
-      error = setpoint - input; // Calculate the error based on difference between setpoint and input
-      if (error > 180) {
-        error = error - 360;// account for the clossest path to the setpoint being across the 0° line
-      }
-      else if (error < -180) {
-        error = error + 360;// account for the clossest path to the setpoint being across the 0° line the other way
-      }
-      //this method of error calculation may need to be changed based on the system
-
-      // Calculate the integral term
-      integral += error;
-
-      // Calculate the derivative term
-      float derivative = error - lastError;
-
-      // Calculate the PID output
-      output = K_proportional * error + K_integral * integral + K_derivative * derivative;
-
-      // Update the system based on the PID output
-      // updateSystem(output);
-
-      // Store the current error as the last error to prepare for the next iteration
-      lastError = error;
-
-      // Map heading to servo angle (assuming servo range is 0-180°)
-      int currentAngle = servo.read();// Read current servo position
-      int targetAngle = map(heading, 0, 360, 0, 180); // Adjust based on servo range
-      int adjustedAngle = currentAngle - (int)output;// Adjusting servo based on the PID output
-
-      // Constrain to servo range (0-180°)
-      if (adjustedAngle < 0) adjustedAngle = 0;
-      if (adjustedAngle > 180) adjustedAngle = 180;
-      servo.write(targetAngle); // Set servo to target angle
-
-      // Read feedback and correct (optional, depends on FeedBackServo implementation)
-      if (abs(currentAngle - targetAngle) > 5) { // Tolerance of 5 degrees
-        servo.write(targetAngle); // Reapply correction
-      }
-
-      // Debug output
-      Serial.print("Heading: ");
-      Serial.print(heading);
-      Serial.print("°  Target Servo Angle: ");
-      Serial.print(targetAngle);
-      Serial.print("°  Current Servo Angle: ");
-      Serial.println(currentAngle);
-
       updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
       if (avg(velocityHistory, historySize) < 1) {
         flightState = LANDED;
