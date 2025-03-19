@@ -1,5 +1,5 @@
 // LIBRARY INCLUSIONS
-#include <Arduino_LSM6DSOX.h>
+#include <Arduino_LSM6DS3.h>
 #include <Wire.h>
 #include <Adafruit_LIS3MDL.h>
 #include <Adafruit_Sensor.h>
@@ -8,27 +8,27 @@
 #include <utils.h>
 #include <SPI.h>
 #include <SD.h>
-//#include <TinyGPS.h>  REMOVE IN FUTURE
+#include <TinyGPS++.h> 
 #include <Arduino.h>
 #include "i2c_interface.h"
 #include "FeedBackServo.h"
 #include <Adafruit_NeoPixel.h>
+#include <Servo.h>
 
 
 // PINS AND DEFINITIONS
 #define BATTERY_PIN A0 // Analog pin for voltage divider circuit
 #define RPM_PIN 2      // Pin for Hall effect sensor
-#define SD_CS_PIN 4    // Chip select pin for SD card
-// #define SERVO_PIN 3   // Servo pin for camera stabilization
+#define SD_CS_PIN 6    // Chip select pin for SD card
+#define SERVO_PIN 13    // Servo pin for GND camera stabilization
+#define FEEDBACK_PIN 9 // Feedback signal pin for servo control
 #define I2C_ADDRESS 0x20 // I2C Address for ENS 220
 #define SERIAL_BAUDRATE 57600 // Speed of Serial Communication with the computer (ENS220)
-#define INTN_1 2 // Interrupt pin for ENS220
-#define CAMERA1_PIN 7 //name these something like GND_CAM and BLADE_CAM
-// #define FEEDBACK_PIN 2 // Feedback signal pin for servo control
-// #define DATA_PIN    3
+#define INTN_1 4 // Interrupt pin for ENS220
+#define CAMERA1_PIN 10 // Blade camera
+#define CAMERA2_PIN 11 // Ground camera
 #define LED_DATA 5
 #define NUM_LEDS 5 // Number of LEDs for FastLED
-#define CAMERA2_PIN 2  //name these something like GND_CAM and BLADE_CAM
 
 
 Adafruit_NeoPixel pixels(NUM_LEDS, LED_DATA, NEO_GRB + NEO_KHZ800);
@@ -63,6 +63,7 @@ unsigned long lastOrientationTime = 0;
 float lastOrientationX = 0.0, lastOrientationY = 0.0, lastOrientationZ = 0.0;
 TinyGPSPlus gps;
 uint8_t satellites = 0;
+Servo servo;
 
 // Variables
 float voltageDividerFactor = 0.012089; // Adjust based on resistor values in voltage divider
@@ -447,6 +448,9 @@ void setup(){
   // Initialize SD card
   if (!SD.begin(SD_CS_PIN)) {
     Serial.println("SD card initialization failed!");
+    }else{
+    Serial.println("SD card initialized successfully");
+  }
     pixels.setPixelColor(150, 0, 0);
   }
 
@@ -697,18 +701,29 @@ satellites=gps.satellites.value();
       // Store the current error as the last error to prepare for the next iteration
       lastError = error;
 
-      // Print the current values for debugging
-      //Serial.print("Input: ");
-      //Serial.print(input);
-      //Serial.print(", Output: ");
-      //Serial.println(output);
+      // Map heading to servo angle (assuming servo range is 0-180°)
+      int currentAngle = servo.read();// Read current servo position
+      int targetAngle = map(heading, 0, 360, 0, 180); // Adjust based on servo range
+      int adjustedAngle = currentAngle - (int)output;// Adjusting servo based on the PID output
 
-      //END OF PID CONTROL
+      // Constrain to servo range (0-180°)
+      if (adjustedAngle < 0) adjustedAngle = 0;
+      if (adjustedAngle > 180) adjustedAngle = 180;
+      servo.write(targetAngle); // Set servo to target angle
 
-      // Serial.print("Heading: ");
-      // Serial.print(heading);
-      // Serial.print("°  Servo angle: ");
-      // Serial.println(targetAngle);
+      // Read feedback and correct (optional, depends on FeedBackServo implementation)
+      if (abs(currentAngle - targetAngle) > 5) { // Tolerance of 5 degrees
+        servo.write(targetAngle); // Reapply correction
+      }
+
+      // Debug output
+      Serial.print("Heading: ");
+      Serial.print(heading);
+      Serial.print("°  Target Servo Angle: ");
+      Serial.print(targetAngle);
+      Serial.print("°  Current Servo Angle: ");
+      Serial.println(currentAngle);
+
       updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
       if (avg(velocityHistory, historySize) < 1) {
         flightState = LANDED;
