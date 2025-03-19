@@ -29,7 +29,10 @@
 #define CAMERA2_PIN 11 // Ground camera
 #define LED_DATA 5
 #define NUM_LEDS 5 // Number of LEDs for FastLED
-
+#define MAG1_I2C_ADDRESS 0x1C  // First LIS3MDL address
+#define MAG2_I2C_ADDRESS 0x1E  // Second LIS3MDL address
+#define IMU1_I2C_ADDRESS 0x6A  // First LSM6DS3 address
+#define IMU2_I2C_ADDRESS 0x6B  // Second LSM6DS3 address
 
 Adafruit_NeoPixel pixels(NUM_LEDS, LED_DATA, NEO_GRB + NEO_KHZ800);
 
@@ -54,8 +57,8 @@ FlightState flightState = LAUNCH_PAD; // Initial state
 // Sensor objects
 ScioSense::ENS220 ens220;
 Adafruit_LIS3MDL lis3mdl;// Magnetometer
-// Set feedback signal pin number for the servo
-// FeedBackServo servo = FeedBackServo(FEEDBACK_PIN);
+Adafruit_LIS3MDL lis3mdl1;  // First magnetometer
+Adafruit_LIS3MDL lis3mdl2;  // Second magnetometer
 float apogeeAltitude = 0.0;
 unsigned long landedTime = 0;
 unsigned long lastOrientationTime = 0;
@@ -73,6 +76,13 @@ float lastTransmissionTime = 0; // Last time of telemetry transmission
 char currentTime[9] = "00:00:00"; // Mission time in "HH:MM:SS"
 char lastCommand[32] = ""; // Last received command
 char gpsTime[9] = "00:00:00"; // GPS time in "HH:MM:SS"
+
+// Magnetometer data for second sensor
+float mag2X, mag2Y, mag2Z;
+
+// IMU data for second sensor (if separate IMU object is used)
+float accel2X, accel2Y, accel2Z;
+float gyro2X, gyro2Y, gyro2Z;
 
 // Camera stabilization variables
 float cameraposition = 0;
@@ -251,10 +261,10 @@ void handleCommand(const char* command) {
     else if (strcmp(field1, "ST") == 0 && num >= 2) {
         if (strcmp(field2, "UTC_TIME") == 0) {
             Serial.println("ST UTC_TIME command received.");
-            strncpy(currentTime, field3);
+            // Add specific UTC_TIME action here if needed
         } else if (strcmp(field2, "GPS") == 0) {
             Serial.println("ST GPS command received.");
-            strncpy(currentTime, gpsTime);
+            // Add specific GPS action here if needed
         }
     }
     // Handle SIM commands
@@ -467,9 +477,35 @@ void setup() {
     Serial.println("GNSS v3 initialization failed!");
   }
 
-  // Initialize LSM6DSO32 (Accelerometer and Gyroscope)
-  if (!IMU.begin()) {  // Corrected reference to the lsm6dso32 object
-    Serial.println("Error initializing LSM6DSOX!");
+
+if (!lis3mdl1.begin_I2C(MAG1_I2C_ADDRESS)) {
+    Serial.println("Failed to find LIS3MDL #1");
+  } else {
+    Serial.println("LIS3MDL #1 Found!");
+    lis3mdl1.setPerformanceMode(LIS3MDL_MEDIUMMODE);
+    lis3mdl1.setOperationMode(LIS3MDL_CONTINUOUSMODE);
+    lis3mdl1.setDataRate(LIS3MDL_DATARATE_155_HZ);
+    lis3mdl1.setRange(LIS3MDL_RANGE_4_GAUSS);
+  }
+
+  // Initialize second magnetometer
+  if (!lis3mdl2.begin_I2C(MAG2_I2C_ADDRESS)) {
+    Serial.println("Failed to find LIS3MDL #2");
+  } else {
+    Serial.println("LIS3MDL #2 Found!");
+    lis3mdl2.setPerformanceMode(LIS3MDL_MEDIUMMODE);
+    lis3mdl2.setOperationMode(LIS3MDL_CONTINUOUSMODE);
+    lis3mdl2.setDataRate(LIS3MDL_DATARATE_155_HZ);
+    lis3mdl2.setRange(LIS3MDL_RANGE_4_GAUSS);
+  }
+
+  // Initialize first IMU (LSM6DS3)
+  if (!IMU.begin()) {
+    Serial.println("Error initializing LSM6DS3 #1!");
+  } else {
+    Serial.print("Accelerometer #1 sample rate = ");
+    Serial.print(IMU.accelerationSampleRate());
+    Serial.println(" Hz");
   }
 
   Serial.print("Accelerometer sample rate = ");
@@ -546,8 +582,15 @@ void loop() {
   }
   
   // Read magnetometer data
-  sensors_event_t magEvent;
-  lis3mdl.getEvent(&magEvent);
+  sensors_event_t magEvent1;
+  lis3mdl.getEvent(&magEvent1);
+
+  // Read second magnetometer
+  sensors_event_t magEvent2;
+  lis3mdl2.getEvent(&magEvent2);
+  mag2X = magEvent2.magnetic.x;
+  mag2Y = magEvent2.magnetic.y;
+  mag2Z = magEvent2.magnetic.z;
   
   // Read accelerometer and gyroscope data
   float accelX, accelY, accelZ;
@@ -601,7 +644,7 @@ void loop() {
                "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%s,%.1f,%.1f,%.4f,%.4f,%u,%s,COSMOS",
                TEAM_ID, currentTime, packetCount, mode, state, altitude, temperature, pressure, currentVoltage,
                gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
-               magEvent.magnetic.x, magEvent.magnetic.y, magEvent.magnetic.z, rpm, gpsTime, gpsAltitude,
+               magEvent1.magnetic.x, magEvent1.magnetic.y, magEvent1.magnetic.z, rpm, gpsTime, gpsAltitude,
                latitude, longitude, satellites, lastCommand);
 
       Serial1.println(telemetry);
@@ -621,7 +664,7 @@ void loop() {
 
   /*------------------CALCULATIONS-------------------------------------------------------------*/
   // Calculate heading
-  float heading = atan2(magEvent.magnetic.y, magEvent.magnetic.x);
+  float heading = atan2(magEvent2.magnetic.y, magEvent2.magnetic.x);
   heading = heading * 180 / PI; // Convert to degrees
   if (heading < 0) heading += 360; // Ensure 0-360 range
 
