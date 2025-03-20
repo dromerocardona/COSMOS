@@ -117,6 +117,7 @@ void SingleShotMeasure_setup();
 void SingleShotMeasure_loop();
 void updateTime(char *currentTime, size_t size);
 void updateFlightState(float altitude, float velocity, float x, float y, float z);
+void activateReleaseMechanism();
 
 void setup() {
 Serial.begin(115200);         // Debugging output
@@ -310,9 +311,7 @@ void loop() {
           case APOGEE:
             // Code for Apogee state
             updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
-// Activate servo at apogee
-      servo.write(90);
-      Serial.println("Servo activated at APOGEE");
+            activateReleaseMechanism();
           break;
           case DESCENT:
             // Code for separated state
@@ -331,6 +330,14 @@ void loop() {
 
 /*----------------------------Functions----------------------------*/
 
+// Function declarations (add this near the top with other declarations)
+void activateReleaseMechanism();
+
+// Function definition (add this below other functions)
+void activateReleaseMechanism() {
+  servo.write(90);  // Activate servo to 90 degrees for release
+  Serial.println("Release mechanism activated - Servo set to 90 degrees");
+}
 
 // ENS220 Single-Shot Mode Function
 void SingleShotMeasure_setup() {
@@ -578,14 +585,17 @@ void handleCommand(const char* command) {
             break;
 
         case 6: // MEC commands
-            if (strcmp(field2, "RELEASE") == 0) {
-                if (strcmp(field3, "ON") == 0) {
-                    Serial.println("MEC RELEASE ON command received.");
-                    strncpy(lastCommand, "MEC_RELEASE_ON", sizeof(lastCommand));
-                } else if (strcmp(field3, "OFF") == 0) {
-                    Serial.println("MEC RELEASE OFF command received.");
-                    strncpy(lastCommand, "MEC_RELEASE_OFF", sizeof(lastCommand));
-                }
+           if (strcmp(field2, "RELEASE") == 0) {
+        if (strcmp(field3, "ON") == 0) {
+          Serial.println("MEC RELEASE ON command received.");
+          activateReleaseMechanism();  // Activate release mechanism on command
+          strncpy(lastCommand, "MEC_RELEASE_ON", sizeof(lastCommand));
+        } else if (strcmp(field3, "OFF") == 0) {
+          Serial.println("MEC RELEASE OFF command received.");
+          servo.write(0);  // Reset servo to 0 degrees (or your "off" position)
+          strncpy(lastCommand, "MEC_RELEASE_OFF", sizeof(lastCommand));
+          Serial.println("Release mechanism deactivated - Servo set to 0 degrees");
+        }
             } else if (strcmp(field2, "CAMERA") == 0) {
                 if (strcmp(field3, "BLADE") == 0) {
                     if (strcmp(field4, "ON") == 0) {
