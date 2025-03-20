@@ -308,8 +308,11 @@ void loop() {
             updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
             break;
           case APOGEE:
-            // Code for ascent state
+            // Code for Apogee state
             updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
+// Activate servo at apogee
+      servo.write(90);
+      Serial.println("Servo activated at APOGEE");
           break;
           case DESCENT:
             // Code for separated state
