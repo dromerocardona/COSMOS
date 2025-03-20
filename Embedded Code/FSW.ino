@@ -57,54 +57,6 @@ Servo servo;
 File dataFile;
 SFE_UBLOX_GNSS gps;
 
-// Variables
-unsigned long landedTime = 0;
-unsigned long lastOrientationTime = 0;
-float lastOrientationX = 0.0, lastOrientationY = 0.0, lastOrientationZ = 0.0;
-uint8_t satellites = 0;
-float voltageDividerFactor = 0.012089; // Adjust based on resistor values in voltage divider
-
-float lastTransmissionTime = 0; // Last time of telemetry transmission
-char currentTime[9] = "00:00:00"; // Mission time in "HH:MM:SS"
-char gpsTime[9] = "00:00:00"; // GPS time in "HH:MM:SS"
-float mag2X, mag2Y, mag2Z; // Magnetometer data for second sensor
-float accel2X, accel2Y, accel2Z, gyro2X, gyro2Y, gyro2Z; // IMU data for second sensor (if separate IMU object is used)
-char lastCommand[32]; // Last received command
-unsigned int packetCount = 0;
-bool telemetryEnabled = false;  // Telemetry Control
-
-// Camera stabilization variables
-float cameraposition = 0;
-unsigned long lastRpmTime = 0; // last time of an magnet detection
-volatile unsigned long rpmCount = 0; // RPM counter
-float currentInterruptTime = 0; // Current time of an interrupt
-float timeDifference = 0; // Time difference between two consecutive interrupts
-float lastInterruptTime = 0;
-
-// Altitude calculation variables
-float apogeeAltitude = 0.0;
-bool simulationMode = false;
-float simulatedPressure = 0.0;
-float receivedPressure = 0.0; // For SIM_ACTIVATE pressure input
-float referencePressure = 1013.25; // Default reference point (sea level)
-float simulatedAltitude = 0.0;
-const int historySize = 10;
-float altitudeHistory[historySize];          // Store altitude
-float velocityHistory[historySize];          // Store velocity
-unsigned long timestampHistory[historySize]; // Store time
-
-// Variables used for PID
-float setpoint = 1000.0; // Desired setpoint placeholder
-float input = 0.0; // Current system input
-float output = 0.0; // PID output
-float error = 0.0; // Current error
-float lastError = 0.0; // Previous error
-float integral = 0.0; // tracks cumulative error
-const float K_proportional = 1.0; // Proportional gain
-const float K_integral = 0.1; // Integral gain
-const float K_derivative = 0.01; // Derivative gain
-float heading;
-
 // Functions
 float calculateAltitude(float pressure);
 void updateAltitudeHistory(float altitudeHistory[], unsigned long timestampHistory[], float newAltitude, int size);
@@ -184,6 +136,53 @@ Serial.begin(115200);         // Debugging output
 }
 
 void loop() {
+    // Variables
+    static unsigned long landedTime = 0;
+    static unsigned long lastOrientationTime = 0;
+    static float lastOrientationX = 0.0, lastOrientationY = 0.0, lastOrientationZ = 0.0;
+    float voltageDividerFactor = 0.012089; // Adjust based on resistor values in voltage divider
+    
+    static float lastTransmissionTime = 0; // Last time of telemetry transmission
+    static char currentTime[9] = "00:00:00"; // Mission time in "HH:MM:SS"
+    static char gpsTime[9] = "00:00:00"; // GPS time in "HH:MM:SS"
+    float mag2X, mag2Y, mag2Z; // Magnetometer data for second sensor
+    float accel2X, accel2Y, accel2Z, gyro2X, gyro2Y, gyro2Z; // IMU data for second sensor (if separate IMU object is used)
+    char lastCommand[32]; // Last received command
+    static unsigned int packetCount = 0;
+    static bool telemetryEnabled = false;  // Telemetry Control
+    
+    // Camera stabilization variables
+    static float cameraposition = 0;
+    static unsigned long lastRpmTime = 0; // last time of an magnet detection
+    static volatile unsigned long rpmCount = 0; // RPM counter
+    static float currentInterruptTime = 0; // Current time of an interrupt
+    static float timeDifference = 0; // Time difference between two consecutive interrupts
+    static float lastInterruptTime = 0;
+    
+    // Altitude calculation variables
+    static float apogeeAltitude = 0.0;
+    static bool simulationMode = false;
+    float simulatedPressure;
+    float receivedPressure; // For SIM_ACTIVATE pressure input
+    static float referencePressure = 1013.25; // Default reference point (sea level)
+    float simulatedAltitude;
+    const int historySize = 10;
+    static float altitudeHistory[historySize];          // Store altitude
+    static float velocityHistory[historySize];          // Store velocity
+    static unsigned long timestampHistory[historySize]; // Store time
+    
+    // Variables used for PID
+    float setpoint = 1000.0; // Desired setpoint placeholder
+    static float input = 0.0; // Current system input
+    static float output = 0.0; // PID output
+    static float error = 0.0; // Current error
+    static float lastError = 0.0; // Previous error
+    static float integral = 0.0; // tracks cumulative error
+    const float K_proportional = 1.0; // Proportional gain
+    const float K_integral = 0.1; // Integral gain
+    const float K_derivative = 0.01; // Derivative gain
+    float heading;
+    
     updateTime(currentTime, sizeof(currentTime));
 
     // Read data from XBee or Serial1
@@ -325,7 +324,7 @@ void loop() {
               flightState = LANDED;
             }
             break;
-        }
+    }
 }
 
 /*----------------------------Functions----------------------------*/
