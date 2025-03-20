@@ -33,6 +33,8 @@
 #define IMU1_I2C_ADDRESS 0x6A      // First LSM6DS3 address
 #define IMU2_I2C_ADDRESS 0x6B      // Second LSM6DS3 address
 #define TEAM_ID "3195"             // Team ID
+#define XBEE_TX 1  // XBee TX connected to D1
+#define XBEE_RX 0  // XBee RX connected to D0
 
 // STATE MANAGEMENT VARIABLES
 enum FlightState {
