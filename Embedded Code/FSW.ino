@@ -112,8 +112,8 @@ float avg(float arr[], int size);
 void pidControl(float input, float setpoint, float &lastError, float &integral, Servo &servo);
 void rpmISR();
 void handleCommand(const char* command);
-void ContinuousModeWithFIFO_setup();
-void ContinuousModeWithFIFO_loop();
+void SingleShotMeasure_setup();
+void SingleShotMeasure_loop();
 void updateTime(char *currentTime, size_t size);
 void updateFlightState(float altitude, float velocity, float x, float y, float z);
 
@@ -237,15 +237,13 @@ void loop() {
         IMU.readGyroscope(gyroX, gyroY, gyroZ);
     }
 
-    // Retrieve Temperature and Pressure from ENS220
+    // Retrieve Temperature and Pressure from ENS220 (Single Shot Mode)
+    SingleShotMeasure_loop();
     float temperature = ens220.getTempCelsius();
     float pressure = ens220.getPressureHectoPascal();
 
     // Calculate altitude from pressure
     float altitude = calculateAltitude(pressure);
-
-    // ENS220 Continuous mode data reading
-    ContinuousModeWithFIFO_loop();
 
     // Use simulated pressure if in simulation mode
     if (simulationMode) {
@@ -328,6 +326,51 @@ void loop() {
 }
 
 /*----------------------------Functions----------------------------*/
+
+
+// ENS220 Single-Shot Mode Function
+void SingleShotMeasure_setup() {
+  Serial.println("Starting ENS220 example 01_Basic_I2C_SingleShot");
+
+  // Start the communication, confirm the device PART_ID, and read the device UID
+  i2c_1.begin(Wire, I2C_ADDRESS);
+
+  while (ens220.begin(&i2c_1) != true) {
+    Serial.println("Waiting for I2C to start");
+    delay(1000);
+  }
+
+  Serial.print("Device UID: "); Serial.println(ens220.getUID(), HEX);
+
+  // Configure the sensor for single-shot mode
+  ens220.setDefaultConfiguration();
+  ens220.setPressureConversionTime(ENS220::PressureConversionTime::T_16_4);
+  ens220.setOversamplingOfPressure(ENS220::Oversampling::N_128);
+  ens220.setOversamplingOfTemperature(ENS220::Oversampling::N_128);
+  ens220.setPressureTemperatureRatio(ENS220::PressureTemperatureRatio::PT_1);
+  ens220.setStandbyTime(ENS220::StandbyTime::OneShotOperation);
+  ens220.setPressureDataPath(ENS220::PressureDataPath::Direct);
+
+  ens220.writeConfiguration();
+}
+
+void SingleShotMeasure_loop() {
+  // Start single-shot measurement
+  ens220.singleShotMeasure(ENS220::Sensor::TemperatureAndPressure);
+
+  // Wait until the measurement is ready
+  ens220.waitSingleShot();
+
+  // Check the DATA_STAT from the sensor and update data
+  auto result = ens220.update();
+
+  if (result == ENS220::Result::Ok) {
+    if (hasFlag(ens220.getDataStatus(), ENS220::DataStatus::PressureReady) &&
+        hasFlag(ens220.getDataStatus(), ENS220::DataStatus::TemperatureReady)) {
+      // Data is available; no need to print here since it's used elsewhere
+    }
+  }
+}
 
 // Function to calculate altitude from pressure
 float calculateAltitude(float pressure) {
