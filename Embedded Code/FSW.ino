@@ -329,9 +329,6 @@ void loop() {
 
 /*----------------------------Functions----------------------------*/
 
-// Function declarations (add this near the top with other declarations)
-void activateReleaseMechanism();
-
 // Function definition (add this below other functions)
 void activateReleaseMechanism() {
   servo.write(90);  // Activate servo to 90 degrees for release
