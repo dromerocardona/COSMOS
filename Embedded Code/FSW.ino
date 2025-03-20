@@ -300,9 +300,13 @@ void handleCommand(const char* command) {
     if (strcmp(field1, "CX") == 0 && num >= 2) {
         if (strcmp(field2, "ON") == 0) {
             telemetryEnabled = true;
+            strncpy(lastCommand, "CXON", sizeof(lastCommand) - 1);
+            lastCommand[sizeof(lastCommand) - 1] = '\0';
             Serial.println("Telemetry started.");
         } else if (strcmp(field2, "OFF") == 0) {
             telemetryEnabled = false;
+            strncpy(lastCommand, "CXOFF", sizeof(lastCommand) - 1);
+            lastCommand[sizeof(lastCommand) - 1] = '\0';
             Serial.println("Telemetry stopped.");
         }
     }
@@ -310,9 +314,14 @@ void handleCommand(const char* command) {
     else if (strcmp(field1, "ST") == 0 && num >= 2) {
         if (strcmp(field2, "UTC_TIME") == 0) {
             Serial.println("ST UTC_TIME command received.");
-            // Add specific UTC_TIME action here if needed
+            strncpy(currentTime, field3);
+            strncpy(lastCommand, "ST_UTC_TIME", sizeof(lastCommand) - 1);
+            lastCommand[sizeof(lastCommand) - 1] = '\0';
         } else if (strcmp(field2, "GPS") == 0) {
             Serial.println("ST GPS command received.");
+            strncpy(currentTime, gpsTime);
+            strncpy(lastCommand, "ST_GPS", sizeof(lastCommand) - 1);
+            lastCommand[sizeof(lastCommand) - 1] = '\0';
             // Add specific GPS action here if needed
         }
     }
@@ -321,9 +330,13 @@ void handleCommand(const char* command) {
         if (strcmp(field2, "ENABLE") == 0) {
             simulationMode = true;
             Serial.println("Simulation mode enabled.");
+            strncpy(lastCommand, "SIM_ENABLE", sizeof(lastCommand) - 1);
+            lastCommand[sizeof(lastCommand) - 1] = '\0';
         } else if (strcmp(field2, "ACTIVATE") == 0) {
             if (simulationMode) {
                 Serial.println("Simulation activated. Waiting for pressure input...");
+                strncpy(lastCommand, "SIM_ACTIVATE", sizeof(lastCommand) - 1);
+                lastCommand[sizeof(lastCommand) - 1] = '\0';
                 char pressureInput[16];
                 while (!Serial1.available()) {
                     delay(1); // Wait for data from Serial1 (e.g., XBee)
@@ -343,6 +356,8 @@ void handleCommand(const char* command) {
         } else if (strcmp(field2, "DISABLE") == 0) {
             simulationMode = false;
             Serial.println("Simulation mode disabled.");
+            strncpy(lastCommand, "SIM_DISABLE", sizeof(lastCommand) - 1);
+            lastCommand[sizeof(lastCommand) - 1] = '\0';
         }
     }
     // Handle SIMP command
@@ -351,6 +366,10 @@ void handleCommand(const char* command) {
         if (pressure > 0.0) {
             simulatedPressure = pressure;
             Serial.println("Simulated pressure set via SIMP.");
+            std::string tempString = "SIMP";
+            tempString += std::to_string(field2); 
+            strncpy(lastCommand, tempString.c_str(), sizeof(lastCommand) - 1);
+            lastCommand[sizeof(lastCommand) - 1] = '\0';
         } else {
             Serial.println("Invalid pressure value in SIMP command.");
         }
@@ -358,6 +377,8 @@ void handleCommand(const char* command) {
     // Handle CAL command
     else if (strcmp(field1, "CAL") == 0) {
         Serial.println("CAL command received.");
+        strncpy(lastCommand, "CAL", sizeof(lastCommand) - 1);
+        lastCommand[sizeof(lastCommand) - 1] = '\0';
         referencePressure = ens220.getPressureHectoPascal();
         Serial.print("Calibration complete. Reference pressure set to: ");
         Serial.println(referencePressure);
@@ -367,9 +388,13 @@ void handleCommand(const char* command) {
         if (strcmp(field2, "RELEASE") == 0 && num >= 3) {
             if (strcmp(field3, "ON") == 0) {
                 Serial.println("MEC RELEASE ON command received.");
+                strncpy(lastCommand, "MEC_RELEASE_ON", sizeof(lastCommand) - 1);
+                lastCommand[sizeof(lastCommand) - 1] = '\0';
                 // Add release ON action here
             } else if (strcmp(field3, "OFF") == 0) {
                 Serial.println("MEC RELEASE OFF command received.");
+                strncpy(lastCommand, "MEC_RELEASE_OFF", sizeof(lastCommand) - 1);
+                lastCommand[sizeof(lastCommand) - 1] = '\0';
                 // Add release OFF action here
             }
         } else if (strcmp(field2, "CAMERA") == 0 && num >= 3) {
@@ -377,20 +402,30 @@ void handleCommand(const char* command) {
                 if (strcmp(field4, "ON") == 0) {
                     digitalWrite(CAMERA1_PIN, HIGH); // Using CAMERA_PIN for simplicity
                     Serial.println("MEC CAMERA BLADE ON - Camera powered ON.");
+                    strncpy(lastCommand, "BLADE_CAM_ON", sizeof(lastCommand) - 1);
+                    lastCommand[sizeof(lastCommand) - 1] = '\0';
                 } else if (strcmp(field4, "OFF") == 0) {
                     digitalWrite(CAMERA1_PIN, LOW);
                     Serial.println("MEC CAMERA BLADE OFF - Camera powered OFF.");
+                    strncpy(lastCommand, "BLADE_CAM_OFF", sizeof(lastCommand) - 1);
+                    lastCommand[sizeof(lastCommand) - 1] = '\0';
                 }
             } else if (strcmp(field3, "GROUND") == 0 && num >= 4) {
                 if (strcmp(field4, "ON") == 0) {
                     digitalWrite(CAMERA2_PIN, HIGH); // Using CAMERA_PIN for simplicity
                     Serial.println("MEC CAMERA GROUND ON - Camera powered ON.");
+                    strncpy(lastCommand, "GROUND_CAM_ON", sizeof(lastCommand) - 1);
+                    lastCommand[sizeof(lastCommand) - 1] = '\0';
                 } else if (strcmp(field4, "OFF") == 0) {
                     digitalWrite(CAMERA2_PIN, LOW);
                     Serial.println("MEC CAMERA GROUND OFF - Camera powered OFF.");
+                    strncpy(lastCommand, "GROUND_CAM_OFF", sizeof(lastCommand) - 1);
+                    lastCommand[sizeof(lastCommand) - 1] = '\0';
                 }
             } else if (strcmp(field3, "STABLE") == 0 && num >= 4) {
               Serial.println("MEC CAMERA STABLE command received.");
+              strncpy(lastCommand, "CAM_STABLE", sizeof(lastCommand) - 1);
+              lastCommand[sizeof(lastCommand) - 1] = '\0';
               // PID Camera Stabalization
               pidControl(heading, setpoint, lastError, integral, servo);
             }
@@ -599,8 +634,6 @@ void loop() {
   if (Serial1.readBytesUntil('\n', command, sizeof(command) - 1) > 0) {
     command[sizeof(command) - 1] = '\0'; // Ensure null-termination
     handleCommand(command);  // Process the command
-    strncpy(lastCommand, command, sizeof(lastCommand) - 1);
-    lastCommand[sizeof(lastCommand) - 1] = '\0';
   }
 
   /*------------------CORE OPERATIONS----Sensor Data--------------------------------------------*/
