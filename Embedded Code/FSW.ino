@@ -526,7 +526,6 @@ void setup() {
   } else {
     Serial.println("SD card initialized successfully... We won the game");
   }
-  dataFile = SD.open("telemetry.txt", FILE_WRITE);
   backupFile = SD.open("backup.txt", FILE_WRITE);
 
   // NeoPixel initialization
@@ -713,6 +712,7 @@ void loop() {
       Serial1.println(telemetry);
       Serial.println(telemetry);
       // Save telemetry to SD card
+      dataFile = SD.open("data.txt", FILE_WRITE);
       if (dataFile) {
         dataFile.println(telemetry);
         dataFile.close();
