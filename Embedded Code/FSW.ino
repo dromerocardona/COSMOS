@@ -71,7 +71,7 @@ float mag2X, mag2Y, mag2Z;                                // Magnetometer data f
 float accel2X, accel2Y, accel2Z, gyro2X, gyro2Y, gyro2Z;  // IMU data for second sensor (if separate IMU object is used)
 char lastCommand[32];                                     // Last received command
 unsigned int packetCount = 0;
-bool telemetryEnabled = false;  // Telemetry Control
+bool telemetryEnabled = true;  // Telemetry Control
 
 // Camera stabilization variables
 float cameraposition = 0;
@@ -530,11 +530,11 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
 
 void setup() {
   pixels.begin();
-  pixels.setPixelColor(0, 255, 255, 255);      
-  pixels.setPixelColor(1, 255, 255, 255);    
-  pixels.setPixelColor(2, 255, 255, 255);     
-  pixels.setPixelColor(3, 255, 255, 255);    
-  pixels.setPixelColor(4, 255, 255, 255); 
+  pixels.setPixelColor(0, 255, 0, 255);
+  pixels.setPixelColor(1, 0, 255, 255);
+  pixels.setPixelColor(2, 255, 255, 0);
+  pixels.setPixelColor(3, 0, 255, 255);
+  pixels.setPixelColor(4, 255, 0, 255);
   pixels.show();
   delay(3000);
   // Assuming watchdog was enabled here or in a subfunction
@@ -544,9 +544,10 @@ void setup() {
   // Disable it immediately if you don’t need it
   Watchdog.disable();
   Serial.println("Watchdog disabled");
-  Serial.begin(115200);  // Debugging output
-  Serial1.begin(9600);   // XBee communication
+  Serial.begin(2000000);  // Debugging output
+  Serial1.begin(9600);    // XBee communication
   Wire.begin();
+  Wire.setClock(400000);
   Serial.println("test1");
 
   // Initialize cameras control pins (e.g., for power on/off)
@@ -605,7 +606,7 @@ void setup() {
     lis3mdl.setDataRate(LIS3MDL_DATARATE_155_HZ);
     lis3mdl.setRange(LIS3MDL_RANGE_4_GAUSS);
   }
-  
+
 
   Serial.println(millis());
 }
@@ -699,7 +700,9 @@ void loop() {
   // Telemetry Transmission
   if (lastTransmissionTime + 1000 < millis()) {  // Transmit telemetry every second
     lastTransmissionTime = millis();
+    Watchdog.reset();
     if (telemetryEnabled) {
+      Watchdog.reset();
       char telemetry[256];
       const char *mode = simulationMode ? "S" : "F";
       const char *state;
@@ -713,26 +716,50 @@ void loop() {
       }
       Serial.println("yo7");
       Watchdog.reset();
+      // Convert floats to integers (multiply by 10 for 1 decimal, 10000 for 4 decimals)
+      int altitude_int = (int)(altitude * 10);  // 1 decimal place
+      int temperature_int = (int)(temperature * 10);
+      int pressure_int = (int)(pressure * 10);
+      int currentVoltage_int = (int)(currentVoltage * 10);
+      int gyroX_int = (int)(gyroX * 10);
+      int gyroY_int = (int)(gyroY * 10);
+      int gyroZ_int = (int)(gyroZ * 10);
+      int accelX_int = (int)(accelX * 10);
+      int accelY_int = (int)(accelY * 10);
+      int accelZ_int = (int)(accelZ * 10);
+      int magX_int = (int)(magEvent1.magnetic.x * 10);
+      int magY_int = (int)(magEvent1.magnetic.y * 10);
+      int magZ_int = (int)(magEvent1.magnetic.z * 10);
+      int rpm_int = (int)(rpm * 10);
+      int gpsAltitude_int = (int)(gpsAltitude * 10);
+      int latitude_int = (int)(latitude * 10000);    // 4 decimal places
+      int longitude_int = (int)(longitude * 10000);  // 4 decimal places
+
+      // Use %d for integers instead of %.1f or %.4f
       snprintf(telemetry, sizeof(telemetry),
-               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%s,%.1f,%.1f,%.4f,%.4f,%u,%s,COSMOS",
-               TEAM_ID, currentTime, packetCount, mode, state, altitude, temperature, pressure, currentVoltage,
-               gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
-               magEvent1.magnetic.x, magEvent1.magnetic.y, magEvent1.magnetic.z, rpm, gpsTime, gpsAltitude,
-               latitude, longitude, satellites, lastCommand);
-
+               "%s,%s,%u,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%d,%d,%d,%u,%s,COSMOS",
+               TEAM_ID, currentTime, packetCount, mode, state,
+               altitude_int, temperature_int, pressure_int, currentVoltage_int,
+               gyroX_int, gyroY_int, gyroZ_int, accelX_int, accelY_int, accelZ_int,
+               magX_int, magY_int, magZ_int, rpm_int, gpsTime, gpsAltitude_int,
+               latitude_int, longitude_int, satellites, lastCommand);
+      Watchdog.reset();
       Serial1.println(telemetry);
-
+      Serial.println(telemetry);
       // Save telemetry to SD card
+      
       dataFile = SD.open("telemetry.txt", FILE_WRITE);
       if (dataFile) {
         dataFile.println(telemetry);
         dataFile.close();
+        Serial.println("Finished writing to SD card!");
       } else {
         Serial.println("Error writing to SD card!");
       }
       Serial.println("yo8");
       Watchdog.reset();
       packetCount++;  // Increment packet count
+      
     }
   }
 
