@@ -15,6 +15,7 @@
 #include <Adafruit_NeoPixel.h>
 #include <Servo.h>
 #include <Adafruit_SleepyDog.h>
+#include <RTClib.h>
 
 // PINS AND DEFINITIONS
 #define BATTERY_PIN A0         // Analog pin for voltage divider circuit
@@ -23,6 +24,7 @@
 #define SERVO_PIN 13           // Servo pin for GND camera stabilization
 #define FEEDBACK_PIN 9         // Feedback signal pin for servo control
 #define I2C_ADDRESS 0x20       // I2C Address for ENS 220
+#define DS1307_I2C_ADDRESS 0x68 // I2C Address for DS1307
 #define SERIAL_BAUDRATE 57600  // Speed of Serial Communication with the computer (ENS220)
 #define INTN_1 4               // Interrupt pin for ENS220
 #define CAMERA1_PIN 10         // Blade camera
@@ -57,7 +59,8 @@ Adafruit_LIS3MDL lis3mdl_CAM;  // Second magnetometer
 Servo servo;
 File dataFile;
 File backupFile;
-SFE_UBLOX_GNSS gps;
+SFE_UBLOX_GNSS gps;  // Changed to lowercase 'gps' for consistency
+RTC_DS1307 rtc;      // DS1307
 
 // Variables
 unsigned long landedTime = 0;
@@ -169,7 +172,7 @@ float avg(float arr[], int size) {
   return sum / size;
 }
 
-// Funtion for PID Camera Stabalization
+// Function for PID Camera Stabilization
 void pidControl(float input, float setpoint, float &lastError, float &integral, Servo &servo) {
   // PID tuning parameters
   const float K_proportional = 1.0;  // Proportional gain
@@ -179,9 +182,9 @@ void pidControl(float input, float setpoint, float &lastError, float &integral, 
   // Calculate the error
   float error = setpoint - input;  // Calculate the error based on difference between setpoint and input
   if (error > 180) {
-    error = error - 360;  // account for the closest path to the setpoint being across the 0째 line
+    error = error - 360;  // account for the closest path to the setpoint being across the 0° line
   } else if (error < -180) {
-    error = error + 360;  // account for the closest path to the setpoint being across the 0째 line the other way
+    error = error + 360;  // account for the closest path to the setpoint being across the 0° line the other way
   }
 
   // Calculate the integral term
@@ -196,12 +199,12 @@ void pidControl(float input, float setpoint, float &lastError, float &integral, 
   // Store the current error as the last error to prepare for the next iteration
   lastError = error;
 
-  // Map heading to servo angle (assuming servo range is 0-180째)
+  // Map heading to servo angle (assuming servo range is 0-180°)
   int currentAngle = servo.read();                 // Read current servo position
   int targetAngle = map(input, 0, 360, 0, 180);    // Adjust based on servo range
   int adjustedAngle = currentAngle - (int)output;  // Adjusting servo based on the PID output
 
-  // Constrain to servo range (0-180째)
+  // Constrain to servo range (0-180°)
   if (adjustedAngle < 0) adjustedAngle = 0;
   if (adjustedAngle > 180) adjustedAngle = 180;
   servo.write(targetAngle);  // Set servo to target angle
@@ -214,9 +217,9 @@ void pidControl(float input, float setpoint, float &lastError, float &integral, 
   // Debug output
   Serial.print("Heading: ");
   Serial.print(input);
-  Serial.print("째  Target Servo Angle: ");
+  Serial.print("°  Target Servo Angle: ");
   Serial.print(targetAngle);
-  Serial.print("째  Current Servo Angle: ");
+  Serial.print("°  Current Servo Angle: ");
   Serial.println(currentAngle);
 }
 
@@ -364,90 +367,80 @@ void handleCommand(const char *command) {
 }
 
 // ENS220 Sensor Initialization
-void SingleShotMeasure_setup()
-{
-    Serial.println("Starting ENS220 example 01_Basic_I2C_SingleShot");
-    
-    // Start the communication, confirm the device PART_ID, and read the device UID
-    i2c_1.begin(Wire, I2C_ADDRESS);
-    
-    while(ens220.begin(&i2c_1) != true)
-      {
-        Serial.println("Waiting for I2C to start");
-        delay(1000);
-      }
-    
-    Serial.print("Device UID: "); Serial.println(ens220.getUID(), HEX);
+void SingleShotMeasure_setup() {
+  Serial.println("Starting ENS220 example 01_Basic_I2C_SingleShot");
+  
+  // Start the communication, confirm the device PART_ID, and read the device UID
+  i2c_1.begin(Wire, I2C_ADDRESS);
+  
+  while (ens220.begin(&i2c_1) != true) {
+    Serial.println("Waiting for I2C to start");
+    delay(1000);
+  }
+  
+  Serial.print("Device UID: "); Serial.println(ens220.getUID(), HEX);
 
-    // Choose the desired configuration of the sensor. In this example we will use the Lowest Noise settings from the datasheet
-    ens220.setDefaultConfiguration();
-    // Set the Pressure ADC conversion time (MEAS_CFG register, field P_CONV)
-    ens220.setPressureConversionTime(ENS220::PressureConversionTime::T_16_4);
-    // Set the Oversampling of pressure measurements (OVS_CFG register, field OVSP) 
-    ens220.setOversamplingOfPressure(ENS220::Oversampling::N_128);
-    // Set the Oversampling of temperature measurements (OVS_CFG register, field OVST)
-    ens220.setOversamplingOfTemperature(ENS220::Oversampling::N_128);
-    // Set the ratio between P and T measurements as produced by the measurement engine (MEAS_CFG register, field PT_RATE)
-    ens220.setPressureTemperatureRatio(ENS220::PressureTemperatureRatio::PT_1);
-    // Set the operation to One shot (STBY_CFG register, field STBY_T)
-    ens220.setStandbyTime(ENS220::StandbyTime::OneShotOperation);
-    // Set whether to use the FIFO buffer, a moving average, or none (MODE_CFG register, field FIFO_MODE)
-    ens220.setPressureDataPath(ENS220::PressureDataPath::Direct);
+  // Choose the desired configuration of the sensor. In this example we will use the Lowest Noise settings from the datasheet
+  ens220.setDefaultConfiguration();
+  ens220.setPressureConversionTime(ENS220::PressureConversionTime::T_16_4);
+  ens220.setOversamplingOfPressure(ENS220::Oversampling::N_128);
+  ens220.setOversamplingOfTemperature(ENS220::Oversampling::N_128);
+  ens220.setPressureTemperatureRatio(ENS220::PressureTemperatureRatio::PT_1);
+  ens220.setStandbyTime(ENS220::StandbyTime::OneShotOperation);
+  ens220.setPressureDataPath(ENS220::PressureDataPath::Direct);
 
-    // Write the desired configuration into the sensor
-    ens220.writeConfiguration();
+  // Write the desired configuration into the sensor
+  ens220.writeConfiguration();
 }
 
-void SingleShotMeasure_loop()
-{
-    // Start single shot measurement
-    ens220.singleShotMeasure(ENS220::Sensor::TemperatureAndPressure);
-    
-    // Wait until the measurement is ready
-    ens220.waitSingleShot();
-    
-    // Check the DATA_STAT from the sensor. If data is available, it reads it
-    auto result = ens220.update();   
-     
-    if(result == ENS220::Result::Ok)
-    {
-      if(hasFlag(ens220.getDataStatus(), ENS220::DataStatus::PressureReady) && hasFlag(ens220.getDataStatus(), ENS220::DataStatus::TemperatureReady))
-      {
-          // Send the values that were collected during the ens220.update()
-          Serial.print("P[hPa]:");
-          Serial.print(ens220.getPressureHectoPascal());
-          Serial.print("\tT[C]:");
-          Serial.println(ens220.getTempCelsius());
-      }
+void SingleShotMeasure_loop() {
+  // Start single shot measurement
+  ens220.singleShotMeasure(ENS220::Sensor::TemperatureAndPressure);
+  
+  // Wait until the measurement is ready
+  ens220.waitSingleShot();
+  
+  // Check the DATA_STAT from the sensor. If data is available, it reads it
+  auto result = ens220.update();   
+  
+  if (result == ENS220::Result::Ok) {
+    if (hasFlag(ens220.getDataStatus(), ENS220::DataStatus::PressureReady) && hasFlag(ens220.getDataStatus(), ENS220::DataStatus::TemperatureReady)) {
+      // Send the values that were collected during the ens220.update()
+      Serial.print("P[hPa]:");
+      Serial.print(ens220.getPressureHectoPascal());
+      Serial.print("\tT[C]:");
+      Serial.println(ens220.getTempCelsius());
     }
+  }
 }
 
+// Updated updateTime function to use DS1307 RTC
 void updateTime(char *currentTime, size_t size) {
-  static unsigned long previousMillis = 0;
-  const unsigned long interval = 1000;  // 1 second interval
-  unsigned long currentMillis = millis();
-
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
-
-    // Extract hours, minutes, seconds from string
-    int hours, minutes, seconds;
-    if (sscanf(currentTime, "%2d:%2d:%2d", &hours, &minutes, &seconds) == 3) {
-      // Increment time
-      seconds++;
-      if (seconds >= 60) {
-        seconds = 0;
-        minutes++;
-        if (minutes >= 60) {
-          minutes = 0;
-          hours++;
-          if (hours >= 24) {
-            hours = 0;
+  if (rtc.isrunning()) {
+    DateTime now = rtc.now();
+    snprintf(currentTime, size, "%02d:%02d:%02d", now.hour(), now.minute(), now.second());
+  } else {
+    Serial.println("RTC not running, using fallback time.");
+    // Fallback to manual increment if RTC fails
+    static unsigned long previousMillis = 0;
+    const unsigned long interval = 1000;
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousMillis >= interval) {
+      previousMillis = currentMillis;
+      int hours, minutes, seconds;
+      if (sscanf(currentTime, "%2d:%2d:%2d", &hours, &minutes, &seconds) == 3) {
+        seconds++;
+        if (seconds >= 60) {
+          seconds = 0;
+          minutes++;
+          if (minutes >= 60) {
+            minutes = 0;
+            hours++;
+            if (hours >= 24) hours = 0;
           }
         }
+        snprintf(currentTime, size, "%02d:%02d:%02d", hours, minutes, seconds);
       }
-      // Convert back to string with leading zeros
-      snprintf(currentTime, size, "%02d:%02d:%02d", hours, minutes, seconds);
     }
   }
 }
@@ -514,6 +507,17 @@ void setup() {
   Wire.setClock(400000);
   Serial.println("test1");
 
+  // Initialize DS1307 RTC
+  if (!rtc.begin()) {
+    Serial.println("Couldn't find DS1307 RTC!");
+    while (1) delay(10);  // Halt if RTC fails (remove this for non-critical use)
+  }
+  if (!rtc.isrunning()) {
+    Serial.println("RTC is NOT running, setting time to compile time.");
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));  // Set to compile time
+  }
+  Serial.println("DS1307 RTC initialized.");
+
   // Initialize cameras control pins (e.g., for power on/off)
   pinMode(CAMERA1_PIN, OUTPUT);    // Set camera control pin to output
   digitalWrite(CAMERA1_PIN, LOW);  // Make sure camera is OFF initially
@@ -572,14 +576,11 @@ void setup() {
     lis3mdl.setRange(LIS3MDL_RANGE_4_GAUSS);
   }
 
-
   Serial.println(millis());
 }
 
 void loop() {
-
   Serial.println("yo");
-
   Watchdog.reset();
 
   updateTime(currentTime, sizeof(currentTime));
@@ -596,7 +597,7 @@ void loop() {
 
   // Calculate instantaneous RPM
   float rpm = (timeDifference > 0) ? (60000 / timeDifference) : 0;  // Calculate RPM
-  lastRpmTime = millis();                                           // Imediately update last RPM time for min error
+  lastRpmTime = millis();                                           // Immediately update last RPM time for min error
   rpmCount = 0;
 
   // Read battery voltage
@@ -723,7 +724,6 @@ void loop() {
       Serial.println("yo8");
       Watchdog.reset();
       packetCount++;  // Increment packet count
-      
     }
   }
 
@@ -732,7 +732,7 @@ void loop() {
   heading = heading * 180 / PI;     // Convert to degrees
   if (heading < 0) heading += 360;  // Ensure 0-360 range
 
-  //used for some state trasitions
+  // Used for some state transitions
   updateAltitudeHistory(altitudeHistory, timestampHistory, altitude, historySize);
   updateVelocityHistory(altitudeHistory, velocityHistory, timestampHistory, historySize);
 
@@ -766,7 +766,7 @@ void loop() {
       }
       break;
   }
- /* pixels.setPixelColor(0, 0, 0, 255);      // LED 0: Blue
+  /* pixels.setPixelColor(0, 0, 0, 255);      // LED 0: Blue
   pixels.setPixelColor(1, 0, 255, 0);      // LED 1: Green
   pixels.setPixelColor(2, 255, 0, 0);      // LED 2: Red
   pixels.setPixelColor(3, 255, 255, 0);    // LED 3: Yellow
