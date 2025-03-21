@@ -14,7 +14,6 @@
 #include "FeedBackServo.h"
 #include <Adafruit_NeoPixel.h>
 #include <Servo.h>
-#include <Adafruit_SleepyDog.h>
 #include <RTClib.h>
 
 // PINS AND DEFINITIONS
@@ -383,8 +382,8 @@ void SingleShotMeasure_setup() {
   // Choose the desired configuration of the sensor. In this example we will use the Lowest Noise settings from the datasheet
   ens220.setDefaultConfiguration();
   ens220.setPressureConversionTime(ENS220::PressureConversionTime::T_16_4);
-  ens220.setOversamplingOfPressure(ENS220::Oversampling::N_128);
-  ens220.setOversamplingOfTemperature(ENS220::Oversampling::N_128);
+  ens220.setOversamplingOfPressure(ENS220::Oversampling::N_32);
+  ens220.setOversamplingOfTemperature(ENS220::Oversampling::N_32);
   ens220.setPressureTemperatureRatio(ENS220::PressureTemperatureRatio::PT_1);
   ens220.setStandbyTime(ENS220::StandbyTime::OneShotOperation);
   ens220.setPressureDataPath(ENS220::PressureDataPath::Direct);
@@ -493,14 +492,8 @@ void setup() {
   pixels.setPixelColor(3, 0, 255, 255);
   pixels.setPixelColor(4, 255, 0, 255);
   pixels.show(); comment out for now due to hardware issues*/
-  delay(3000);
-  // Assuming watchdog was enabled here or in a subfunction
-  Watchdog.enable(15000);  // Example: 15-second timeout (adjust if different in your code)
-  Serial.println("Watchdog enabled");
 
-  // Disable it immediately if you don’t need it
-  Watchdog.disable();
-  Serial.println("Watchdog disabled");
+  
   Serial.begin(2000000);  // Debugging output
   Serial1.begin(9600);    // XBee communication
   Wire.begin();
@@ -581,10 +574,9 @@ void setup() {
 
 void loop() {
   Serial.println("yo");
-  Watchdog.reset();
+ 
 
   updateTime(currentTime, sizeof(currentTime));
-  Watchdog.reset();
   // Read data from XBee or Serial1
   char command[64];
   if (Serial1.readBytesUntil('\n', command, sizeof(command) - 1) > 0) {
@@ -592,7 +584,6 @@ void loop() {
     handleCommand(command);               // Process the command
   }
   Serial.println("yo2");
-  Watchdog.reset();
   unsigned long missionTime = millis() / 1000;  // Mission time in seconds
 
   // Calculate instantaneous RPM
@@ -614,7 +605,6 @@ void loop() {
     snprintf(gpsTime, sizeof(gpsTime), "%02d:%02d:%02d", gps.getHour(), gps.getMinute(), gps.getSecond());
   }
   Serial.println("yo3");
-  Watchdog.reset();
 
   // Read magnetometer data
   sensors_event_t magEvent1;
@@ -625,7 +615,6 @@ void loop() {
   mag2X = magEvent2.magnetic.x;
   mag2Y = magEvent2.magnetic.y;
   mag2Z = magEvent2.magnetic.z;
-  Watchdog.reset();
   // Read accelerometer and gyroscope data
   float accelX, accelY, accelZ;
   float gyroX, gyroY, gyroZ;
@@ -638,12 +627,10 @@ void loop() {
     Serial.println(accelZ);
   }
   Serial.println("yo4");
-  Watchdog.reset();
   if (IMU.gyroscopeAvailable()) {
     IMU.readGyroscope(gyroX, gyroY, gyroZ);
   }
   Serial.println("yo5");
-  Watchdog.reset();
   // Retrieve Temperature and Pressure from ENS220 (Single Shot Mode)
   SingleShotMeasure_loop();
   float temperature = ens220.getTempCelsius();
@@ -658,7 +645,6 @@ void loop() {
     altitude = simulatedAltitude;
   }
   Serial.println("yo6");
-  Watchdog.reset();
   // Update maxAltitude during ascent
   if (flightState == ASCENT && altitude > maxAltitude) {
     maxAltitude = altitude;
@@ -666,9 +652,7 @@ void loop() {
   // Telemetry Transmission
   if (lastTransmissionTime + 1000 < millis()) {  // Transmit telemetry every second
     lastTransmissionTime = millis();
-    Watchdog.reset();
     if (telemetryEnabled) {
-      Watchdog.reset();
       char telemetry[256];
       const char *mode = simulationMode ? "S" : "F";
       const char *state;
@@ -681,7 +665,6 @@ void loop() {
         default: state = "UNKNOWN"; break;
       }
       Serial.println("yo7");
-      Watchdog.reset();
       // Convert floats to integers (multiply by 10 for 1 decimal, 10000 for 4 decimals)
       int altitude_int = (int)(altitude * 10);  // 1 decimal place
       int temperature_int = (int)(temperature * 10);
@@ -709,7 +692,6 @@ void loop() {
                gyroX_int, gyroY_int, gyroZ_int, accelX_int, accelY_int, accelZ_int,
                magX_int, magY_int, magZ_int, rpm_int, gpsTime, gpsAltitude_int,
                latitude_int, longitude_int, satellites, lastCommand);
-      Watchdog.reset();
       Serial1.println(telemetry);
       Serial.println(telemetry);
       // Save telemetry to SD card
@@ -722,7 +704,6 @@ void loop() {
         Serial.println("Error writing to SD card!.... We lost the game");
       }
       Serial.println("yo8");
-      Watchdog.reset();
       packetCount++;  // Increment packet count
     }
   }
