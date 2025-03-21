@@ -525,6 +525,8 @@ void setup() {
   } else {
     Serial.println("SD card initialized successfully");
   }
+  dataFile = SD.open("telemetry.txt", FILE_WRITE);
+  backupFile = SD.open("backup.txt", FILE_APPEND);
 
   // NeoPixel initialization
   pixels.setPixelColor(0, 255, 0, 0);  // Set first pixel to red
@@ -710,8 +712,6 @@ void loop() {
       Serial1.println(telemetry);
       Serial.println(telemetry);
       // Save telemetry to SD card
-      
-      dataFile = SD.open("telemetry.txt", FILE_WRITE);
       if (dataFile) {
         dataFile.println(telemetry);
         dataFile.close();
