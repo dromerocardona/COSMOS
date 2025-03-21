@@ -115,50 +115,6 @@ void activateReleaseMechanism() {
   Serial.println("Release mechanism activated - Servo set to 90 degrees");
 }
 
-// ENS220 Single-Shot Mode Function
-void SingleShotMeasure_setup() {
-  Serial.println("Starting ENS220 example 01_Basic_I2C_SingleShot");
-
-  // Start the communication, confirm the device PART_ID, and read the device UID
-  i2c_1.begin(Wire, I2C_ADDRESS);
-
-  while (ens220.begin(&i2c_1) != true) {
-    Serial.println("Waiting for I2C to start");
-    delay(1000);
-  }
-
-  Serial.print("Device UID: ");
-  Serial.println(ens220.getUID(), HEX);
-
-  // Configure the sensor for single-shot mode
-  ens220.setDefaultConfiguration();
-  ens220.setPressureConversionTime(ENS220::PressureConversionTime::T_16_4);
-  ens220.setOversamplingOfPressure(ENS220::Oversampling::N_128);
-  ens220.setOversamplingOfTemperature(ENS220::Oversampling::N_128);
-  ens220.setPressureTemperatureRatio(ENS220::PressureTemperatureRatio::PT_1);
-  ens220.setStandbyTime(ENS220::StandbyTime::OneShotOperation);
-  ens220.setPressureDataPath(ENS220::PressureDataPath::Direct);
-
-  ens220.writeConfiguration();
-}
-
-void SingleShotMeasure_loop() {
-  // Start single-shot measurement
-  ens220.singleShotMeasure(ENS220::Sensor::TemperatureAndPressure);
-
-  // Wait until the measurement is ready
-  ens220.waitSingleShot();
-
-  // Check the DATA_STAT from the sensor and update data
-  auto result = ens220.update();
-
-  if (result == ENS220::Result::Ok) {
-    if (hasFlag(ens220.getDataStatus(), ENS220::DataStatus::PressureReady) && hasFlag(ens220.getDataStatus(), ENS220::DataStatus::TemperatureReady)) {
-      // Data is available; no need to print here since it's used elsewhere
-    }
-  }
-}
-
 // Function to calculate altitude from pressure
 float calculateAltitude(float pressure) {
   // Constants for the barometric formula
@@ -407,55 +363,62 @@ void handleCommand(const char *command) {
 }
 
 // ENS220 Sensor Initialization
-void ContinuousModeWithFIFO_setup() {
-  Serial.println("Starting ENS220 example 03_FIFO_I2C_Continuous");
+void SingleShotMeasure_setup()
+{
+    Serial.println("Starting ENS220 example 01_Basic_I2C_SingleShot");
+    
+    // Start the communication, confirm the device PART_ID, and read the device UID
+    i2c_1.begin(Wire, I2C_ADDRESS);
+    
+    while(ens220.begin(&i2c_1) != true)
+      {
+        Serial.println("Waiting for I2C to start");
+        delay(1000);
+      }
+    
+    Serial.print("Device UID: "); Serial.println(ens220.getUID(), HEX);
 
-  // Start the communication, confirm the device PART_ID, and read the device UID
-  I2cInterface i2c_1;
-  i2c_1.begin(Wire, I2C_ADDRESS);
-  if (ens220.begin(&i2c_1) != true) {
-    Serial.println("Failed to connect to ENS220 sensor");
-  } else {
-    Serial.println("Connected to ENS220 sensor");
-  }
-  Serial.print("Device UID: ");
-  Serial.println(ens220.getUID(), HEX);
+    // Choose the desired configuration of the sensor. In this example we will use the Lowest Noise settings from the datasheet
+    ens220.setDefaultConfiguration();
+    // Set the Pressure ADC conversion time (MEAS_CFG register, field P_CONV)
+    ens220.setPressureConversionTime(ENS220::PressureConversionTime::T_16_4);
+    // Set the Oversampling of pressure measurements (OVS_CFG register, field OVSP) 
+    ens220.setOversamplingOfPressure(ENS220::Oversampling::N_128);
+    // Set the Oversampling of temperature measurements (OVS_CFG register, field OVST)
+    ens220.setOversamplingOfTemperature(ENS220::Oversampling::N_128);
+    // Set the ratio between P and T measurements as produced by the measurement engine (MEAS_CFG register, field PT_RATE)
+    ens220.setPressureTemperatureRatio(ENS220::PressureTemperatureRatio::PT_1);
+    // Set the operation to One shot (STBY_CFG register, field STBY_T)
+    ens220.setStandbyTime(ENS220::StandbyTime::OneShotOperation);
+    // Set whether to use the FIFO buffer, a moving average, or none (MODE_CFG register, field FIFO_MODE)
+    ens220.setPressureDataPath(ENS220::PressureDataPath::Direct);
 
-  // Set up ENS220 configuration
-  ens220.setDefaultConfiguration();
-  ens220.setPressureConversionTime(ENS220::PressureConversionTime::T_16_4);
-  ens220.setOversamplingOfPressure(ENS220::Oversampling::N_16);
-  ens220.setOversamplingOfTemperature(ENS220::Oversampling::N_16);
-  ens220.setPressureTemperatureRatio(ENS220::PressureTemperatureRatio::PT_32);
-  ens220.setPressureDataPath(ENS220::PressureDataPath::Fifo);
-  ens220.setInterfaceConfiguration(ENS220::InterfaceConfiguration::InterruptEnable);
-  ens220.setInterruptConfiguration(ENS220::InterruptConfiguration::TemperatureDataReady | ENS220::InterruptConfiguration::PressureFifoFull);
-  ens220.setInterruptPin(INTN_1);
-
-  ens220.writeConfiguration();
-  ens220.startContinuousMeasure(ENS220::Sensor::TemperatureAndPressure);
+    // Write the desired configuration into the sensor
+    ens220.writeConfiguration();
 }
 
-void ContinuousModeWithFIFO_loop() {
-  // Poll the interrupt pin until a new value is available
-  ens220.waitInterrupt();
-
-  // Check the DATA_STAT from the sensor. If data is available, it reads it
-  auto result = ens220.update();
-  if (result == ENS220::Result::Ok) {
-    if (hasFlag(ens220.getInterruptStatus(), ENS220::InterruptStatus::FifoFull)) {
-      for (int i = 0; i < 32; i++) {
-        // Send the pressure value that was collected during the ens220.update()
-        Serial.print("P[hPa]:");
-        Serial.println(ens220.getPressureHectoPascal(i));
+void SingleShotMeasure_loop()
+{
+    // Start single shot measurement
+    ens220.singleShotMeasure(ENS220::Sensor::TemperatureAndPressure);
+    
+    // Wait until the measurement is ready
+    ens220.waitSingleShot();
+    
+    // Check the DATA_STAT from the sensor. If data is available, it reads it
+    auto result = ens220.update();   
+     
+    if(result == ENS220::Result::Ok)
+    {
+      if(hasFlag(ens220.getDataStatus(), ENS220::DataStatus::PressureReady) && hasFlag(ens220.getDataStatus(), ENS220::DataStatus::TemperatureReady))
+      {
+          // Send the values that were collected during the ens220.update()
+          Serial.print("P[hPa]:");
+          Serial.print(ens220.getPressureHectoPascal());
+          Serial.print("\tT[C]:");
+          Serial.println(ens220.getTempCelsius());
       }
     }
-    if (hasFlag(ens220.getInterruptStatus(), ENS220::InterruptStatus::Temperature)) {
-      // Send the temperature value that was collected during the ens220.update()
-      Serial.print("T[C]:");
-      Serial.println(ens220.getTempCelsius());
-    }
-  }
 }
 
 void updateTime(char *currentTime, size_t size) {
