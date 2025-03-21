@@ -524,7 +524,7 @@ void setup() {
   if (!SD.begin(SD_CS_PIN)) {
     Serial.println("SD card initialization failed!");
   } else {
-    Serial.println("SD card initialized successfully");
+    Serial.println("SD card initialized successfully... We won the game");
   }
   dataFile = SD.open("telemetry.txt", FILE_WRITE);
   backupFile = SD.open("backup.txt", FILE_WRITE);
@@ -718,7 +718,7 @@ void loop() {
         dataFile.close();
         Serial.println("Finished writing to SD card!");
       } else {
-        Serial.println("Error writing to SD card!");
+        Serial.println("Error writing to SD card!.... We lost the game");
       }
       Serial.println("yo8");
       Watchdog.reset();
