@@ -56,6 +56,7 @@ Adafruit_LIS3MDL lis3mdl_FC;   // First magnetometer
 Adafruit_LIS3MDL lis3mdl_CAM;  // Second magnetometer
 Servo servo;
 File dataFile;
+File backupFile;
 SFE_UBLOX_GNSS gps;
 
 // Variables
