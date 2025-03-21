@@ -493,13 +493,13 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
 }
 
 void setup() {
-  pixels.begin();
+  /*pixels.begin();
   pixels.setPixelColor(0, 255, 0, 255);
   pixels.setPixelColor(1, 0, 255, 255);
   pixels.setPixelColor(2, 255, 255, 0);
   pixels.setPixelColor(3, 0, 255, 255);
   pixels.setPixelColor(4, 255, 0, 255);
-  pixels.show();
+  pixels.show(); comment out for now due to hardware issues*/
   delay(3000);
   // Assuming watchdog was enabled here or in a subfunction
   Watchdog.enable(15000);  // Example: 15-second timeout (adjust if different in your code)
@@ -766,10 +766,10 @@ void loop() {
       }
       break;
   }
-  pixels.setPixelColor(0, 0, 0, 255);      // LED 0: Blue
+ /* pixels.setPixelColor(0, 0, 0, 255);      // LED 0: Blue
   pixels.setPixelColor(1, 0, 255, 0);      // LED 1: Green
   pixels.setPixelColor(2, 255, 0, 0);      // LED 2: Red
   pixels.setPixelColor(3, 255, 255, 0);    // LED 3: Yellow
   pixels.setPixelColor(4, 255, 255, 255);  // LED 4: White
-  pixels.show();
+  pixels.show();  */
 }
