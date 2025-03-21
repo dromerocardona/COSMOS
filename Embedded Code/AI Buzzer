@@ -1,1 +1,62 @@
+// Define the buzzer pin (PA6, physical pin 2 on ATtiny1604)
+#define BUZZER_PIN 2
 
+// Note frequencies (in Hz) for the melody
+#define NOTE_C4  261
+#define NOTE_D4  294
+#define NOTE_E4  330
+#define NOTE_F4  349
+#define NOTE_G4  392
+#define NOTE_A4  440
+#define NOTE_B4  494
+#define NOTE_C5  523
+#define NOTE_D5  587
+#define NOTE_E5  659
+#define NOTE_F5  698
+
+// Note durations (in milliseconds)
+#define QUARTER  500  // Quarter note
+#define HALF     1000 // Half note
+#define EIGHTH   250  // Eighth note
+#define DOTTED_Q 750  // Dotted quarter note
+
+// Melody and duration arrays for "Star-Spangled Banner" (simplified)
+int melody[] = {
+  NOTE_G4, NOTE_E4, NOTE_C4, NOTE_E4, NOTE_G4, NOTE_C5, // "Oh, say can you see"
+  NOTE_E5, NOTE_D5, NOTE_C5, NOTE_A4, NOTE_F4, NOTE_G4, // "by the dawn's early light"
+  NOTE_C5, NOTE_C5, NOTE_D5, NOTE_E5, NOTE_C5,          // "What so proudly we hailed"
+  NOTE_A4, NOTE_G4, NOTE_F4, NOTE_G4                   // "at the twilight's last gleaming"
+};
+
+int durations[] = {
+  QUARTER, QUARTER, QUARTER, QUARTER, HALF, HALF,     // First line
+  QUARTER, QUARTER, QUARTER, QUARTER, HALF, HALF,     // Second line
+  QUARTER, QUARTER, QUARTER, QUARTER, HALF,           // Third line
+  QUARTER, QUARTER, QUARTER, HALF                     // Fourth line
+};
+
+int songLength = sizeof(melody) / sizeof(melody[0]);
+
+void setup() {
+  // Set buzzer pin as output
+  pinMode(BUZZER_PIN, OUTPUT);
+  
+  // Play the anthem once
+  for (int i = 0; i < songLength; i++) {
+    playNote(melody[i], durations[i]);
+    delay(50); // Small pause between notes for clarity
+  }
+  
+  // Stop sound after playing
+  noTone(BUZZER_PIN);
+}
+
+void loop() {
+  // Do nothing after playing once, or add code to replay on trigger
+}
+
+// Function to play a note at a given frequency for a duration
+void playNote(int frequency, int duration) {
+  tone(BUZZER_PIN, frequency, duration);
+  delay(duration); // Wait for the note to finish
+}
