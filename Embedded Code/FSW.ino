@@ -13,6 +13,7 @@
 #include "i2c_interface.h"
 #include <Adafruit_NeoPixel.h>
 #include <Servo.h>
+#include <FeedBackServo.h>
 #include <RTClib.h>
 
 // PINS AND DEFINITIONS
