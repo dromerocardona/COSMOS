@@ -37,6 +37,7 @@
 #define TEAM_ID "3195"         // Team ID
 #define XBEE_TX 1              // XBee TX connected to D1
 #define XBEE_RX 0              // XBee RX connected to D0
+#define BUZZER_PIN 3          
 
 // STATE MANAGEMENT VARIABLES
 enum FlightState {
@@ -75,6 +76,7 @@ float accel2X, accel2Y, accel2Z, gyro2X, gyro2Y, gyro2Z;  // IMU data for second
 char lastCommand[32];                                     // Last received command
 unsigned int packetCount = 0;
 bool telemetryEnabled = true;  // Telemetry Control
+bool buzzerActivated = false;  // Flag to track if buzzer has been activated
 
 // Camera stabilization variables
 float cameraposition = 0;
@@ -109,6 +111,65 @@ const float K_proportional = 1.0;  // Proportional gain
 const float K_integral = 0.1;      // Integral gain
 const float K_derivative = 0.01;   // Derivative gain
 float heading;
+
+// Note frequencies (in Hz) for Nokia Tune in approximate E major scale
+#define NOTE_CS4 277  // C#4
+#define NOTE_D4  294  // D4
+#define NOTE_E4  330  // E4
+#define NOTE_FS4 370  // F#4
+#define NOTE_GS4 415  // G#4
+#define NOTE_A4  440  // A4
+#define NOTE_B4  494  // B4
+#define NOTE_CS5 554  // C#5
+#define NOTE_D5  587  // D5
+#define NOTE_E5  659  // E5
+
+// Note durations (in milliseconds, ~130 BPM)
+#define QUARTER  230  // Quarter note (~130 BPM)
+#define EIGHTH   115  // Eighth note
+#define PAUSE    50   // Pause between notes
+
+// Melody and duration arrays for Nokia Tune
+int melody[] = {
+  NOTE_E5, NOTE_D5, NOTE_FS4, NOTE_GS4, // First phrase
+  NOTE_CS5, NOTE_B4, NOTE_D4, NOTE_E4,  // Second phrase
+  NOTE_B4, NOTE_A4, NOTE_CS4, NOTE_E4,  // Third phrase
+  NOTE_A4                               // Final note
+};
+
+int durations[] = {
+  EIGHTH, EIGHTH, QUARTER, QUARTER,    // First phrase
+  EIGHTH, EIGHTH, QUARTER, QUARTER,    // Second phrase
+  EIGHTH, EIGHTH, QUARTER, QUARTER,    // Third phrase
+  QUARTER                              // Final note
+};
+
+int songLength = sizeof(melody) / sizeof(melody[0]);
+
+/*----------------------------Functions----------------------------*/
+
+// Function to play a note using voltage-level PWM
+void playNote(int frequency, int duration) {
+  int period = 1000000 / frequency; // Period in microseconds (e.g., 659 Hz → 1517 µs)
+  int halfPeriod = period / 2;      // 50% duty cycle (e.g., 758 µs)
+  long cycles = (long)duration * 1000 / period; // Number of cycles for duration (e.g., 115ms / 1.517ms ≈ 76 cycles)
+  
+  for (long i = 0; i < cycles; i++) {
+    digitalWrite(BUZZER_PIN, HIGH); // 5V output
+    delayMicroseconds(halfPeriod);
+    digitalWrite(BUZZER_PIN, LOW);  // 0V output
+    delayMicroseconds(halfPeriod);
+  }
+  digitalWrite(BUZZER_PIN, LOW); // Ensure pin is low after note
+}
+
+// Function to play the Nokia Tune
+void playNokiaTune() {
+  for (int i = 0; i < songLength; i++) {
+    playNote(melody[i], durations[i]);
+    delay(PAUSE); // Pause between notes
+  }
+}
 
 /*----------------------------Functions----------------------------*/
 
@@ -742,6 +803,11 @@ void loop() {
       break;
     case LANDED:
       updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
+      if (!buzzerActivated) {
+        Serial.println("Flight landed - Activating buzzer with Nokia Tune");
+        playNokiaTune();  // Play the tune once when landing detected
+        buzzerActivated = true;  /
+      }
       if (avg(velocityHistory, historySize) < 1) {
         flightState = LANDED;
       }
