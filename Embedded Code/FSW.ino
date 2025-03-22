@@ -148,27 +148,6 @@ int songLength = sizeof(melody) / sizeof(melody[0]);
 
 /*----------------------------Functions----------------------------*/
 
-// Play a single note using PWM
-void playNote(int frequency, int duration) {
-  int period = 1000000 / frequency;
-  int halfPeriod = period / 2;
-  long cycles = (long)duration * 1000 / period;
-  for (long i = 0; i < cycles; i++) {
-    digitalWrite(BUZZER_PIN, HIGH);
-    delayMicroseconds(halfPeriod);
-    digitalWrite(BUZZER_PIN, LOW);
-    delayMicroseconds(halfPeriod);
-  }
-  digitalWrite(BUZZER_PIN, LOW);
-}
-
-// Play the Nokia Tune
-void playNokiaTune() {
-  for (int i = 0; i < songLength; i++) {
-    playNote(melody[i], durations[i]);
-    delay(PAUSE);
-  }
-}
 
 // Activate release mechanism
 void activateReleaseMechanism() {
@@ -479,6 +458,19 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
 }
 
 void setup() {
+
+  // Set buzzer pin as output
+  pinMode(BUZZER_PIN, OUTPUT);
+  
+  // Play the Nokia Tune infinitely
+  while (true) {
+    for (int i = 0; i < songLength; i++) {
+      playNote(melody[i], durations[i]);
+      delay(PAUSE); // Pause between notes
+    }
+    delay(500); // Short pause between repeats
+  }
+
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
 
@@ -556,6 +548,22 @@ void setup() {
 }
 
 void loop() {
+
+  }
+
+// Function to play a note using voltage-level PWM
+void playNote(int frequency, int duration) {
+  int period = 1000000 / frequency; // Period in microseconds (e.g., 659 Hz → 1517 µs)
+  int halfPeriod = period / 2;      // 50% duty cycle (e.g., 758 µs)
+  long cycles = (long)duration * 1000 / period; // Number of cycles for duration (e.g., 115ms / 1.517ms ≈ 76 cycles)
+  
+  for (long i = 0; i < cycles; i++) {
+    digitalWrite(BUZZER_PIN, HIGH); // 5V output
+    delayMicroseconds(halfPeriod);
+    digitalWrite(BUZZER_PIN, LOW);  // 0V output
+    delayMicroseconds(halfPeriod);
+  }
+  digitalWrite(BUZZER_PIN, LOW); // Ensure pin is low after note
   Serial.println("yo");
 
   updateTime(currentTime, sizeof(currentTime));
@@ -710,7 +718,6 @@ void loop() {
       updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
       if (!buzzerActivated) {
         Serial.println("Flight landed - Activating buzzer with Nokia Tune");
-        playNokiaTune();
         buzzerActivated = true;
       }
       break;
