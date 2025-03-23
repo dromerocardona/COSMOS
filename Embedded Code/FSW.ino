@@ -566,9 +566,9 @@ void setup() {
 
   Serial.println("yo??");
 
-  /*if (!gps.begin()) {
+  if (!gps.begin()) {
     Serial.println("GNSS v3 initialization failed!");
-  }*/
+  }
 
   Serial.println("yoo");
 
@@ -641,13 +641,13 @@ void loop() {
 
   float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
   unsigned int satellites = 0;
-  /*if (1) {                    // Check if we have a 3D fix
+  if (1) {                    // Check if we have a 3D fix
     latitude = gps.getLatitude() / 10000000.0;    // Convert to degrees
     longitude = gps.getLongitude() / 10000000.0;  // Convert to degrees
     gpsAltitude = gps.getAltitude() / 1000.0;     // Convert to meters
     satellites = gps.getSIV();
     snprintf(gpsTime, sizeof(gpsTime), "%02d:%02d:%02d", gps.getHour(), gps.getMinute(), gps.getSecond());
-  }*/
+  }
 
   Serial.println("yo3");
 
@@ -723,18 +723,18 @@ void loop() {
       int magY_int = (int)(magEvent1.magnetic.y * 10);
       int magZ_int = (int)(magEvent1.magnetic.z * 10);
       int rpm_int = (int)(rpm * 10);
-      int gpsAltitude_int = (int)(gpsAltitude * 10);
-      int latitude_int = (int)(latitude * 10000);    // 4 decimal places
-      int longitude_int = (int)(longitude * 10000);  // 4 decimal places
+      //int gpsAltitude_int = (int)(gpsAltitude * 10);
+      //int latitude_int = (int)(latitude * 10000);    // 4 decimal places
+      //int longitude_int = (int)(longitude * 10000);  // 4 decimal places
 
       // Use %d for integers instead of %.1f or %.4f
       snprintf(telemetry, sizeof(telemetry),
-               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%d,%d,%d,%u,%s,COSMOS",
+               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%.1f,%.4f,%.4f,%u,%s,COSMOS",
                TEAM_ID, currentTime, packetCount, mode, state,
                altitude, temperature, pressure, currentVoltage_int,
                gyroX_int, gyroY_int, gyroZ_int, accelX_int, accelY_int, accelZ_int,
-               magX_int, magY_int, magZ_int, rpm_int, gpsTime, gpsAltitude_int,
-               latitude_int, longitude_int, satellites, lastCommand);
+               magX_int, magY_int, magZ_int, rpm_int, gpsTime, gpsAltitude,
+               latitude, longitude, satellites, lastCommand);
       Serial1.println(telemetry);
       Serial.println(telemetry);
       // Save telemetry to SD card
