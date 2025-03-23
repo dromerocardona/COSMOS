@@ -96,6 +96,8 @@ float receivedPressure = 0.0;       // For SIM_ACTIVATE pressure input
 float referencePressure = 1013.25;  // Default reference point (sea level)
 float simulatedAltitude = 0.0;
 const int historySize = 10;
+float pressure;
+float temperature;
 float altitudeHistory[historySize];           // Store altitude
 float velocityHistory[historySize];           // Store velocity
 unsigned long timestampHistory[historySize];  // Store time
@@ -389,8 +391,8 @@ void SingleShotMeasure_setup() {
   // Choose the desired configuration of the sensor. In this example we will use the Lowest Noise settings from the datasheet
   ens220.setDefaultConfiguration();
   ens220.setPressureConversionTime(ENS220::PressureConversionTime::T_16_4);
-  ens220.setOversamplingOfPressure(ENS220::Oversampling::N_32);
-  ens220.setOversamplingOfTemperature(ENS220::Oversampling::N_32);
+  ens220.setOversamplingOfPressure(ENS220::Oversampling::N_128);
+  ens220.setOversamplingOfTemperature(ENS220::Oversampling::N_128);
   ens220.setPressureTemperatureRatio(ENS220::PressureTemperatureRatio::PT_1);
   ens220.setStandbyTime(ENS220::StandbyTime::OneShotOperation);
   ens220.setPressureDataPath(ENS220::PressureDataPath::Direct);
@@ -399,25 +401,30 @@ void SingleShotMeasure_setup() {
   ens220.writeConfiguration();
 }
 
-void SingleShotMeasure_loop() {
-  // Start single shot measurement
-  ens220.singleShotMeasure(ENS220::Sensor::TemperatureAndPressure);
-
-  // Wait until the measurement is ready
-  ens220.waitSingleShot();
-
-  // Check the DATA_STAT from the sensor. If data is available, it reads it
-  auto result = ens220.update();
-
-  if (result == ENS220::Result::Ok) {
-    if (hasFlag(ens220.getDataStatus(), ENS220::DataStatus::PressureReady) && hasFlag(ens220.getDataStatus(), ENS220::DataStatus::TemperatureReady)) {
-      // Send the values that were collected during the ens220.update()
-      Serial.print("P[hPa]:");
-      Serial.print(ens220.getPressureHectoPascal());
-      Serial.print("\tT[C]:");
-      Serial.println(ens220.getTempCelsius());
+void SingleShotMeasure_loop()
+{
+    // Start single shot measurement
+    ens220.singleShotMeasure(ENS220::Sensor::TemperatureAndPressure);
+    
+    // Wait until the measurement is ready
+    ens220.waitSingleShot();
+    
+    // Check the DATA_STAT from the sensor. If data is available, it reads it
+    auto result = ens220.update();   
+     
+    if(result == ENS220::Result::Ok)
+    {
+      if(hasFlag(ens220.getDataStatus(), ENS220::DataStatus::PressureReady) && hasFlag(ens220.getDataStatus(), ENS220::DataStatus::TemperatureReady))
+      {
+          // Send the values that were collected during the ens220.update()
+          Serial.print("P[hPa]:");
+          Serial.print(ens220.getPressureHectoPascal());
+          pressure = ens220.getPressureHectoPascal();
+          Serial.print("\tT[C]:");
+          Serial.println(ens220.getTempCelsius());
+          temperature = ens220.getTempCelsius();
+      }
     }
-  }
 }
 
 // Updated updateTime function to use DS1307 RTC
@@ -600,6 +607,8 @@ void setup() {
     lis3mdl.setRange(LIS3MDL_RANGE_4_GAUSS);
   }
 
+  SingleShotMeasure_setup();
+
   Serial.println(millis());
 }
 
@@ -670,8 +679,6 @@ void loop() {
   Serial.println("yo5");
   // Retrieve Temperature and Pressure from ENS220 (Single Shot Mode)
   SingleShotMeasure_loop();
-  float temperature = ens220.getTempCelsius();
-  float pressure = ens220.getPressureHectoPascal();
 
   // Calculate altitude from pressure
   float altitude = calculateAltitude(pressure);
@@ -703,9 +710,9 @@ void loop() {
       }
       Serial.println("yo7");
       // Convert floats to integers (multiply by 10 for 1 decimal, 10000 for 4 decimals)
-      int altitude_int = (int)(altitude * 10);  // 1 decimal place
-      int temperature_int = (int)(temperature * 10);
-      int pressure_int = (int)(pressure * 10);
+      //int altitude_int = (int)(altitude * 10);  // 1 decimal place
+      //int temperature_int = (int)(temperature * 10);
+      //int pressure_int = (int)(pressure * 10);
       int currentVoltage_int = (int)(currentVoltage * 10);
       int gyroX_int = (int)(gyroX * 10);
       int gyroY_int = (int)(gyroY * 10);
@@ -723,9 +730,9 @@ void loop() {
 
       // Use %d for integers instead of %.1f or %.4f
       snprintf(telemetry, sizeof(telemetry),
-               "%s,%s,%u,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%d,%d,%d,%u,%s,COSMOS",
+               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%d,%d,%d,%u,%s,COSMOS",
                TEAM_ID, currentTime, packetCount, mode, state,
-               altitude_int, temperature_int, pressure_int, currentVoltage_int,
+               altitude, temperature, pressure, currentVoltage_int,
                gyroX_int, gyroY_int, gyroZ_int, accelX_int, accelY_int, accelZ_int,
                magX_int, magY_int, magZ_int, rpm_int, gpsTime, gpsAltitude_int,
                latitude_int, longitude_int, satellites, lastCommand);
