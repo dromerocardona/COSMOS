@@ -116,7 +116,7 @@ float heading;
 
 // Function definition (add this below other functions)
 void activateReleaseMechanism() {
-  servo1.writeMicroseconds(900);  // Activate servo to 90 degrees for release
+  servo.writeMicroseconds(500);  // Activate servo to 90 degrees for release
   Serial.println("Release mechanism activated - Servo set to 90 degrees");
 }
 
@@ -331,7 +331,7 @@ void handleCommand(const char *command) {
           strncpy(lastCommand, "MEC_RELEASE_ON", sizeof(lastCommand));
         } else if (strcmp(field3, "OFF") == 0) {
           Serial.println("MEC RELEASE OFF command received.");
-          servo1.writeMicroseconds(500);  // Reset servo to 0 degrees (or your "off" position)
+          servo.writeMicroseconds(1100);  // Reset servo to 0 degrees (or your "off" position)
           strncpy(lastCommand, "MEC_RELEASE_OFF", sizeof(lastCommand));
           Serial.println("Release mechanism deactivated - Servo set to 0 degrees");
         }
@@ -508,16 +508,17 @@ void setup() {
   Wire.setClock(400000);
   Serial.println("test1");
 
-  pinMode(SERVO_PIN, OUTPUT);
-  servo.attach(SERVO_PIN);
-  pinMode(RELEASE_PIN, OUTPUT);
-  servo1.attach(RELEASE_PIN);
+  //pinMode(SERVO_PIN, OUTPUT);
+  //servo.attach(SERVO_PIN);
+  //pinMode(RELEASE_PIN, OUTPUT);
+  servo.attach(RELEASE_PIN);
 
   Serial.println("hello");
 
-  servo1.writeMicroseconds(1000);
+  servo.writeMicroseconds(500);
   delay(2000);
-  servo1.writeMicroseconds(0);
+  servo.writeMicroseconds(1100);
+  delay(2000);
 
   Serial.print("work");
 
