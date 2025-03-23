@@ -101,6 +101,7 @@ float temperature;
 float altitudeHistory[historySize];           // Store altitude
 float velocityHistory[historySize];           // Store velocity
 unsigned long timestampHistory[historySize];  // Store time
+float latestVelocity;
 
 // Variables used for PID
 float setpoint = 1000.0;           // Desired setpoint placeholder
@@ -156,7 +157,7 @@ void updateVelocityHistory(float altitudeHistory[], float velocityHistory[], uns
   float timeDifferenceSeconds = timeDifferenceMillis / 1000.0;  // Convert to seconds
 
   // Calculate the latest velocity
-  float latestVelocity = (altitudeHistory[0] - altitudeHistory[1]) / timeDifferenceSeconds;
+  latestVelocity = (altitudeHistory[0] - altitudeHistory[1]) / timeDifferenceSeconds;
 
   // Shift all elements in velocityHistory to the right
   for (int i = size - 1; i > 0; i--) {
@@ -323,6 +324,7 @@ void handleCommand(const char *command) {
       referencePressure = ens220.getPressureHectoPascal();
       Serial.print("Calibration complete. Reference pressure set to: ");
       Serial.println(referencePressure);
+      flightState = LAUNCH_PAD;
       break;
 
     case 6:  // MEC commands
@@ -461,7 +463,7 @@ void updateTime(char *currentTime, size_t size) {
 void updateFlightState(float altitude, float velocity, float x, float y, float z) {
   switch (flightState) {
     case LAUNCH_PAD:
-      if (altitude > 5 && velocity > 5) {
+      if (altitude > 5 && velocity > 8) {
         flightState = ASCENT;
         Serial.println("Flight state: ASCENT");
       }
@@ -513,34 +515,31 @@ void setup() {
   Serial1.setTimeout(100);  // Set timeout to 100 ms
   Wire.begin();
   Wire.setClock(400000);
-  Serial.println("test1");
+  //Serial.println("test1");
 
   //pinMode(SERVO_PIN, OUTPUT);
   //servo.attach(SERVO_PIN);
   //pinMode(RELEASE_PIN, OUTPUT);
   servo.attach(RELEASE_PIN);
 
-  Serial.println("hello");
+  //Serial.println("hello");
 
   servo.writeMicroseconds(500);
   delay(2000);
   servo.writeMicroseconds(1100);
   delay(2000);
 
-  Serial.print("work");
+  //Serial.print("work");
 
   // Initialize DS1307 RTC
-  /*if (!rtc.begin()) {
+  if (!rtc.begin()) {
     Serial.println("Couldn't find DS1307 RTC!");
-    while (1) delay(10);  // Halt if RTC fails (remove this for non-critical use)
   }
-  */
-
-  /*if (!rtc.isrunning()) {
+  
+  if (!rtc.isrunning()) {
     Serial.println("RTC is NOT running, setting time to compile time.");
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));  // Set to compile time
   }
-  */
   Serial.println("DS1307 RTC initialized.");
 
   // Initialize cameras control pins (e.g., for power on/off)
@@ -583,7 +582,7 @@ void setup() {
     lis3mdl_FC.setRange(LIS3MDL_RANGE_4_GAUSS);
   }
 
-  Serial.println("hello");
+  //Serial.println("hello");
 
   // Initialize first IMU (LSM6DS3)
   if (!IMU.begin()) {
@@ -619,7 +618,7 @@ void loop() {
     Serial1.read();  // Discard old data
   }
 
-  //updateTime(currentTime, sizeof(currentTime));
+  updateTime(currentTime, sizeof(currentTime));
   // Read data from XBee or Serial1
   char command[64] = {0};
   if (Serial1.readBytesUntil('\n', command, sizeof(command) - 1) > 0) {
@@ -638,7 +637,7 @@ void loop() {
   // Read battery voltage
   float currentVoltage = analogRead(BATTERY_PIN) * voltageDividerFactor;
 
-  Serial.print("yp");
+  //Serial.print("yp");
 
   float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
   unsigned int satellites = 0;
@@ -760,6 +759,9 @@ void loop() {
   // Used for some state transitions
   updateAltitudeHistory(altitudeHistory, timestampHistory, altitude, historySize);
   updateVelocityHistory(altitudeHistory, velocityHistory, timestampHistory, historySize);
+
+  Serial.println("Velocity:");
+  Serial.println(latestVelocity);
 
   switch (flightState) {
     case LAUNCH_PAD:
