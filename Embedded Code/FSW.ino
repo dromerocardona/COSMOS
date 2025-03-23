@@ -17,17 +17,17 @@
 #include <RTClib.h>
 
 // PINS AND DEFINITIONS
-#define BATTERY_PIN A0         // Analog pin for voltage divider circuit
-#define RPM_PIN 2              // Pin for Hall effect sensor
-#define SD_CS_PIN 6            // Chip select pin for SD card
-#define SERVO_PIN 13           // Servo pin for GND camera stabilization
-#define FEEDBACK_PIN 9         // Feedback signal pin for servo control
-#define I2C_ADDRESS 0x20       // I2C Address for ENS 220
-#define DS1307_I2C_ADDRESS 0x68 // I2C Address for DS1307
-#define SERIAL_BAUDRATE 57600  // Speed of Serial Communication with the computer (ENS220)
-#define INTN_1 4               // Interrupt pin for ENS220
-#define CAMERA1_PIN 10         // Blade camera
-#define CAMERA2_PIN 11         // Ground camera
+#define BATTERY_PIN A0           // Analog pin for voltage divider circuit
+#define RPM_PIN A4               // Pin for Hall effect sensor
+#define SD_CS_PIN 6              // Chip select pin for SD card
+#define SERVO_PIN 13             // Servo pin for GND camera stabilization
+#define FEEDBACK_PIN 9           // Feedback signal pin for servo control
+#define I2C_ADDRESS 0x20         // I2C Address for ENS 220
+#define DS1307_I2C_ADDRESS 0x68  // I2C Address for DS1307
+#define SERIAL_BAUDRATE 57600    // Speed of Serial Communication with the computer (ENS220)
+#define INTN_1 4                 // Interrupt pin for ENS220
+#define CAMERA1_PIN 10           // Blade camera
+#define CAMERA2_PIN 11           // Ground camera
 #define LED_DATA 5
 #define NUM_LEDS 5             // Number of LEDs for FastLED
 #define MAG1_I2C_ADDRESS 0x1C  // First LIS3MDL address
@@ -116,7 +116,7 @@ float heading;
 
 // Function definition (add this below other functions)
 void activateReleaseMechanism() {
-  servo1.writeMicroseconds(500);  // Activate servo to 90 degrees for release
+  servo1.writeMicroseconds(900);  // Activate servo to 90 degrees for release
   Serial.println("Release mechanism activated - Servo set to 90 degrees");
 }
 
@@ -232,6 +232,9 @@ void rpmISR() {
 }
 
 void handleCommand(const char *command) {
+
+  Serial.println(command);
+
   char field1[10], field2[10], field3[10], field4[10];
   int num = sscanf(command, "CMD, %*d, %9[^,], %9[^,], %9[^,], %9[^,]",
                    field1, field2, field3, field4);
@@ -328,7 +331,7 @@ void handleCommand(const char *command) {
           strncpy(lastCommand, "MEC_RELEASE_ON", sizeof(lastCommand));
         } else if (strcmp(field3, "OFF") == 0) {
           Serial.println("MEC RELEASE OFF command received.");
-          servo1.writeMicroseconds(900);  // Reset servo to 0 degrees (or your "off" position)
+          servo1.writeMicroseconds(500);  // Reset servo to 0 degrees (or your "off" position)
           strncpy(lastCommand, "MEC_RELEASE_OFF", sizeof(lastCommand));
           Serial.println("Release mechanism deactivated - Servo set to 0 degrees");
         }
@@ -364,22 +367,24 @@ void handleCommand(const char *command) {
     default:
       Serial.println("Unknown command type or transmission error");
       break;
+
   }
 }
 
 // ENS220 Sensor Initialization
 void SingleShotMeasure_setup() {
   Serial.println("Starting ENS220 example 01_Basic_I2C_SingleShot");
-  
+
   // Start the communication, confirm the device PART_ID, and read the device UID
   i2c_1.begin(Wire, I2C_ADDRESS);
-  
+
   while (ens220.begin(&i2c_1) != true) {
     Serial.println("Waiting for I2C to start");
     delay(1000);
   }
-  
-  Serial.print("Device UID: "); Serial.println(ens220.getUID(), HEX);
+
+  Serial.print("Device UID: ");
+  Serial.println(ens220.getUID(), HEX);
 
   // Choose the desired configuration of the sensor. In this example we will use the Lowest Noise settings from the datasheet
   ens220.setDefaultConfiguration();
@@ -397,13 +402,13 @@ void SingleShotMeasure_setup() {
 void SingleShotMeasure_loop() {
   // Start single shot measurement
   ens220.singleShotMeasure(ENS220::Sensor::TemperatureAndPressure);
-  
+
   // Wait until the measurement is ready
   ens220.waitSingleShot();
-  
+
   // Check the DATA_STAT from the sensor. If data is available, it reads it
-  auto result = ens220.update();   
-  
+  auto result = ens220.update();
+
   if (result == ENS220::Result::Ok) {
     if (hasFlag(ens220.getDataStatus(), ENS220::DataStatus::PressureReady) && hasFlag(ens220.getDataStatus(), ENS220::DataStatus::TemperatureReady)) {
       // Send the values that were collected during the ens220.update()
@@ -495,9 +500,10 @@ void setup() {
   pixels.setPixelColor(4, 255, 0, 255);
   pixels.show(); comment out for now due to hardware issues*/
 
-  
+
   Serial.begin(2000000);  // Debugging output
   Serial1.begin(9600);    // XBee communication
+  Serial1.setTimeout(100);  // Set timeout to 100 ms
   Wire.begin();
   Wire.setClock(400000);
   Serial.println("test1");
@@ -507,15 +513,26 @@ void setup() {
   pinMode(RELEASE_PIN, OUTPUT);
   servo1.attach(RELEASE_PIN);
 
+  Serial.println("hello");
+
+  servo1.writeMicroseconds(1000);
+  delay(2000);
+  servo1.writeMicroseconds(0);
+
+  Serial.print("work");
+
   // Initialize DS1307 RTC
-  if (!rtc.begin()) {
+  /*if (!rtc.begin()) {
     Serial.println("Couldn't find DS1307 RTC!");
     while (1) delay(10);  // Halt if RTC fails (remove this for non-critical use)
   }
-  if (!rtc.isrunning()) {
+  */
+
+  /*if (!rtc.isrunning()) {
     Serial.println("RTC is NOT running, setting time to compile time.");
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));  // Set to compile time
   }
+  */
   Serial.println("DS1307 RTC initialized.");
 
   // Initialize cameras control pins (e.g., for power on/off)
@@ -528,7 +545,7 @@ void setup() {
   if (!SD.begin(SD_CS_PIN)) {
     Serial.println("SD card initialization failed!");
   } else {
-    Serial.println("SD card initialized successfully... We won the game");
+    Serial.println("SD card initialized successfully");
   }
   backupFile = SD.open("backup.txt", FILE_WRITE);
 
@@ -540,9 +557,13 @@ void setup() {
   pinMode(RPM_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(RPM_PIN), rpmISR, RISING);
 
-  if (!gps.begin()) {
+  Serial.println("yo??");
+
+  /*if (!gps.begin()) {
     Serial.println("GNSS v3 initialization failed!");
-  }
+  }*/
+
+  Serial.println("yoo");
 
   if (!lis3mdl_FC.begin_I2C(MAG1_I2C_ADDRESS)) {
     Serial.println("Failed to find LIS3MDL #1");
@@ -553,6 +574,8 @@ void setup() {
     lis3mdl_FC.setDataRate(LIS3MDL_DATARATE_155_HZ);
     lis3mdl_FC.setRange(LIS3MDL_RANGE_4_GAUSS);
   }
+
+  Serial.println("hello");
 
   // Initialize first IMU (LSM6DS3)
   if (!IMU.begin()) {
@@ -581,14 +604,18 @@ void setup() {
 
 void loop() {
   Serial.println("yo");
- 
 
-  updateTime(currentTime, sizeof(currentTime));
+  while (Serial1.available()) {
+    Serial1.read();  // Discard old data
+  }
+
+  //updateTime(currentTime, sizeof(currentTime));
   // Read data from XBee or Serial1
-  char command[64];
+  char command[64] = {0};
   if (Serial1.readBytesUntil('\n', command, sizeof(command) - 1) > 0) {
     command[sizeof(command) - 1] = '\0';  // Ensure null-termination
     handleCommand(command);               // Process the command
+    memset(command, 0, sizeof(command));  // Clear the command buffer
   }
   Serial.println("yo2");
   unsigned long missionTime = millis() / 1000;  // Mission time in seconds
@@ -601,16 +628,18 @@ void loop() {
   // Read battery voltage
   float currentVoltage = analogRead(BATTERY_PIN) * voltageDividerFactor;
 
-  // Read GPS data
+  Serial.print("yp");
+
   float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
   unsigned int satellites = 0;
-  if (1) {                    // Check if we have a 3D fix
+  /*if (1) {                    // Check if we have a 3D fix
     latitude = gps.getLatitude() / 10000000.0;    // Convert to degrees
     longitude = gps.getLongitude() / 10000000.0;  // Convert to degrees
     gpsAltitude = gps.getAltitude() / 1000.0;     // Convert to meters
     satellites = gps.getSIV();
     snprintf(gpsTime, sizeof(gpsTime), "%02d:%02d:%02d", gps.getHour(), gps.getMinute(), gps.getSecond());
-  }
+  }*/
+
   Serial.println("yo3");
 
   // Read magnetometer data
