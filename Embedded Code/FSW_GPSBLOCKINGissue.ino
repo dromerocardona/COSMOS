@@ -712,7 +712,7 @@ void loop() {
       //int altitude_int = (int)(altitude * 10);  // 1 decimal place
       //int temperature_int = (int)(temperature * 10);
       //int pressure_int = (int)(pressure * 10);
-      int currentVoltage_int = (int)(currentVoltage * 10);
+      //int currentVoltage_int = (int)(currentVoltage * 10);
       int gyroX_int = (int)(gyroX * 10);
       int gyroY_int = (int)(gyroY * 10);
       int gyroZ_int = (int)(gyroZ * 10);
@@ -722,18 +722,18 @@ void loop() {
       int magX_int = (int)(magEvent1.magnetic.x * 10);
       int magY_int = (int)(magEvent1.magnetic.y * 10);
       int magZ_int = (int)(magEvent1.magnetic.z * 10);
-      int rpm_int = (int)(rpm * 10);
+      //int rpm_int = (int)(rpm * 10);
       //int gpsAltitude_int = (int)(gpsAltitude * 10);
       //int latitude_int = (int)(latitude * 10000);    // 4 decimal places
       //int longitude_int = (int)(longitude * 10000);  // 4 decimal places
 
       // Use %d for integers instead of %.1f or %.4f
       snprintf(telemetry, sizeof(telemetry),
-               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%.1f,%.4f,%.4f,%u,%s,COSMOS",
+               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.1f,%s,%.1f,%.4f,%.4f,%u,%s,COSMOS",
                TEAM_ID, currentTime, packetCount, mode, state,
-               altitude, temperature, pressure, currentVoltage_int,
+               altitude, temperature, pressure, currentVoltage,
                gyroX_int, gyroY_int, gyroZ_int, accelX_int, accelY_int, accelZ_int,
-               magX_int, magY_int, magZ_int, rpm_int, gpsTime, gpsAltitude,
+               magX_int, magY_int, magZ_int, rpm, gpsTime, gpsAltitude,
                latitude, longitude, satellites, lastCommand);
       Serial1.println(telemetry);
       Serial.println(telemetry);
