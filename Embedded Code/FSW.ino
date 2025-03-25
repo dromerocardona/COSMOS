@@ -20,24 +20,22 @@
 #define BATTERY_PIN A0           // Analog pin for voltage divider circuit
 #define RPM_PIN A4               // Pin for Hall effect sensor
 #define SD_CS_PIN 6              // Chip select pin for SD card
+#define RELEASE_PIN 12           // Release servo pin
 #define SERVO_PIN 13             // Servo pin for GND camera stabilization
-#define FEEDBACK_PIN 9           // Feedback signal pin for servo control
+//#define FEEDBACK_PIN 9           // Feedback signal pin for servo control
 #define I2C_ADDRESS 0x20         // I2C Address for ENS 220
 #define DS1307_I2C_ADDRESS 0x68  // I2C Address for DS1307
-#define SERIAL_BAUDRATE 57600    // Speed of Serial Communication with the computer (ENS220)
-#define INTN_1 4                 // Interrupt pin for ENS220
+//#define SERIAL_BAUDRATE 57600    // Speed of Serial Communication with the computer (ENS220)
+//#define INTN_1 4                 // Interrupt pin for ENS220
 #define CAMERA1_PIN 10           // Blade camera
 #define CAMERA2_PIN 11           // Ground camera
 #define LED_DATA 5
 #define NUM_LEDS 5             // Number of LEDs for FastLED
-#define MAG1_I2C_ADDRESS 0x1C  // First LIS3MDL address
-#define MAG2_I2C_ADDRESS 0x1E  // Second LIS3MDL address
-#define IMU1_I2C_ADDRESS 0x6A  // First LSM6DS3 address
-#define IMU2_I2C_ADDRESS 0x6B  // Second LSM6DS3 address
-#define TEAM_ID "3195"         // Team ID
-#define XBEE_TX 1              // XBee TX connected to D1
-#define XBEE_RX 0              // XBee RX connected to D0
-#define RELEASE_PIN 12         // Release servo pin
+//#define MAG1_I2C_ADDRESS 0x1C  // First LIS3MDL address
+//#define MAG2_I2C_ADDRESS 0x1E  // Second LIS3MDL address
+//#define IMU1_I2C_ADDRESS 0x6A  // First LSM6DS3 address
+//#define IMU2_I2C_ADDRESS 0x6B  // Second LSM6DS3 address
+#define TEAM_ID "3195"
 
 // STATE MANAGEMENT VARIABLES
 enum FlightState {
@@ -54,19 +52,19 @@ Adafruit_NeoPixel pixels(NUM_LEDS, LED_DATA, NEO_GRB + NEO_KHZ800);
 ScioSense::ENS220 ens220;
 I2cInterface i2c_1;            // Added for ENS220 single-shot mode
 Adafruit_LIS3MDL lis3mdl;      // Magnetometer
-Adafruit_LIS3MDL lis3mdl_FC;   // First magnetometer
-Adafruit_LIS3MDL lis3mdl_CAM;  // Second magnetometer
+//Adafruit_LIS3MDL lis3mdl_FC;   // First magnetometer
+//Adafruit_LIS3MDL lis3mdl_CAM;  // Second magnetometer
 Servo servo;
-Servo servo1;
+Servo camServo;
 File dataFile;
 File backupFile;
-SFE_UBLOX_GNSS gps;  // Changed to lowercase 'gps' for consistency
+SFE_UBLOX_GNSS gps;
 RTC_DS1307 rtc;      // DS1307
 
 // Variables
 unsigned long landedTime = 0;
 unsigned long lastOrientationTime = 0;
-float lastOrientationX = 0.0, lastOrientationY = 0.0, lastOrientationZ = 0.0;
+//float lastOrientationX = 0.0, lastOrientationY = 0.0, lastOrientationZ = 0.0;
 uint8_t satellites = 0;
 float voltageDividerFactor = 0.012089;                    // Adjust based on resistor values in voltage divider
 float lastTransmissionTime = 0;                           // Last time of telemetry transmission
@@ -94,7 +92,6 @@ bool simulationMode = false;
 float simulatedPressure = 0.0;
 float receivedPressure = 0.0;       // For SIM_ACTIVATE pressure input
 float referencePressure = 1013.25;  // Default reference point (sea level)
-float simulatedAltitude = 0.0;
 const int historySize = 10;
 float pressure;
 float temperature;
@@ -115,7 +112,7 @@ const float K_integral = 0.1;      // Integral gain
 const float K_derivative = 0.01;   // Derivative gain
 float heading;
 
-/*----------------------------Functions----------------------------*/
+///////////////////////// FUNCTIONS /////////////////////////
 
 // Function definition (add this below other functions)
 void activateReleaseMechanism() {
@@ -177,7 +174,7 @@ float avg(float arr[], int size) {
 }
 
 // Function for PID Camera Stabilization
-void pidControl(float input, float setpoint, float &lastError, float &integral, Servo &servo) {
+void pidControl(float input, float setpoint, float &lastError, float &integral, Servo &camServo) {
   // PID tuning parameters
   const float K_proportional = 1.0;  // Proportional gain
   const float K_integral = 0.1;      // Integral gain
@@ -204,18 +201,21 @@ void pidControl(float input, float setpoint, float &lastError, float &integral, 
   lastError = error;
 
   // Map heading to servo angle (assuming servo range is 0-180°)
-  int currentAngle = servo.read();                 // Read current servo position
+  int currentAngle = camServo.read();                 // Read current servo position
   int targetAngle = map(input, 0, 360, 0, 180);    // Adjust based on servo range
   int adjustedAngle = currentAngle - (int)output;  // Adjusting servo based on the PID output
 
   // Constrain to servo range (0-180°)
   if (adjustedAngle < 0) adjustedAngle = 0;
   if (adjustedAngle > 180) adjustedAngle = 180;
-  servo.write(targetAngle);  // Set servo to target angle
+
+  // Convert target angle to microseconds (1000 to 2000 range)
+  int targetMicroseconds = map(targetAngle, 0, 180, 1000, 2000);
+  camServo.writeMicroseconds(targetMicroseconds);  // Set servo to target microseconds
 
   // Read feedback and correct (optional, depends on FeedBackServo implementation)
   if (abs(currentAngle - targetAngle) > 5) {  // Tolerance of 5 degrees
-    servo.write(targetAngle);                 // Reapply correction
+    camServo.writeMicroseconds(targetMicroseconds);  // Reapply correction
   }
 
   // Debug output
@@ -227,7 +227,6 @@ void pidControl(float input, float setpoint, float &lastError, float &integral, 
   Serial.println(currentAngle);
 }
 
-// Interrupt Service Routine for RPM counting
 void rpmISR() {
   currentInterruptTime = millis();                            // Get the current time
   timeDifference = currentInterruptTime - lastInterruptTime;  // Calculate the time difference between interrupts
@@ -335,7 +334,7 @@ void handleCommand(const char *command) {
           strncpy(lastCommand, "MEC_RELEASE_ON", sizeof(lastCommand));
         } else if (strcmp(field3, "OFF") == 0) {
           Serial.println("MEC RELEASE OFF command received.");
-          servo.writeMicroseconds(1100);  // Reset servo to 0 degrees (or your "off" position)
+          servo.writeMicroseconds(900);  // Reset servo to 0 degrees (or your "off" position)
           strncpy(lastCommand, "MEC_RELEASE_OFF", sizeof(lastCommand));
           Serial.println("Release mechanism deactivated - Servo set to 0 degrees");
         }
@@ -377,8 +376,6 @@ void handleCommand(const char *command) {
 
 // ENS220 Sensor Initialization
 void SingleShotMeasure_setup() {
-  Serial.println("Starting ENS220 example 01_Basic_I2C_SingleShot");
-
   // Start the communication, confirm the device PART_ID, and read the device UID
   i2c_1.begin(Wire, I2C_ADDRESS);
 
@@ -482,7 +479,7 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
       }
       break;
     case DESCENT:
-      if (velocity == 0 && millis() - lastOrientationTime > 10000 && x == lastOrientationX && y == lastOrientationY && z == lastOrientationZ) {
+      if (velocity == 0 && millis() - lastOrientationTime > 10000) {
         flightState = LANDED;
         landedTime = millis();
         Serial.println("Flight state: LANDED");
@@ -509,27 +506,20 @@ void setup() {
   pixels.setPixelColor(4, 255, 0, 255);
   pixels.show(); comment out for now due to hardware issues*/
 
+  // NeoPixel initialization
+  pixels.setPixelColor(0, 255, 0, 0);  // Set first pixel to red
+  pixels.show();                       // Update the pixels
 
   Serial.begin(2000000);  // Debugging output
   Serial1.begin(9600);    // XBee communication
   Serial1.setTimeout(100);  // Set timeout to 100 ms
   Wire.begin();
   Wire.setClock(400000);
-  //Serial.println("test1");
-
-  //pinMode(SERVO_PIN, OUTPUT);
-  //servo.attach(SERVO_PIN);
-  //pinMode(RELEASE_PIN, OUTPUT);
+  
+  // Initialize release servo
   servo.attach(RELEASE_PIN);
-
-  //Serial.println("hello");
-
-  servo.writeMicroseconds(500);
-  delay(2000);
-  servo.writeMicroseconds(1100);
-  delay(2000);
-
-  //Serial.print("work");
+  // Initialize camera servo
+  camServo.attach(SERVO_PIN);
 
   // Initialize DS1307 RTC
   if (!rtc.begin()) {
@@ -540,7 +530,6 @@ void setup() {
     Serial.println("RTC is NOT running, setting time to compile time.");
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));  // Set to compile time
   }
-  Serial.println("DS1307 RTC initialized.");
 
   // Initialize cameras control pins (e.g., for power on/off)
   pinMode(CAMERA1_PIN, OUTPUT);    // Set camera control pin to output
@@ -556,21 +545,13 @@ void setup() {
   }
   backupFile = SD.open("backup.txt", FILE_WRITE);
 
-  // NeoPixel initialization
-  pixels.setPixelColor(0, 255, 0, 0);  // Set first pixel to red
-  pixels.show();                       // Update the pixels
-
   // Initialize RPM sensor
   pinMode(RPM_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(RPM_PIN), rpmISR, RISING);
 
-  Serial.println("yo??");
-
   if (!gps.begin()) {
     Serial.println("GNSS v3 initialization failed!");
   }
-
-  Serial.println("yoo");
 
   if (!lis3mdl_FC.begin_I2C(MAG1_I2C_ADDRESS)) {
     Serial.println("Failed to find LIS3MDL #1");
@@ -581,8 +562,6 @@ void setup() {
     lis3mdl_FC.setDataRate(LIS3MDL_DATARATE_155_HZ);
     lis3mdl_FC.setRange(LIS3MDL_RANGE_4_GAUSS);
   }
-
-  //Serial.println("hello");
 
   // Initialize first IMU (LSM6DS3)
   if (!IMU.begin()) {
@@ -607,16 +586,9 @@ void setup() {
   }
 
   SingleShotMeasure_setup();
-
-  Serial.println(millis());
 }
 
 void loop() {
-  Serial.println("yo");
-
-  while (Serial1.available()) {
-    Serial1.read();  // Discard old data
-  }
 
   updateTime(currentTime, sizeof(currentTime));
   // Read data from XBee or Serial1
@@ -626,7 +598,11 @@ void loop() {
     handleCommand(command);               // Process the command
     memset(command, 0, sizeof(command));  // Clear the command buffer
   }
-  Serial.println("yo2");
+
+  while (Serial1.available()) {
+    Serial1.read();  // Discard old data
+  }
+
   unsigned long missionTime = millis() / 1000;  // Mission time in seconds
 
   // Calculate instantaneous RPM
@@ -637,19 +613,13 @@ void loop() {
   // Read battery voltage
   float currentVoltage = analogRead(BATTERY_PIN) * voltageDividerFactor;
 
-  //Serial.print("yp");
-
   float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
   unsigned int satellites = 0;
-  if (1) {                    // Check if we have a 3D fix
-    latitude = gps.getLatitude() / 10000000.0;    // Convert to degrees
-    longitude = gps.getLongitude() / 10000000.0;  // Convert to degrees
-    gpsAltitude = gps.getAltitude() / 1000.0;     // Convert to meters
-    satellites = gps.getSIV();
-    snprintf(gpsTime, sizeof(gpsTime), "%02d:%02d:%02d", gps.getHour(), gps.getMinute(), gps.getSecond());
-  }
-
-  Serial.println("yo3");
+  latitude = gps.getLatitude() / 10000000.0;    // Convert to degrees
+  longitude = gps.getLongitude() / 10000000.0;  // Convert to degrees
+  gpsAltitude = gps.getAltitude() / 1000.0;     // Convert to meters
+  satellites = gps.getSIV();
+  snprintf(gpsTime, sizeof(gpsTime), "%02d:%02d:%02d", gps.getHour(), gps.getMinute(), gps.getSecond());
 
   // Read magnetometer data
   sensors_event_t magEvent1;
@@ -671,11 +641,10 @@ void loop() {
     Serial.print('\t');
     Serial.println(accelZ);
   }
-  Serial.println("yo4");
   if (IMU.gyroscopeAvailable()) {
     IMU.readGyroscope(gyroX, gyroY, gyroZ);
   }
-  Serial.println("yo5");
+  
   // Retrieve Temperature and Pressure from ENS220 (Single Shot Mode)
   SingleShotMeasure_loop();
 
@@ -687,7 +656,7 @@ void loop() {
     simulatedAltitude = (1 - pow(simulatedPressure / 1013.25, 0.190284)) * 145366.45;  // Approximation formula
     altitude = simulatedAltitude;
   }
-  Serial.println("yo6");
+  
   // Update maxAltitude during ascent
   if (flightState == ASCENT && altitude > maxAltitude) {
     maxAltitude = altitude;
@@ -707,7 +676,7 @@ void loop() {
         case LANDED: state = "LANDED"; break;
         default: state = "UNKNOWN"; break;
       }
-      Serial.println("yo7");
+      
       // Convert floats to integers (multiply by 10 for 1 decimal, 10000 for 4 decimals)
       //int altitude_int = (int)(altitude * 10);  // 1 decimal place
       //int temperature_int = (int)(temperature * 10);
@@ -744,9 +713,8 @@ void loop() {
         dataFile.close();
         Serial.println("Finished writing to SD card!");
       } else {
-        Serial.println("Error writing to SD card!.... We lost the game");
+        Serial.println("Error writing to SD card!");
       }
-      Serial.println("yo8");
       packetCount++;  // Increment packet count
     }
   }
@@ -760,8 +728,8 @@ void loop() {
   updateAltitudeHistory(altitudeHistory, timestampHistory, altitude, historySize);
   updateVelocityHistory(altitudeHistory, velocityHistory, timestampHistory, historySize);
 
-  Serial.println("Velocity:");
-  Serial.println(latestVelocity);
+  Serial.println("Velocity: ");
+  Serial.print(latestVelocity);
 
   switch (flightState) {
     case LAUNCH_PAD:
