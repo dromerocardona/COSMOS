@@ -678,33 +678,15 @@ void loop() {
         default: state = "UNKNOWN"; break;
       }
       
-      // Convert floats to integers (multiply by 10 for 1 decimal, 10000 for 4 decimals)
-      //int altitude_int = (int)(altitude * 10);  // 1 decimal place
-      //int temperature_int = (int)(temperature * 10);
-      //int pressure_int = (int)(pressure * 10);
-      int currentVoltage_int = (int)(currentVoltage * 10);
-      int gyroX_int = (int)(gyroX * 10);
-      int gyroY_int = (int)(gyroY * 10);
-      int gyroZ_int = (int)(gyroZ * 10);
-      int accelX_int = (int)(accelX * 10);
-      int accelY_int = (int)(accelY * 10);
-      int accelZ_int = (int)(accelZ * 10);
-      int magX_int = (int)(magEvent1.magnetic.x * 10);
-      int magY_int = (int)(magEvent1.magnetic.y * 10);
-      int magZ_int = (int)(magEvent1.magnetic.z * 10);
-      int rpm_int = (int)(rpm * 10);
-      //int gpsAltitude_int = (int)(gpsAltitude * 10);
-      //int latitude_int = (int)(latitude * 10000);    // 4 decimal places
-      //int longitude_int = (int)(longitude * 10000);  // 4 decimal places
-
-      // Use %d for integers instead of %.1f or %.4f
       snprintf(telemetry, sizeof(telemetry),
-               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%.1f,%.4f,%.4f,%u,%s,COSMOS",
+               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%u,%s,%.1f,%.4f,%.4f,%u,%s,COSMOS",
                TEAM_ID, currentTime, packetCount, mode, state,
-               altitude, temperature, pressure, currentVoltage_int,
-               gyroX_int, gyroY_int, gyroZ_int, accelX_int, accelY_int, accelZ_int,
-               magX_int, magY_int, magZ_int, rpm_int, gpsTime, gpsAltitude,
+               altitude, temperature, pressure, currentVoltage,
+               gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
+               magEvent1.magnetic.x, magEvent1.magnetic.y, 
+               magEvent1.magnetic.z, rpm, gpsTime, gpsAltitude,
                latitude, longitude, satellites, lastCommand);
+      
       Serial1.println(telemetry);
       Serial.println(telemetry);
       // Save telemetry to SD card
