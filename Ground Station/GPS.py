@@ -28,7 +28,7 @@ class GPSMap(QWidget, QObject):
         # Placeholder for telemetry data
         self.latitude = 0.0
         self.longitude = 0.0
-        shutil.copyfile("template_map.html", "live_gps_map.html")
+        #shutil.copyfile("template_map.html", "live_gps_map.html")
         self.map_file = "live_gps_map.html"
         self.location_updated.connect(self.update_map)
 
@@ -75,7 +75,7 @@ class GPSMap(QWidget, QObject):
             initial_latitude = 31.11922492905565
             initial_longitude = -86.09000126183433
 
-            folium_map = folium.Map(location=[initial_latitude, initial_longitude], zoom_start=10)
+            folium_map = folium.Map(location=[initial_latitude, initial_longitude], zoom_start=15)
             folium_map.save(self.map_file)
             self.browser.setUrl(QtCore.QUrl.fromLocalFile(os.path.abspath(self.map_file)))
         except Exception as e:

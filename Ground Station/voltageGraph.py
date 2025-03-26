@@ -11,7 +11,7 @@ class VoltageGraph:
         self.win = pg.GraphicsLayoutWidget(show=True, title="Battery Voltage")
         self.win.setStyleSheet("border: 1px solid black;")
         self.plot = self.win.addPlot(title="<b>Battery Voltage</b>")
-        self.curve = self.plot.plot(pen='b')
+        self.curve = self.plot.plot(pen=pg.mkPen(color='b', width=2))
         self.data = []
         self.timestamps = []
         self.start_time = None

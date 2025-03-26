@@ -14,9 +14,9 @@ class RotationGraph:
 
         self.plot.addLegend()
 
-        self.curve_r = self.plot.plot(pen='r', name="GYRO_R")
-        self.curve_p = self.plot.plot(pen='g', name="GYRO_P")
-        self.curve_y = self.plot.plot(pen='b', name="GYRO_Y")
+        self.curve_r = self.plot.plot(pen=pg.mkPen(color='r', width=2), name="GYRO_R")
+        self.curve_p = self.plot.plot(pen=pg.mkPen(color='g', width=2), name="GYRO_P")
+        self.curve_y = self.plot.plot(pen=pg.mkPen(color='b', width=2), name="GYRO_Y")
 
         self.data_r = []
         self.data_p = []

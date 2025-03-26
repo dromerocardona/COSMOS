@@ -318,21 +318,36 @@ class GroundStation(QMainWindow):
         self.CAL_button.clicked.connect(lambda: self.on_button_click(self.CAL_button))
         self.CAL_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; padding: 10px 0; border-radius: 5px; background-color: #a7cbf5;")
         self.CAL_button.setFixedHeight(button_height)
-        self.RELEASE_toggle = QPushButton("CANISTER\nRELEASE ON")
-        self.RELEASE_toggle.clicked.connect(self.toggle_release)
-        self.RELEASE_toggle.clicked.connect(lambda: self.on_button_click(self.RELEASE_toggle))
-        self.RELEASE_toggle.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
-        self.RELEASE_toggle.setFixedHeight(button_height)
-        self.BLADE_CAM_toggle = QPushButton("BLADE CAM\nON")
-        self.BLADE_CAM_toggle.clicked.connect(self.toggle_blade_cam)
-        self.BLADE_CAM_toggle.clicked.connect(lambda: self.on_button_click(self.BLADE_CAM_toggle))
-        self.BLADE_CAM_toggle.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
-        self.BLADE_CAM_toggle.setFixedHeight(button_height)
-        self.GROUND_CAM_toggle = QPushButton("GROUND CAM\nON")
-        self.GROUND_CAM_toggle.clicked.connect(self.toggle_ground_cam)
-        self.GROUND_CAM_toggle.clicked.connect(lambda: self.on_button_click(self.GROUND_CAM_toggle))
-        self.GROUND_CAM_toggle.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
-        self.GROUND_CAM_toggle.setFixedHeight(button_height)
+        self.RELEASE_on_button = QPushButton("CANISTER\nRELEASE ON")
+        self.RELEASE_on_button.clicked.connect(self.release_on)
+        self.RELEASE_on_button.clicked.connect(lambda: self.on_button_click(self.RELEASE_on_button))
+        self.RELEASE_on_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
+        self.RELEASE_on_button.setFixedHeight(button_height)
+        self.RELEASE_off_button = QPushButton("CANISTER\nRELEASE OFF")
+        self.RELEASE_off_button.clicked.connect(self.release_off)
+        self.RELEASE_off_button.clicked.connect(lambda: self.on_button_click(self.RELEASE_off_button))
+        self.RELEASE_off_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
+        self.RELEASE_off_button.setFixedHeight(button_height)
+        self.BLADE_CAM_on_button = QPushButton("BLADE CAM\nON")
+        self.BLADE_CAM_on_button.clicked.connect(self.blade_cam_on)
+        self.BLADE_CAM_on_button.clicked.connect(lambda: self.on_button_click(self.BLADE_CAM_on_button))
+        self.BLADE_CAM_on_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
+        self.BLADE_CAM_on_button.setFixedHeight(button_height)
+        self.BLADE_CAM_off_button = QPushButton("BLADE CAM\nOFF")
+        self.BLADE_CAM_off_button.clicked.connect(self.blade_cam_off)
+        self.BLADE_CAM_off_button.clicked.connect(lambda: self.on_button_click(self.BLADE_CAM_off_button))
+        self.BLADE_CAM_off_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
+        self.BLADE_CAM_off_button.setFixedHeight(button_height)
+        self.GROUND_CAM_on_button = QPushButton("GROUND CAM\nON")
+        self.GROUND_CAM_on_button.clicked.connect(self.ground_cam_on)
+        self.GROUND_CAM_on_button.clicked.connect(lambda: self.on_button_click(self.GROUND_CAM_on_button))
+        self.GROUND_CAM_on_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
+        self.GROUND_CAM_on_button.setFixedHeight(button_height)
+        self.GROUND_CAM_off_button = QPushButton("GROUND CAM\nOFF")
+        self.GROUND_CAM_off_button.clicked.connect(self.ground_cam_off)
+        self.GROUND_CAM_off_button.clicked.connect(lambda: self.on_button_click(self.GROUND_CAM_off_button))
+        self.GROUND_CAM_off_button.setStyleSheet("color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: #a7cbf5;")
+        self.GROUND_CAM_off_button.setFixedHeight(button_height)
         self.start_stop_button = QPushButton("CXON")
         self.start_stop_button.clicked.connect(self.toggle_data_transmission)
         self.start_stop_button.clicked.connect(lambda: self.on_button_click(self.start_stop_button))
@@ -355,12 +370,15 @@ class GroundStation(QMainWindow):
         buttons_grid.addWidget(self.SIM_toggle_button, 1, 0)
         buttons_grid.addWidget(self.SIM_activate_button, 1, 1)
         buttons_grid.addWidget(self.CAL_button, 1, 2)
-        buttons_grid.addWidget(self.RELEASE_toggle, 2, 0)
-        buttons_grid.addWidget(self.BLADE_CAM_toggle, 3, 0)
-        buttons_grid.addWidget(self.GROUND_CAM_toggle, 3, 1)
-        buttons_grid.addWidget(self.start_stop_button, 2, 2)
-        buttons_grid.addWidget(self.calCamStabilization, 2, 1)
-        buttons_grid.addWidget(self.copyCSV, 3, 2)
+        buttons_grid.addWidget(self.RELEASE_on_button, 2, 0)
+        buttons_grid.addWidget(self.RELEASE_off_button, 2, 1)
+        buttons_grid.addWidget(self.calCamStabilization, 2, 2)
+        buttons_grid.addWidget(self.GROUND_CAM_on_button, 3, 0)
+        buttons_grid.addWidget(self.GROUND_CAM_off_button, 3, 1)
+        buttons_grid.addWidget(self.start_stop_button, 3, 2)
+        buttons_grid.addWidget(self.BLADE_CAM_on_button, 4, 0)
+        buttons_grid.addWidget(self.BLADE_CAM_off_button, 4, 1)
+        buttons_grid.addWidget(self.copyCSV, 4, 2)
 
         # Create a widget for the buttons grid and add it to the sidebar layout
         buttons_widget = QWidget()
@@ -491,7 +509,7 @@ class GroundStation(QMainWindow):
         self.SIM_toggle_button.setText("SIM\nDisable")
         self.comm.send_command("CMD,3195,SIM,ENABLE")
     def sim_activate(self):
-        if self.comm.simEnabled and self.comm.serial_port:
+        if self.comm.simEnabled and self.comm.reading:
             self.comm.send_command("CMD,3195,SIM,ACTIVATE")
             csv_filename, _ = QFileDialog.getOpenFileName(self, "Select CSV file", "", "CSV Files (*.csv)")
             if csv_filename:
@@ -502,44 +520,17 @@ class GroundStation(QMainWindow):
         self.comm.send_command("CMD,3195,SIM,DISABLE")
     def cal(self):
         self.comm.send_command("CMD,3195,CAL")
-    def toggle_release(self):
-        if self.release:
-            self.release_off()
-            self.release = False
-        elif not self.release:
-            self.release_on()
-            self.release = True
     def release_on(self):
-        self.RELEASE_toggle.setText("CANISTER\nRELEASE OFF")
         self.comm.send_command("CMD,3195,MEC,RELEASE,ON")
     def release_off(self):
-        self.RELEASE_toggle.setText("CANISTER\nRELEASE ON")
         self.comm.send_command("CMD,3195,MEC,RELEASE,OFF")
-    def toggle_blade_cam(self):
-        if self.blade_cam:
-            self.blade_cam_off()
-            self.blade_cam = False
-        elif not self.blade_cam:
-            self.blade_cam_on()
-            self.blade_cam = True
     def blade_cam_on(self):
-        self.BLADE_CAM_toggle.setText("BLADE CAM\nOFF")
         self.comm.send_command("CMD,3195,MEC,CAMERA,BLADE,ON")
     def blade_cam_off(self):
-        self.BLADE_CAM_toggle.setText("BLADE CAM\nON")
         self.comm.send_command("CMD,3195,MEC,CAMERA,BLADE,OFF")
-    def toggle_ground_cam(self):
-        if self.ground_cam:
-            self.ground_cam_off()
-            self.ground_cam = False
-        elif not self.ground_cam:
-            self.ground_cam_on()
-            self.ground_cam = True
     def ground_cam_on(self):
-        self.GROUND_CAM_toggle.setText("GROUND CAM\nOFF")
         self.comm.send_command("CMD,3195,MEC,CAMERA,GROUND,ON")
     def ground_cam_off(self):
-        self.GROUND_CAM_toggle.setText("GROUND CAM\nON")
         self.comm.send_command("CMD,3195,MEC,CAMERA,GROUND,OFF")
     def cal_camera_stabilization(self):
         self.comm.send_command("CMD,3195,MEC,CAMERA,STABLE")
@@ -576,6 +567,7 @@ class GroundStation(QMainWindow):
         self.GPS_LONGITUDE.setText(f"GPS Longitude: {self.comm.get_GPS_LONGITUDE() or 'N/A'}")
 
         self.telemetry.setText(f"Telemetry: {self.comm.lastPacket or 'N/A'}")
+        self.sats.setText(f"{self.comm.get_GPS_SATS() or 'N/A'}")
 
     #update graphs
     def update_graphs(self):

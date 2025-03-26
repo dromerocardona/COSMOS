@@ -72,7 +72,7 @@ class Communication:
                             command = self.command_queue.pop(0)
                             try:
                                 command_to_send = f"{command}\n"
-                                for _ in range(20):  # Send the command 3 times
+                                for _ in range(20):  # Send the command 20 times
                                     self.ser.write(command_to_send.encode('utf-8'))
                                     print(f"Command sent: {command}")
                                     time.sleep(0.1)  # Small delay between sends
