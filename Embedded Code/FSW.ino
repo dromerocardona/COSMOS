@@ -552,6 +552,7 @@ void setup() {
   if (!gps.begin()) {
     Serial.println("GNSS v3 initialization failed!");
   }
+  gps.setNavigationRate(5); // Set rate of gps (Hz)
 
   if (!lis3mdl_FC.begin_I2C(MAG1_I2C_ADDRESS)) {
     Serial.println("Failed to find LIS3MDL #1");
