@@ -1,9 +1,9 @@
 import sys
 import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QPushButton, \
-    QSpacerItem, QGridLayout, QProgressBar, QGroupBox, QComboBox, QFileDialog, QGraphicsOpacityEffect
+    QSpacerItem, QGridLayout, QProgressBar, QGroupBox, QComboBox, QFileDialog, QGraphicsOpacityEffect, QShortcut
 from PyQt5.QtCore import Qt, pyqtSignal, QObject, QTimer, QPropertyAnimation
-from PyQt5.QtGui import QFont, QPixmap, QIcon
+from PyQt5.QtGui import QFont, QPixmap, QIcon, QKeySequence
 from communication import Communication
 from autogyroRotationGraph import AutoGyroRotationGraph
 from temperatureGraph import TemperatureGraph
@@ -452,6 +452,7 @@ class GroundStation(QMainWindow):
         main_layout.addWidget(footer_widget)
 
         self.showMaximized()
+        self.setup_shortcuts()
 
         # Communication setup
         self.reader_thread = None
@@ -492,6 +493,12 @@ class GroundStation(QMainWindow):
         self.comm.stop_communication()
 
     #send/execute commands
+    def setup_shortcuts(self):
+        """Setup keyboard shortcuts."""
+        release_on_shortcut = QShortcut(QKeySequence("Ctrl+R"), self)
+        release_on_shortcut.activated.connect(self.release_on)
+        release_off_shortcut = QShortcut(QKeySequence("Ctrl+SHIFT+R"), self)
+        release_off_shortcut.activated.connect(self.release_off)
     def set_utc_time(self):
         utc_time = datetime.datetime.now().strftime("%H:%M:%S")
         self.comm.send_command(f"CMD,3195,ST,{utc_time}")
