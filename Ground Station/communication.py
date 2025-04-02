@@ -96,13 +96,20 @@ class Communication:
 
     def simulation_mode(self, csv_filename):
         self.simulation = True
+        threading.Thread(target=self._run_simulation, args=(csv_filename,)).start()
+
+    def _run_simulation(self, csv_filename):
         with open(csv_filename, mode='r') as file:
             csv_reader = csv.reader(file)
             for line in csv_reader:
                 if not self.simulation:
                     break
-                self.send_command(f'CMD,3195,SIMP,{line}')
-                time.sleep(1)
+                if line and line[0] == 'CMD':
+                    line[1] = "3195"
+                    line_str = ','.join(line)
+                    self.send_command(line_str)
+                    print(f"Command sent: {line_str}")
+                    time.sleep(1)
 
     def stop_reading(self):
         self.reading = False

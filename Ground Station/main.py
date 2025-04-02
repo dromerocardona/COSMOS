@@ -97,7 +97,7 @@ class LoadingScreen(QWidget):
         # Start timer
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_progress)
-        self.timer.start(100)
+        self.timer.start(50)
 
         # Add fade-in effect
         self.opacity_effect = QGraphicsOpacityEffect()
@@ -509,9 +509,9 @@ class GroundStation(QMainWindow):
         self.SIM_toggle_button.setText("SIM\nDisable")
         self.comm.send_command("CMD,3195,SIM,ENABLE")
     def sim_activate(self):
-        if self.comm.simEnabled and self.comm.reading:
+        if self.comm.simEnabled and self.comm.receivedPacketCount:
             self.comm.send_command("CMD,3195,SIM,ACTIVATE")
-            csv_filename, _ = QFileDialog.getOpenFileName(self, "Select CSV file", "", "CSV Files (*.csv)")
+            csv_filename, _ = QFileDialog.getOpenFileName(self, "Select CSV file", "", "CSV and Text Files (*.csv *.txt)")
             if csv_filename:
                 self.comm.simulation_mode(csv_filename)
     def sim_disable(self):
