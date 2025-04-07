@@ -48,7 +48,6 @@ enum FlightState {
 
 // Objects
 FlightState flightState = LAUNCH_PAD;  // Initial state
-Adafruit_NeoPixel pixels(NUM_LEDS, LED_DATA, NEO_GRB + NEO_KHZ800);
 ScioSense::ENS220 ens220;
 I2cInterface i2c_1;            // Added for ENS220 single-shot mode
 Adafruit_LIS3MDL lis3mdl;      // Magnetometer
@@ -58,7 +57,6 @@ Servo servo;
 Servo camServo;
 File dataFile;
 File backupFile;
-SFE_UBLOX_GNSS gps;
 RTC_DS1307 rtc;      // DS1307
 
 // Variables
@@ -113,12 +111,6 @@ const float K_derivative = 0.01;   // Derivative gain
 float heading;
 
 ///////////////////////// FUNCTIONS /////////////////////////
-
-// Function definition (add this below other functions)
-void activateReleaseMechanism() {
-  servo.writeMicroseconds(500);  // Activate servo to 90 degrees for release
-  Serial.println("Release mechanism activated - Servo set to 90 degrees");
-}
 
 // Function to calculate altitude from pressure
 float calculateAltitude(float pressure) {
@@ -233,147 +225,6 @@ void rpmISR() {
   lastInterruptTime = currentInterruptTime;
 }
 
-void handleCommand(const char *command) {
-
-  Serial.println(command);
-
-  char field1[10], field2[10], field3[10], field4[10];
-  int num = sscanf(command, "CMD, %*d, %9[^,], %9[^,], %9[^,], %9[^,]",
-                   field1, field2, field3, field4);
-  if (num < 1) {
-    Serial.println("Invalid command");
-    return;
-  }
-
-  float tempPressure;
-
-  // Create a command identifier for switch
-  int cmdType = 0;
-  if (strcmp(field1, "CX") == 0) cmdType = 1;
-  else if (strcmp(field1, "ST") == 0) cmdType = 2;
-  else if (strcmp(field1, "SIM") == 0) cmdType = 3;
-  else if (strcmp(field1, "SIMP") == 0) cmdType = 4;
-  else if (strcmp(field1, "CAL") == 0) cmdType = 5;
-  else if (strcmp(field1, "MEC") == 0) cmdType = 6;
-
-  switch (cmdType) {
-    case 1:  // CX commands
-      if (strcmp(field2, "ON") == 0) {
-        telemetryEnabled = true;
-        strncpy(lastCommand, "CXON", sizeof(lastCommand));
-        Serial.println("Telemetry started.");
-      } else if (strcmp(field2, "OFF") == 0) {
-        telemetryEnabled = false;
-        strncpy(lastCommand, "CXOFF", sizeof(lastCommand));
-        Serial.println("Telemetry stopped.");
-      }
-      break;
-
-    case 2:  // ST commands
-      if (strcmp(field2, "UTC_TIME") == 0) {
-        Serial.println("ST UTC_TIME command received.");
-        strncpy(currentTime, field3, sizeof(currentTime));
-        strncpy(lastCommand, "ST_UTC_TIME", sizeof(lastCommand));
-      } else if (strcmp(field2, "GPS") == 0) {
-        Serial.println("ST GPS command received.");
-        strncpy(currentTime, gpsTime, sizeof(currentTime));
-        strncpy(lastCommand, "ST_GPS", sizeof(lastCommand));
-      }
-      break;
-
-    case 3:  // SIM commands
-      if (strcmp(field2, "ENABLE") == 0) {
-        simulationMode = true;
-        Serial.println("Simulation mode enabled.");
-        strncpy(lastCommand, "SIM_ENABLE", sizeof(lastCommand));
-      } else if (strcmp(field2, "ACTIVATE") == 0 && simulationMode) {
-        Serial.println("Simulation activated. Waiting for pressure input...");
-        strncpy(lastCommand, "SIM_ACTIVATE", sizeof(lastCommand));
-        char pressureInput[16];
-        while (!Serial1.available()) delay(1);
-        Serial1.readBytesUntil('\n', pressureInput, sizeof(pressureInput));
-        receivedPressure = atof(pressureInput);
-        if (receivedPressure > 0.0) {
-          simulatedPressure = receivedPressure;
-          Serial.println("Simulated pressure updated.");
-        } else {
-          Serial.println("Invalid pressure value received.");
-        }
-      } else if (strcmp(field2, "DISABLE") == 0) {
-        simulationMode = false;
-        Serial.println("Simulation mode disabled.");
-        strncpy(lastCommand, "SIM_DISABLE", sizeof(lastCommand));
-      }
-      break;
-
-    case 4:  // SIMP command
-      tempPressure = atof(field2);
-      if (tempPressure > 0.0) {
-        simulatedPressure = tempPressure;
-        Serial.println("Simulated pressure set via SIMP.");
-        strncpy(lastCommand, "SIMP", sizeof(lastCommand));
-      } else {
-        Serial.println("Invalid pressure value in SIMP command.");
-      }
-      break;
-
-    case 5:  // CAL command
-      Serial.println("CAL command received.");
-      strncpy(lastCommand, "CAL", sizeof(lastCommand));
-      referencePressure = ens220.getPressureHectoPascal();
-      Serial.print("Calibration complete. Reference pressure set to: ");
-      Serial.println(referencePressure);
-      flightState = LAUNCH_PAD;
-      break;
-
-    case 6:  // MEC commands
-      if (strcmp(field2, "RELEASE") == 0) {
-        if (strcmp(field3, "ON") == 0) {
-          Serial.println("MEC RELEASE ON command received.");
-          activateReleaseMechanism();  // Activate release mechanism on command
-          strncpy(lastCommand, "MEC_RELEASE_ON", sizeof(lastCommand));
-        } else if (strcmp(field3, "OFF") == 0) {
-          Serial.println("MEC RELEASE OFF command received.");
-          servo.writeMicroseconds(900);  // Reset servo to 0 degrees (or your "off" position)
-          strncpy(lastCommand, "MEC_RELEASE_OFF", sizeof(lastCommand));
-          Serial.println("Release mechanism deactivated - Servo set to 0 degrees");
-        }
-      } else if (strcmp(field2, "CAMERA") == 0) {
-        if (strcmp(field3, "BLADE") == 0) {
-          if (strcmp(field4, "ON") == 0) {
-            digitalWrite(CAMERA1_PIN, HIGH);
-            Serial.println("MEC CAMERA BLADE ON - Camera powered ON.");
-            strncpy(lastCommand, "BLADE_CAM_ON", sizeof(lastCommand));
-          } else if (strcmp(field4, "OFF") == 0) {
-            digitalWrite(CAMERA1_PIN, LOW);
-            Serial.println("MEC CAMERA BLADE OFF - Camera powered OFF.");
-            strncpy(lastCommand, "BLADE_CAM_OFF", sizeof(lastCommand));
-          }
-        } else if (strcmp(field3, "GROUND") == 0) {
-          if (strcmp(field4, "ON") == 0) {
-            digitalWrite(CAMERA2_PIN, HIGH);
-            Serial.println("MEC CAMERA GROUND ON - Camera powered ON.");
-            strncpy(lastCommand, "GROUND_CAM_ON", sizeof(lastCommand));
-          } else if (strcmp(field4, "OFF") == 0) {
-            digitalWrite(CAMERA2_PIN, LOW);
-            Serial.println("MEC CAMERA GROUND OFF - Camera powered OFF.");
-            strncpy(lastCommand, "GROUND_CAM_OFF", sizeof(lastCommand));
-          }
-        } else if (strcmp(field3, "STABLE") == 0) {
-          Serial.println("MEC CAMERA STABLE command received.");
-          strncpy(lastCommand, "CAM_STABLE", sizeof(lastCommand));
-          pidControl(heading, setpoint, lastError, integral, servo);
-        }
-      }
-      break;
-
-    default:
-      Serial.println("Unknown command type or transmission error");
-      break;
-
-  }
-}
-
 // ENS220 Sensor Initialization
 void SingleShotMeasure_setup() {
   // Start the communication, confirm the device PART_ID, and read the device UID
@@ -428,33 +279,7 @@ void SingleShotMeasure_loop()
 
 // Updated updateTime function to use DS1307 RTC
 void updateTime(char *currentTime, size_t size) {
-  if (rtc.isrunning()) {
-    DateTime now = rtc.now();
-    snprintf(currentTime, size, "%02d:%02d:%02d", now.hour(), now.minute(), now.second());
-  } else {
-    Serial.println("RTC not running, using fallback time.");
-    // Fallback to manual increment if RTC fails
-    static unsigned long previousMillis = 0;
-    const unsigned long interval = 1000;
-    unsigned long currentMillis = millis();
-    if (currentMillis - previousMillis >= interval) {
-      previousMillis = currentMillis;
-      int hours, minutes, seconds;
-      if (sscanf(currentTime, "%2d:%2d:%2d", &hours, &minutes, &seconds) == 3) {
-        seconds++;
-        if (seconds >= 60) {
-          seconds = 0;
-          minutes++;
-          if (minutes >= 60) {
-            minutes = 0;
-            hours++;
-            if (hours >= 24) hours = 0;
-          }
-        }
-        snprintf(currentTime, size, "%02d:%02d:%02d", hours, minutes, seconds);
-      }
-    }
-  }
+  Serial.println("Time update must still be created!");
 }
 
 void updateFlightState(float altitude, float velocity, float x, float y, float z) {
@@ -498,21 +323,8 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
 }
 
 void setup() {
-  /*pixels.begin();
-  pixels.setPixelColor(0, 255, 0, 255);
-  pixels.setPixelColor(1, 0, 255, 255);
-  pixels.setPixelColor(2, 255, 255, 0);
-  pixels.setPixelColor(3, 0, 255, 255);
-  pixels.setPixelColor(4, 255, 0, 255);
-  pixels.show(); comment out for now due to hardware issues*/
-
-  // NeoPixel initialization
-  pixels.setPixelColor(0, 255, 0, 0);  // Set first pixel to red
-  pixels.show();                       // Update the pixels
 
   Serial.begin(2000000);  // Debugging output
-  Serial1.begin(9600);    // XBee communication
-  Serial1.setTimeout(100);  // Set timeout to 100 ms
   Wire.begin();
   Wire.setClock(400000);
   
@@ -594,15 +406,6 @@ void loop() {
   updateTime(currentTime, sizeof(currentTime));
   // Read data from XBee or Serial1
   char command[64] = {0};
-  if (Serial1.readBytesUntil('\n', command, sizeof(command) - 1) > 0) {
-    command[sizeof(command) - 1] = '\0';  // Ensure null-termination
-    handleCommand(command);               // Process the command
-    memset(command, 0, sizeof(command));  // Clear the command buffer
-  }
-
-  while (Serial1.available()) {
-    Serial1.read();  // Discard old data
-  }
 
   unsigned long missionTime = millis() / 1000;  // Mission time in seconds
 
@@ -613,15 +416,7 @@ void loop() {
 
   // Read battery voltage
   float currentVoltage = analogRead(BATTERY_PIN) * voltageDividerFactor;
-
-  float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
-  unsigned int satellites = 0;
-  latitude = gps.getLatitude() / 10000000.0;    // Convert to degrees
-  longitude = gps.getLongitude() / 10000000.0;  // Convert to degrees
-  gpsAltitude = gps.getAltitude() / 1000.0;     // Convert to meters
-  satellites = gps.getSIV();
-  snprintf(gpsTime, sizeof(gpsTime), "%02d:%02d:%02d", gps.getHour(), gps.getMinute(), gps.getSecond());
-
+  
   // Read magnetometer data
   sensors_event_t magEvent1;
   lis3mdl.getEvent(&magEvent1);
@@ -651,56 +446,41 @@ void loop() {
 
   // Calculate altitude from pressure
   float altitude = calculateAltitude(pressure);
-
-  // Use simulated pressure if in simulation mode
-  if (simulationMode) {
-    simulatedAltitude = (1 - pow(simulatedPressure / 1013.25, 0.190284)) * 145366.45;  // Approximation formula
-    altitude = simulatedAltitude;
-  }
   
   // Update maxAltitude during ascent
   if (flightState == ASCENT && altitude > maxAltitude) {
     maxAltitude = altitude;
   }
-  // Telemetry Transmission
-  if (lastTransmissionTime + 1000 < millis()) {  // Transmit telemetry every second
-    lastTransmissionTime = millis();
-    if (telemetryEnabled) {
-      char telemetry[256];
-      const char *mode = simulationMode ? "S" : "F";
-      const char *state;
-      switch (flightState) {
-        case LAUNCH_PAD: state = "LAUNCH_PAD"; break;
-        case ASCENT: state = "ASCENT"; break;
-        case APOGEE: state = "APOGEE"; break;
-        case DESCENT: state = "DESCENT"; break;
-        case LANDED: state = "LANDED"; break;
-        default: state = "UNKNOWN"; break;
-      }
-      
-      snprintf(telemetry, sizeof(telemetry),
-               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%u,%s,%.1f,%.4f,%.4f,%u,%s,COSMOS",
-               TEAM_ID, currentTime, packetCount, mode, state,
-               altitude, temperature, pressure, currentVoltage,
-               gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
-               magEvent1.magnetic.x, magEvent1.magnetic.y, 
-               magEvent1.magnetic.z, rpm, gpsTime, gpsAltitude,
-               latitude, longitude, satellites, lastCommand);
-      
-      Serial1.println(telemetry);
-      Serial.println(telemetry);
-      // Save telemetry to SD card
-      dataFile = SD.open("data.txt", FILE_WRITE);
-      if (dataFile) {
-        dataFile.println(telemetry);
-        dataFile.close();
-        Serial.println("Finished writing to SD card!");
-      } else {
-        Serial.println("Error writing to SD card!");
-      }
-      packetCount++;  // Increment packet count
+
+    switch (flightState) {
+      case LAUNCH_PAD: state = "LAUNCH_PAD"; break;
+      case ASCENT: state = "ASCENT"; break;
+      case APOGEE: state = "APOGEE"; break;
+      case DESCENT: state = "DESCENT"; break;
+      case LANDED: state = "LANDED"; break;
+      default: state = "UNKNOWN"; break;
     }
-  }
+    
+    snprintf(telemetry, sizeof(telemetry),
+              "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%u,%s,%.1f,%.4f,%.4f,%u,%s,COSMOS",
+              TEAM_ID, currentTime, packetCount, mode, state,
+              altitude, temperature, pressure, currentVoltage,
+              gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
+              magEvent1.magnetic.x, magEvent1.magnetic.y, 
+              magEvent1.magnetic.z, rpm, gpsTime, gpsAltitude,
+              latitude, longitude, satellites, lastCommand);
+    
+    Serial.println(telemetry);
+    // Save telemetry to SD card
+    dataFile = SD.open("data.txt", FILE_WRITE);
+    if (dataFile) {
+      dataFile.println(telemetry);
+      dataFile.close();
+      Serial.println("Finished writing to SD card!");
+    } else {
+      Serial.println("Error writing to SD card!");
+    }
+    packetCount++;  // Increment packet count
 
   // Calculate heading
   heading = atan2(magEvent2.magnetic.y, magEvent2.magnetic.x);
@@ -730,10 +510,6 @@ void loop() {
     case DESCENT:
       // Code for separated state
       updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
-      if (!releaseActivated && altitude <= (apogeeAltitude * 0.75)) {
-        activateReleaseMechanism();
-        releaseActivated = true;  // Prevent repeated activation
-      }
       // PID Camera Stabilization
       pidControl(heading, setpoint, lastError, integral, servo);
       break;
@@ -744,10 +520,4 @@ void loop() {
       }
       break;
   }
-  /* pixels.setPixelColor(0, 0, 0, 255);      // LED 0: Blue
-  pixels.setPixelColor(1, 0, 255, 0);      // LED 1: Green
-  pixels.setPixelColor(2, 255, 0, 0);      // LED 2: Red
-  pixels.setPixelColor(3, 255, 255, 0);    // LED 3: Yellow
-  pixels.setPixelColor(4, 255, 255, 255);  // LED 4: White
-  pixels.show();  */
 }
