@@ -8,56 +8,33 @@
 #include <utils.h>
 #include <SPI.h>
 #include <SD.h>
-#include <SparkFun_u-blox_GNSS_v3.h>
 #include <Arduino.h>
 #include "i2c_interface.h"
 #include "FeedBackServo.h"
-#include <Adafruit_NeoPixel.h>
 #include <Servo.h>
-#include <RTClib.h>
 
 // PINS AND DEFINITIONS
-#define BATTERY_PIN A0           // Analog pin for voltage divider circuit
-#define RPM_PIN A4               // Pin for Hall effect sensor
-#define SD_CS_PIN 6              // Chip select pin for SD card
-#define RELEASE_PIN 12           // Release servo pin
-#define SERVO_PIN 13             // Servo pin for GND camera stabilization
+#define SD_CS_PIN 6  // Chip select pin for SD card
+
+#define SERVO_PIN 13  // Servo pin for GND camera stabilization
 //#define FEEDBACK_PIN 9           // Feedback signal pin for servo control
 #define I2C_ADDRESS 0x20         // I2C Address for ENS 220
 #define DS1307_I2C_ADDRESS 0x68  // I2C Address for DS1307
-//#define SERIAL_BAUDRATE 57600    // Speed of Serial Communication with the computer (ENS220)
-//#define INTN_1 4                 // Interrupt pin for ENS220
-#define CAMERA1_PIN 10           // Blade camera
+#define MAG1_I2C_ADDRESS 0x1C    // First LIS3MDL address
 #define CAMERA2_PIN 11           // Ground camera
-#define LED_DATA 5
-#define NUM_LEDS 5             // Number of LEDs for FastLED
-//#define MAG1_I2C_ADDRESS 0x1C  // First LIS3MDL address
-//#define MAG2_I2C_ADDRESS 0x1E  // Second LIS3MDL address
-//#define IMU1_I2C_ADDRESS 0x6A  // First LSM6DS3 address
-//#define IMU2_I2C_ADDRESS 0x6B  // Second LSM6DS3 address
 #define TEAM_ID "3195"
 
-// STATE MANAGEMENT VARIABLES
-enum FlightState {
-  LAUNCH_PAD,
-  ASCENT,
-  APOGEE,
-  DESCENT,
-  LANDED
-};
+#define PULSECOMS 12
 
-// Objects
-FlightState flightState = LAUNCH_PAD;  // Initial state
 ScioSense::ENS220 ens220;
 I2cInterface i2c_1;            // Added for ENS220 single-shot mode
 Adafruit_LIS3MDL lis3mdl;      // Magnetometer
-//Adafruit_LIS3MDL lis3mdl_FC;   // First magnetometer
-//Adafruit_LIS3MDL lis3mdl_CAM;  // Second magnetometer
+Adafruit_LIS3MDL lis3mdl_FC;   // First magnetometer
+Adafruit_LIS3MDL lis3mdl_CAM;  // Second magnetometer
 Servo servo;
 Servo camServo;
 File dataFile;
 File backupFile;
-RTC_DS1307 rtc;      // DS1307
 
 // Variables
 unsigned long landedTime = 0;
@@ -110,7 +87,32 @@ const float K_integral = 0.1;      // Integral gain
 const float K_derivative = 0.01;   // Derivative gain
 float heading;
 
+
+// PulseComs™
+const int FC_COMS = PULSECOMS;  // Interrupt pin
+volatile int pulseCount = 0;    // Must be 'volatile' since used in interrupt
+volatile unsigned long lastPulseTime = 0;
+const unsigned long pulseTimeout = 500;  // Max gap between pulses (adjustable)
+
 ///////////////////////// FUNCTIONS /////////////////////////
+
+// PulseComs™
+void readPulseComs() {
+  unsigned long currentTime = millis();
+
+  if (currentTime - lastPulseTime < pulseTimeout) {
+    pulseCount++;  // Count consecutive HIGH pulses
+  } else {
+    pulseCount = 1;  // Reset count if too much time has passed
+  }
+
+  lastPulseTime = currentTime;
+
+  if (pulseCount >= 3) {
+    Serial.println("Three HIGH pulses detected!");
+    pulseCount = 0;  // Reset after recognition
+  }
+}
 
 // Function to calculate altitude from pressure
 float calculateAltitude(float pressure) {
@@ -193,7 +195,7 @@ void pidControl(float input, float setpoint, float &lastError, float &integral, 
   lastError = error;
 
   // Map heading to servo angle (assuming servo range is 0-180°)
-  int currentAngle = camServo.read();                 // Read current servo position
+  int currentAngle = camServo.read();              // Read current servo position
   int targetAngle = map(input, 0, 360, 0, 180);    // Adjust based on servo range
   int adjustedAngle = currentAngle - (int)output;  // Adjusting servo based on the PID output
 
@@ -206,7 +208,7 @@ void pidControl(float input, float setpoint, float &lastError, float &integral, 
   camServo.writeMicroseconds(targetMicroseconds);  // Set servo to target microseconds
 
   // Read feedback and correct (optional, depends on FeedBackServo implementation)
-  if (abs(currentAngle - targetAngle) > 5) {  // Tolerance of 5 degrees
+  if (abs(currentAngle - targetAngle) > 5) {         // Tolerance of 5 degrees
     camServo.writeMicroseconds(targetMicroseconds);  // Reapply correction
   }
 
@@ -251,103 +253,45 @@ void SingleShotMeasure_setup() {
   ens220.writeConfiguration();
 }
 
-void SingleShotMeasure_loop()
-{
-    // Start single shot measurement
-    ens220.singleShotMeasure(ENS220::Sensor::TemperatureAndPressure);
-    
-    // Wait until the measurement is ready
-    ens220.waitSingleShot();
-    
-    // Check the DATA_STAT from the sensor. If data is available, it reads it
-    auto result = ens220.update();   
-     
-    if(result == ENS220::Result::Ok)
-    {
-      if(hasFlag(ens220.getDataStatus(), ENS220::DataStatus::PressureReady) && hasFlag(ens220.getDataStatus(), ENS220::DataStatus::TemperatureReady))
-      {
-          // Send the values that were collected during the ens220.update()
-          Serial.print("P[hPa]:");
-          Serial.print(ens220.getPressureHectoPascal());
-          pressure = ens220.getPressureHectoPascal();
-          Serial.print("\tT[C]:");
-          Serial.println(ens220.getTempCelsius());
-          temperature = ens220.getTempCelsius();
-      }
+void SingleShotMeasure_loop() {
+  // Start single shot measurement
+  ens220.singleShotMeasure(ENS220::Sensor::TemperatureAndPressure);
+
+  // Wait until the measurement is ready
+  ens220.waitSingleShot();
+
+  // Check the DATA_STAT from the sensor. If data is available, it reads it
+  auto result = ens220.update();
+
+  if (result == ENS220::Result::Ok) {
+    if (hasFlag(ens220.getDataStatus(), ENS220::DataStatus::PressureReady) && hasFlag(ens220.getDataStatus(), ENS220::DataStatus::TemperatureReady)) {
+      // Send the values that were collected during the ens220.update()
+      Serial.print("P[hPa]:");
+      Serial.print(ens220.getPressureHectoPascal());
+      pressure = ens220.getPressureHectoPascal();
+      Serial.print("\tT[C]:");
+      Serial.println(ens220.getTempCelsius());
+      temperature = ens220.getTempCelsius();
     }
-}
-
-// Updated updateTime function to use DS1307 RTC
-void updateTime(char *currentTime, size_t size) {
-  Serial.println("Time update must still be created!");
-}
-
-void updateFlightState(float altitude, float velocity, float x, float y, float z) {
-  switch (flightState) {
-    case LAUNCH_PAD:
-      if (altitude > 5 && velocity > 8) {
-        flightState = ASCENT;
-        Serial.println("Flight state: ASCENT");
-      }
-      break;
-    case ASCENT:
-      if (velocity <= -1) {
-        flightState = APOGEE;
-        apogeeAltitude = altitude;
-        Serial.println("Flight state: APOGEE");
-      }
-      break;
-    case APOGEE:
-      if (velocity < 0) {
-        flightState = DESCENT;
-        Serial.println("Flight state: DESCENT");
-      }
-      break;
-    case DESCENT:
-      if (velocity == 0 && millis() - lastOrientationTime > 10000) {
-        flightState = LANDED;
-        landedTime = millis();
-        Serial.println("Flight state: LANDED");
-      }
-      break;
-    case LANDED:
-      {
-      }
-      break;
   }
-  // Update last orientation values
-  lastOrientationTime = millis();
-  lastOrientationX = x;
-  lastOrientationY = y;
-  lastOrientationZ = z;
 }
 
 void setup() {
-
   Serial.begin(2000000);  // Debugging output
   Wire.begin();
   Wire.setClock(400000);
-  
-  // Initialize release servo
-  servo.attach(RELEASE_PIN);
   // Initialize camera servo
   camServo.attach(SERVO_PIN);
 
-  // Initialize DS1307 RTC
-  if (!rtc.begin()) {
-    Serial.println("Couldn't find DS1307 RTC!");
-  }
-  
-  if (!rtc.isrunning()) {
-    Serial.println("RTC is NOT running, setting time to compile time.");
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));  // Set to compile time
-  }
 
   // Initialize cameras control pins (e.g., for power on/off)
-  pinMode(CAMERA1_PIN, OUTPUT);    // Set camera control pin to output
-  digitalWrite(CAMERA1_PIN, LOW);  // Make sure camera is OFF initially
+  pinMode(PULSECOMS, INPUT);
+  attachInterrupt(digitalPinToInterrupt(PULSECOMS), readPulseComs, RISING);  // Trigger on HIGH pulse
+
   pinMode(CAMERA2_PIN, OUTPUT);
   digitalWrite(CAMERA2_PIN, LOW);
+
+
 
   // Initialize SD card
   if (!SD.begin(SD_CS_PIN)) {
@@ -356,15 +300,6 @@ void setup() {
     Serial.println("SD card initialized successfully");
   }
   backupFile = SD.open("backup.txt", FILE_WRITE);
-
-  // Initialize RPM sensor
-  pinMode(RPM_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(RPM_PIN), rpmISR, RISING);
-
-  if (!gps.begin()) {
-    Serial.println("GNSS v3 initialization failed!");
-  }
-  gps.setNavigationRate(5); // Set rate of gps (Hz)
 
   if (!lis3mdl_FC.begin_I2C(MAG1_I2C_ADDRESS)) {
     Serial.println("Failed to find LIS3MDL #1");
@@ -403,20 +338,8 @@ void setup() {
 
 void loop() {
 
-  updateTime(currentTime, sizeof(currentTime));
-  // Read data from XBee or Serial1
-  char command[64] = {0};
-
   unsigned long missionTime = millis() / 1000;  // Mission time in seconds
 
-  // Calculate instantaneous RPM
-  float rpm = (timeDifference > 0) ? (60000 / timeDifference) : 0;  // Calculate RPM
-  lastRpmTime = millis();                                           // Immediately update last RPM time for min error
-  rpmCount = 0;
-
-  // Read battery voltage
-  float currentVoltage = analogRead(BATTERY_PIN) * voltageDividerFactor;
-  
   // Read magnetometer data
   sensors_event_t magEvent1;
   lis3mdl.getEvent(&magEvent1);
@@ -440,52 +363,46 @@ void loop() {
   if (IMU.gyroscopeAvailable()) {
     IMU.readGyroscope(gyroX, gyroY, gyroZ);
   }
-  
+
   // Retrieve Temperature and Pressure from ENS220 (Single Shot Mode)
   SingleShotMeasure_loop();
 
   // Calculate altitude from pressure
   float altitude = calculateAltitude(pressure);
-  
-  // Update maxAltitude during ascent
-  if (flightState == ASCENT && altitude > maxAltitude) {
-    maxAltitude = altitude;
-  }
+  char telemetry[256];  // Adjust the size if necessary
+  snprintf(telemetry, sizeof(telemetry),
+           "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%u,%s,%.1f,%.4f,%.4f,%u,%s,COSMOS",
+           TEAM_ID, "00:00:00", packetCount, "mode", "state",
+           altitude, temperature, pressure, "currentVoltage",
+           gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
+           magEvent1.magnetic.x, magEvent1.magnetic.y,
+           magEvent1.magnetic.z, "rpm", "gpsTime", "gpsAltitude",
+           "latitude", "longitude", "satellites", "lastCommand");
 
-    switch (flightState) {
-      case LAUNCH_PAD: state = "LAUNCH_PAD"; break;
-      case ASCENT: state = "ASCENT"; break;
-      case APOGEE: state = "APOGEE"; break;
-      case DESCENT: state = "DESCENT"; break;
-      case LANDED: state = "LANDED"; break;
-      default: state = "UNKNOWN"; break;
-    }
-    
-    snprintf(telemetry, sizeof(telemetry),
-              "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%u,%s,%.1f,%.4f,%.4f,%u,%s,COSMOS",
-              TEAM_ID, currentTime, packetCount, mode, state,
-              altitude, temperature, pressure, currentVoltage,
-              gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
-              magEvent1.magnetic.x, magEvent1.magnetic.y, 
-              magEvent1.magnetic.z, rpm, gpsTime, gpsAltitude,
-              latitude, longitude, satellites, lastCommand);
-    
-    Serial.println(telemetry);
-    // Save telemetry to SD card
-    dataFile = SD.open("data.txt", FILE_WRITE);
-    if (dataFile) {
-      dataFile.println(telemetry);
-      dataFile.close();
-      Serial.println("Finished writing to SD card!");
-    } else {
-      Serial.println("Error writing to SD card!");
-    }
-    packetCount++;  // Increment packet count
+  Serial.println(telemetry);
+  // Save telemetry to SD card
+  dataFile = SD.open("data.txt", FILE_WRITE);
+  if (dataFile) {
+    dataFile.println(telemetry);
+    dataFile.close();
+    Serial.println("Finished writing to SD card!");
+  } else {
+    Serial.println("Error writing to SD card!");
+  }
+  packetCount++;  // Increment packet count
 
   // Calculate heading
   heading = atan2(magEvent2.magnetic.y, magEvent2.magnetic.x);
   heading = heading * 180 / PI;     // Convert to degrees
   if (heading < 0) heading += 360;  // Ensure 0-360 range
+
+  int comsState = digitalRead(FC_COMS);
+
+  if (comsState == HIGH) {
+    Serial.println("FC_COMS is HIGH – Communication Active!");
+  } else {
+    Serial.println("FC_COMS is LOW – No Communication.");
+  }
 
   // Used for some state transitions
   updateAltitudeHistory(altitudeHistory, timestampHistory, altitude, historySize);
@@ -493,31 +410,6 @@ void loop() {
 
   Serial.println("Velocity: ");
   Serial.print(latestVelocity);
-
-  switch (flightState) {
-    case LAUNCH_PAD:
-      // Code for launch state
-      updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
-      break;
-    case ASCENT:
-      // Code for ascent state
-      updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
-      break;
-    case APOGEE:
-      // Code for Apogee state
-      updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
-      break;
-    case DESCENT:
-      // Code for separated state
-      updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
-      // PID Camera Stabilization
-      pidControl(heading, setpoint, lastError, integral, servo);
-      break;
-    case LANDED:
-      updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
-      if (avg(velocityHistory, historySize) < 1) {
-        flightState = LANDED;
-      }
-      break;
-  }
 }
+
+//__________-_-_-___  PulseComs™ by Caleb Wiley __________-_-_-_-_-_______________________
