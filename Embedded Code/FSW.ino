@@ -112,6 +112,10 @@ const float K_integral = 0.1;      // Integral gain
 const float K_derivative = 0.01;   // Derivative gain
 float heading;
 
+// Calibration biases for gyroscope and accelerometer
+float gyroBiasX = 0.0, gyroBiasY = 0.0, gyroBiasZ = 0.0;
+float accelBiasX = 0.0, accelBiasY = 0.0, accelBiasZ = 0.0;
+
 ///////////////////////// FUNCTIONS /////////////////////////
 
 // Function definition (add this below other functions)
@@ -132,6 +136,62 @@ float calculateAltitude(float pressure) {
   // Calculate altitude using the barometric formula
   float altitude = (seaLevelTemperature / temperatureLapseRate) * (1 - pow((pressure / referencePressure), (gasConstant * temperatureLapseRate) / (gravity * molarMass)));
   return altitude;
+}
+
+void calibrateGyroscope() {
+  const int numSamples = 100;
+  float sumX = 0.0, sumY = 0.0, sumZ = 0.0;
+
+  Serial.println("Calibrating gyroscope...");
+  for (int i = 0; i < numSamples; i++) {
+    if (IMU.gyroscopeAvailable()) {
+      float gx, gy, gz;
+      IMU.readGyroscope(gx, gy, gz);
+      sumX += gx;
+      sumY += gy;
+      sumZ += gz;
+    }
+    delay(10); // Small delay between samples
+  }
+
+  gyroBiasX = sumX / numSamples;
+  gyroBiasY = sumY / numSamples;
+  gyroBiasZ = sumZ / numSamples;
+
+  Serial.print("Gyroscope bias: ");
+  Serial.print(gyroBiasX);
+  Serial.print(", ");
+  Serial.print(gyroBiasY);
+  Serial.print(", ");
+  Serial.println(gyroBiasZ);
+}
+
+void calibrateAccelerometer() {
+  const int numSamples = 100;
+  float sumX = 0.0, sumY = 0.0, sumZ = 0.0;
+
+  Serial.println("Calibrating accelerometer...");
+  for (int i = 0; i < numSamples; i++) {
+    if (IMU.accelerationAvailable()) {
+      float ax, ay, az;
+      IMU.readAcceleration(ax, ay, az);
+      sumX += ax;
+      sumY += ay;
+      sumZ += az;
+    }
+    delay(10); // Small delay between samples
+  }
+
+  accelBiasX = sumX / numSamples;
+  accelBiasY = sumY / numSamples;
+  accelBiasZ = (sumZ / numSamples) - 9.81; // Subtract gravity (1g)
+
+  Serial.print("Accelerometer bias: ");
+  Serial.print(accelBiasX);
+  Serial.print(", ");
+  Serial.print(accelBiasY);
+  Serial.print(", ");
+  Serial.println(accelBiasZ);
 }
 
 // Function to update the altitude history array
@@ -323,6 +383,8 @@ void handleCommand(const char *command) {
       referencePressure = ens220.getPressureHectoPascal();
       Serial.print("Calibration complete. Reference pressure set to: ");
       Serial.println(referencePressure);
+      calibrateGyroscope();  // Call calibration function for gyroscope
+      calibrateAccelerometer();  // Call calibration function for accelerometer
       flightState = LAUNCH_PAD;
       break;
 
@@ -636,6 +698,9 @@ void loop() {
   float gyroX, gyroY, gyroZ;
   if (IMU.accelerationAvailable()) {
     IMU.readAcceleration(accelX, accelY, accelZ);
+    accelX -= accelBiasX;
+    accelY -= accelBiasY;
+    accelZ -= accelBiasZ;
     Serial.print(accelX);
     Serial.print('\t');
     Serial.print(accelY);
@@ -644,6 +709,9 @@ void loop() {
   }
   if (IMU.gyroscopeAvailable()) {
     IMU.readGyroscope(gyroX, gyroY, gyroZ);
+    gyroX -= gyroBiasX;
+    gyroY -= gyroBiasY;
+    gyroZ -= gyroBiasZ;
   }
   
   // Retrieve Temperature and Pressure from ENS220 (Single Shot Mode)
