@@ -22,19 +22,19 @@
 #define SD_CS_PIN 6              // Chip select pin for SD card
 #define RELEASE_PIN 12           // Release servo pin
 #define SERVO_PIN 13             // Servo pin for GND camera stabilization
-//#define FEEDBACK_PIN 9           // Feedback signal pin for servo control
+#define FEEDBACK_PIN 9           // Feedback signal pin for servo control
 #define I2C_ADDRESS 0x20         // I2C Address for ENS 220
 #define DS1307_I2C_ADDRESS 0x68  // I2C Address for DS1307
-//#define SERIAL_BAUDRATE 57600    // Speed of Serial Communication with the computer (ENS220)
-//#define INTN_1 4                 // Interrupt pin for ENS220
+#define SERIAL_BAUDRATE 57600    // Speed of Serial Communication with the computer (ENS220)
+#define INTN_1 4                 // Interrupt pin for ENS220
 #define CAMERA1_PIN 10           // Blade camera
 #define CAMERA2_PIN 11           // Ground camera
 #define LED_DATA 5
 #define NUM_LEDS 5             // Number of LEDs for FastLED
-//#define MAG1_I2C_ADDRESS 0x1C  // First LIS3MDL address
-//#define MAG2_I2C_ADDRESS 0x1E  // Second LIS3MDL address
-//#define IMU1_I2C_ADDRESS 0x6A  // First LSM6DS3 address
-//#define IMU2_I2C_ADDRESS 0x6B  // Second LSM6DS3 address
+#define MAG1_I2C_ADDRESS 0x1C  // First LIS3MDL address
+#define MAG2_I2C_ADDRESS 0x1E  // Second LIS3MDL address
+#define IMU1_I2C_ADDRESS 0x6A  // First LSM6DS3 address
+#define IMU2_I2C_ADDRESS 0x6B  // Second LSM6DS3 address
 #define TEAM_ID "3195"
 
 // STATE MANAGEMENT VARIABLES
@@ -52,8 +52,8 @@ Adafruit_NeoPixel pixels(NUM_LEDS, LED_DATA, NEO_GRB + NEO_KHZ800);
 ScioSense::ENS220 ens220;
 I2cInterface i2c_1;            // Added for ENS220 single-shot mode
 Adafruit_LIS3MDL lis3mdl;      // Magnetometer
-//Adafruit_LIS3MDL lis3mdl_FC;   // First magnetometer
-//Adafruit_LIS3MDL lis3mdl_CAM;  // Second magnetometer
+Adafruit_LIS3MDL lis3mdl_FC;   // First magnetometer
+Adafruit_LIS3MDL lis3mdl_CAM;  // Second magnetometer
 Servo servo;
 Servo camServo;
 File dataFile;
@@ -64,7 +64,7 @@ RTC_DS1307 rtc;      // DS1307
 // Variables
 unsigned long landedTime = 0;
 unsigned long lastOrientationTime = 0;
-//float lastOrientationX = 0.0, lastOrientationY = 0.0, lastOrientationZ = 0.0;
+float lastOrientationX = 0.0, lastOrientationY = 0.0, lastOrientationZ = 0.0;
 uint8_t satellites = 0;
 float voltageDividerFactor = 0.012089;                    // Adjust based on resistor values in voltage divider
 float lastTransmissionTime = 0;                           // Last time of telemetry transmission
@@ -722,7 +722,7 @@ void loop() {
 
   // Use simulated pressure if in simulation mode
   if (simulationMode) {
-    simulatedAltitude = (1 - pow(simulatedPressure / 1013.25, 0.190284)) * 145366.45;  // Approximation formula
+    float simulatedAltitude = (1 - pow(simulatedPressure / 1013.25, 0.190284)) * 145366.45;  // Approximation formula
     altitude = simulatedAltitude;
   }
   
