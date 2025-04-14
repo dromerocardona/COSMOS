@@ -499,6 +499,11 @@ class GroundStation(QMainWindow):
         release_on_shortcut.activated.connect(self.release_on)
         release_off_shortcut = QShortcut(QKeySequence("Ctrl+SHIFT+R"), self)
         release_off_shortcut.activated.connect(self.release_off)
+        party_on_shortcut = QShortcut(QKeySequence("Ctrl+P"), self)
+        party_on_shortcut.activated.connect(self.party_on)
+        party_off_shortcut = QShortcut(QKeySequence("Ctrl+SHIFT+P"), self)
+        party_off_shortcut.activated.connect(self.party_off)
+
     def set_utc_time(self):
         utc_time = datetime.datetime.now().strftime("%H:%M:%S")
         self.comm.send_command(f"CMD,3195,ST,{utc_time}")
@@ -541,6 +546,11 @@ class GroundStation(QMainWindow):
         self.comm.send_command("CMD,3195,MEC,CAMERA,GROUND,OFF")
     def cal_camera_stabilization(self):
         self.comm.send_command("CMD,3195,MEC,CAMERA,STABLE")
+
+    def party_on(self):
+        self.comm.send_command("CMD,3195,PARTY,ON")
+    def party_off(self):
+        self.comm.send_command("CMD,3195,PARTY,OFF")
 
     def copy_csv(self):
         destination_folder = QFileDialog.getExistingDirectory(self, "Select Destination Folder")
