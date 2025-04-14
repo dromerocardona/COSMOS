@@ -1,3 +1,3 @@
-GCS/offline_folium_requirements/* linguist-vendored
+GCS/offline_folium_requirements/ linguist-vendored
 GCS/live_gps_map.html linguist-vendored
 GCS/template_map.html linguist-vendored
