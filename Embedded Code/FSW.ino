@@ -322,6 +322,7 @@ void handleCommand(const char *command) {
   else if (strcmp(field1, "SIMP") == 0) cmdType = 4;
   else if (strcmp(field1, "CAL") == 0) cmdType = 5;
   else if (strcmp(field1, "MEC") == 0) cmdType = 6;
+  else if (strcmp(field1, "PARTY") == 0) cmdType = 7;
 
   switch (cmdType) {
     case 1:  // CX commands
@@ -433,6 +434,16 @@ void handleCommand(const char *command) {
           strncpy(lastCommand, "CAM_STABLE", sizeof(lastCommand));
           pidControl(heading, setpoint, lastError, integral, servo);
         }
+      }
+      break;
+    
+    case 7:  // PARTY commands
+      if (strcmp(field2, "ON") == 0) {
+        Serial.println("PARTY ON command received.");
+        // Add code to turn on party mode (e.g., LED effects)
+      } else if (strcmp(field2, "OFF") == 0) {
+        Serial.println("PARTY OFF command received.");
+        // Add code to turn off party mode (e.g., LED effects)
       }
       break;
 
