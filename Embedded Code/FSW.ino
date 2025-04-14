@@ -116,6 +116,13 @@ float heading;
 float gyroBiasX = 0.0, gyroBiasY = 0.0, gyroBiasZ = 0.0;
 float accelBiasX = 0.0, accelBiasY = 0.0, accelBiasZ = 0.0;
 
+// Variables to store GPS data
+double latitude = 0.0;
+double longitude = 0.0;
+double gpsAltitude = 0.0;
+unsigned int satellites = 0;
+char gpsTime[9] = "";
+
 ///////////////////////// FUNCTIONS /////////////////////////
 
 // Function definition (add this below other functions)
@@ -315,6 +322,7 @@ void handleCommand(const char *command) {
   else if (strcmp(field1, "SIMP") == 0) cmdType = 4;
   else if (strcmp(field1, "CAL") == 0) cmdType = 5;
   else if (strcmp(field1, "MEC") == 0) cmdType = 6;
+  else if (strcmp(field1, "PARTY") == 0) cmdType = 7;
 
   switch (cmdType) {
     case 1:  // CX commands
@@ -426,6 +434,16 @@ void handleCommand(const char *command) {
           strncpy(lastCommand, "CAM_STABLE", sizeof(lastCommand));
           pidControl(heading, setpoint, lastError, integral, servo);
         }
+      }
+      break;
+    
+    case 7:  // PARTY commands
+      if (strcmp(field2, "ON") == 0) {
+        Serial.println("PARTY ON command received.");
+        // Add code to turn on party mode (e.g., LED effects)
+      } else if (strcmp(field2, "OFF") == 0) {
+        Serial.println("PARTY OFF command received.");
+        // Add code to turn off party mode (e.g., LED effects)
       }
       break;
 
@@ -559,6 +577,16 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
   lastOrientationZ = z;
 }
 
+// Callback: updateGPSdata will be called when new NAV PVT data arrives
+void updateGPSdata(UBX_NAV_PVT_data_t *ubxDataStruct)
+{
+    latitude = ubxDataStruct->lat / 10000000.0; // Convert to degrees
+    longitude = ubxDataStruct->lon / 10000000.0; // Convert to degrees
+    gpsAltitude = ubxDataStruct->hMSL / 1000.0; // Convert to meters
+    satellites = ubxDataStruct->numSV;
+    snprintf(gpsTime, sizeof(gpsTime), "%02d:%02d:%02d", ubxDataStruct->hour, ubxDataStruct->min, ubxDataStruct->sec);
+}
+
 void setup() {
   /*pixels.begin();
   pixels.setPixelColor(0, 255, 0, 255);
@@ -614,7 +642,10 @@ void setup() {
   if (!gps.begin()) {
     Serial.println("GNSS v3 initialization failed!");
   }
-  gps.setNavigationRate(5); // Set rate of gps (Hz)
+  myGNSS.setI2COutput(COM_TYPE_UBX); // Set I2C output to UBX
+  myGNSS.saveConfigSelective(VAL_CFG_SUBSEC_IOPORT); // Save I2C output configuration
+  gps.setNavigationFrequency(1); // Set rate of gps
+  myGNSS.setAutoPVTcallbackPtr(&updateGPSdata); // Enable automatic NAV PVT callback
 
   if (!lis3mdl_FC.begin_I2C(MAG1_I2C_ADDRESS)) {
     Serial.println("Failed to find LIS3MDL #1");
@@ -676,13 +707,14 @@ void loop() {
   // Read battery voltage
   float currentVoltage = analogRead(BATTERY_PIN) * voltageDividerFactor;
 
-  float latitude = 0.0, longitude = 0.0, gpsAltitude = 0.0;
-  unsigned int satellites = 0;
-  latitude = gps.getLatitude() / 10000000.0;    // Convert to degrees
-  longitude = gps.getLongitude() / 10000000.0;  // Convert to degrees
-  gpsAltitude = gps.getAltitude() / 1000.0;     // Convert to meters
-  satellites = gps.getSIV();
-  snprintf(gpsTime, sizeof(gpsTime), "%02d:%02d:%02d", gps.getHour(), gps.getMinute(), gps.getSecond());
+  // GPS
+  myGNSS.checkUblox(); // Check for the arrival of new data and process it
+  myGNSS.checkCallbacks(); // Check if any callbacks are waiting to be processed
+  Serial.print("Lat: "); Serial.print(latitude, 7);
+  Serial.print(" Lon: "); Serial.print(longitude, 7);
+  Serial.print(" Alt: "); Serial.print(gpsAltitude);
+  Serial.print(" Sat: "); Serial.print(satellites);
+  Serial.print(" Time: "); Serial.println(gpsTime);
 
   // Read magnetometer data
   sensors_event_t magEvent1;
