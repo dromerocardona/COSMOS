@@ -46,7 +46,6 @@ enum FlightState {
 FlightState flightState = LAUNCH_PAD;  // Initial state
 Adafruit_NeoPixel pixels(NUM_LEDS, LED_DATA, NEO_GRB + NEO_KHZ800);
 ENS220 ens220;
-I2cInterface i2c_1;            // Added for ENS220 single-shot mode
 Adafruit_LIS3MDL lis3mdl;      // Magnetometer
 Adafruit_LIS3MDL lis3mdl_FC;   // First magnetometer
 Adafruit_LIS3MDL lis3mdl_CAM;  // Second magnetometer
