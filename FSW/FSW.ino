@@ -4,14 +4,10 @@
 #include <Adafruit_LIS3MDL.h>
 #include <Adafruit_Sensor.h>
 #include <ScioSense_ENS220.h>
-#include <ens220.h>
-#include <utils.h>
 #include <SPI.h>
 #include <SD.h>
 #include <SparkFun_u-blox_GNSS_v3.h>
 #include <Arduino.h>
-#include "i2c_interface.h"
-#include "FeedBackServo.h"
 #include <Adafruit_NeoPixel.h>
 #include <Servo.h>
 #include <RTClib.h>
@@ -49,7 +45,7 @@ enum FlightState {
 // Objects
 FlightState flightState = LAUNCH_PAD;  // Initial state
 Adafruit_NeoPixel pixels(NUM_LEDS, LED_DATA, NEO_GRB + NEO_KHZ800);
-ScioSense::ENS220 ens220;
+ENS220 ens220;
 I2cInterface i2c_1;            // Added for ENS220 single-shot mode
 Adafruit_LIS3MDL lis3mdl;      // Magnetometer
 Adafruit_LIS3MDL lis3mdl_FC;   // First magnetometer
@@ -386,9 +382,15 @@ void handleCommand(const char *command) {
     case 5:  // CAL command
       Serial.println("CAL command received.");
       strncpy(lastCommand, "CAL", sizeof(lastCommand));
-      referencePressure = ens220.getPressureHectoPascal();
-      Serial.print("Calibration complete. Reference pressure set to: ");
-      Serial.println(referencePressure);
+      ens220.singleShotMeasure(ENS220_SENSOR_TEMPERATURE_AND_PRESSURE);
+      ens220.waitSingleShot();
+      if(ens220.hasDataStatusFlag(ENS220_DATA_STATUS_PRESSURE_READY) && ens220.hasDataStatusFlag(ENS220_DATA_STATUS_TEMPERATURE_READY)) {
+        referencePressure = ens220.getPressureHectoPascal();
+        Serial.print("Calibration complete. Reference pressure set to: ");
+        Serial.println(referencePressure);
+      } else {
+        Serial.println("Failed to calibrate pressure.");
+      }
       calibrateGyroscope();  // Call calibration function for gyroscope
       calibrateAccelerometer();  // Call calibration function for accelerometer
       flightState = LAUNCH_PAD;
@@ -454,54 +456,58 @@ void handleCommand(const char *command) {
 
 // ENS220 Sensor Initialization
 void SingleShotMeasure_setup() {
-  // Start the communication, confirm the device PART_ID, and read the device UID
-  i2c_1.begin(Wire, I2C_ADDRESS);
-
-  while (ens220.begin(&i2c_1) != true) {
-    Serial.println("Waiting for I2C to start");
-    delay(1000);
+  Serial.println("Initializing ENS220...");
+  Wire.begin();
+  ens220.begin(&Wire, I2C_ADDRESS); {
+    Serial.println("Failed to initialize ENS220!");
+    while (1); // Halt if sensor fails
   }
-
   Serial.print("Device UID: ");
   Serial.println(ens220.getUID(), HEX);
+  
+  // Configure ENS220 for single-shot measurement
+  Serial.print("Device UID: "); Serial.println(ens220.getUID(), HEX);
 
-  // Choose the desired configuration of the sensor. In this example we will use the Lowest Noise settings from the datasheet
-  ens220.setDefaultConfiguration();
-  ens220.setPressureConversionTime(ENS220::PressureConversionTime::T_16_4);
-  ens220.setOversamplingOfPressure(ENS220::Oversampling::N_128);
-  ens220.setOversamplingOfTemperature(ENS220::Oversampling::N_128);
-  ens220.setPressureTemperatureRatio(ENS220::PressureTemperatureRatio::PT_1);
-  ens220.setStandbyTime(ENS220::StandbyTime::OneShotOperation);
-  ens220.setPressureDataPath(ENS220::PressureDataPath::Direct);
+    // Choose the desired configuration of the sensor. In this example we will use the Lowest Noise settings from the datasheet
+    ens220.setDefaultConfiguration();
+    // Set the Pressure ADC conversion time (MEAS_CFG register, field P_CONV)
+    ens220.setPressureConversionTime(ENS220_PRESSURE_CONVERSION_TIME_T_16_4);
+    // Set the Oversampling of pressure measurements (OVS_CFG register, field OVSP)
+    ens220.setOversamplingOfPressure(ENS220_OVERSAMPLING_N_128);
+    // Set the Oversampling of temperature measurements (OVS_CFG register, field OVST)
+    ens220.setOversamplingOfTemperature(ENS220_OVERSAMPLING_N_128);
+    // Set the ratio between P and T measurements as produced by the measurement engine (MEAS_CFG register, field PT_RATE)
+    ens220.setPressureTemperatureRatio(ENS220_PRESSURE_TEMPERATURE_RATIO_PT_1);
+    // Set the operation to One shot (STBY_CFG register, field STBY_T)
+    ens220.setStandbyTime(ENS220_STANDBY_TIME_ONE_SHOT_OPERATION);
+    // Set whether to use the FIFO buffer, a moving average, or none (MODE_CFG register, field FIFO_MODE)
+    ens220.setPressureDataPath(ENS220_PRESSURE_DATA_PATH_DIRECT);
 
-  // Write the desired configuration into the sensor
-  ens220.writeConfiguration();
+    // Write the desired configuration into the sensor
+    ens220.writeConfiguration();
+  Serial.println("ENS220 initialized successfully.");
 }
 
 void SingleShotMeasure_loop()
 {
-    // Start single shot measurement
-    ens220.singleShotMeasure(ENS220::Sensor::TemperatureAndPressure);
-    
-    // Wait until the measurement is ready
+     if (ens220.singleShotMeasure(ENS220_SENSOR_TEMPERATURE_AND_PRESSURE)) {
     ens220.waitSingleShot();
-    
-    // Check the DATA_STAT from the sensor. If data is available, it reads it
-    auto result = ens220.update();   
-     
-    if(result == ENS220::Result::Ok)
-    {
-      if(hasFlag(ens220.getDataStatus(), ENS220::DataStatus::PressureReady) && hasFlag(ens220.getDataStatus(), ENS220::DataStatus::TemperatureReady))
-      {
-          // Send the values that were collected during the ens220.update()
-          Serial.print("P[hPa]:");
-          Serial.print(ens220.getPressureHectoPascal());
-          pressure = ens220.getPressureHectoPascal();
-          Serial.print("\tT[C]:");
-          Serial.println(ens220.getTempCelsius());
-          temperature = ens220.getTempCelsius();
+    auto result = ens220.update();
+    if (result == RESULT_OK) {
+      if (ens220.hasDataStatusFlag(ENS220_DATA_STATUS_PRESSURE_READY) && ens220.hasDataStatusFlag(ENS220_DATA_STATUS_TEMPERATURE_READY)) {
+        pressure = ens220.getPressureHectoPascal();
+        temperature = ens220.getTempCelsius();
+        Serial.print("P[hPa]: ");
+        Serial.print(pressure);
+        Serial.print("\tT[C]: ");
+        Serial.println(temperature);
       }
+    } else {
+      Serial.println("Error reading ENS220 data.");
     }
+  } else {
+    Serial.println("Error starting ENS220 measurement.");
+  }
 }
 
 // Updated updateTime function to use DS1307 RTC
