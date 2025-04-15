@@ -120,8 +120,6 @@ float accelBiasX = 0.0, accelBiasY = 0.0, accelBiasZ = 0.0;
 double latitude = 0.0;
 double longitude = 0.0;
 double gpsAltitude = 0.0;
-unsigned int satellites = 0;
-char gpsTime[9] = "";
 
 ///////////////////////// FUNCTIONS /////////////////////////
 
@@ -642,10 +640,10 @@ void setup() {
   if (!gps.begin()) {
     Serial.println("GNSS v3 initialization failed!");
   }
-  myGNSS.setI2COutput(COM_TYPE_UBX); // Set I2C output to UBX
-  myGNSS.saveConfigSelective(VAL_CFG_SUBSEC_IOPORT); // Save I2C output configuration
+  gps.setI2COutput(COM_TYPE_UBX); // Set I2C output to UBX
+  gps.saveConfigSelective(VAL_CFG_SUBSEC_IOPORT); // Save I2C output configuration
   gps.setNavigationFrequency(1); // Set rate of gps
-  myGNSS.setAutoPVTcallbackPtr(&updateGPSdata); // Enable automatic NAV PVT callback
+  gps.setAutoPVTcallbackPtr(&updateGPSdata); // Enable automatic NAV PVT callback
 
   if (!lis3mdl_FC.begin_I2C(MAG1_I2C_ADDRESS)) {
     Serial.println("Failed to find LIS3MDL #1");
@@ -708,8 +706,8 @@ void loop() {
   float currentVoltage = analogRead(BATTERY_PIN) * voltageDividerFactor;
 
   // GPS
-  myGNSS.checkUblox(); // Check for the arrival of new data and process it
-  myGNSS.checkCallbacks(); // Check if any callbacks are waiting to be processed
+  gps.checkUblox(); // Check for the arrival of new data and process it
+  gps.checkCallbacks(); // Check if any callbacks are waiting to be processed
   Serial.print("Lat: "); Serial.print(latitude, 7);
   Serial.print(" Lon: "); Serial.print(longitude, 7);
   Serial.print(" Alt: "); Serial.print(gpsAltitude);
