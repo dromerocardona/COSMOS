@@ -3,7 +3,7 @@ import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QPushButton, \
     QSpacerItem, QGridLayout, QProgressBar, QGroupBox, QComboBox, QFileDialog, QGraphicsOpacityEffect, QShortcut
 from PyQt5.QtCore import Qt, pyqtSignal, QObject, QTimer, QPropertyAnimation
-from PyQt5.QtGui import QFont, QPixmap, QIcon, QKeySequence
+from PyQt5.QtGui import QFont, QPixmap, QIcon, QKeySequence, QMovie
 from communication import Communication
 from autogyroRotationGraph import AutoGyroRotationGraph
 from temperatureGraph import TemperatureGraph
@@ -142,6 +142,11 @@ class GroundStation(QMainWindow):
 
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
+
+        self.gif_label = QLabel(self.central_widget)
+        self.gif_label.setAlignment(Qt.AlignCenter)
+        self.gif_label.setStyleSheet("background: transparent;")
+        self.gif_label.hide()
 
         main_layout = QVBoxLayout(self.central_widget)
 
@@ -469,7 +474,7 @@ class GroundStation(QMainWindow):
         # Timer for updating serial ports
         self.serial_timer = QTimer(self)
         self.serial_timer.timeout.connect(self.update_serial_ports)
-        self.serial_timer.start(5000)  # Update every 5 seconds
+        self.serial_timer.start(20000)
 
     #enables/disables data transmission
     def toggle_data_transmission(self):
@@ -548,7 +553,15 @@ class GroundStation(QMainWindow):
         self.comm.send_command("CMD,3195,MEC,CAMERA,STABLE")
 
     def party_on(self):
-        self.comm.send_command("CMD,3195,PARTY,ON")
+            self.comm.send_command("CMD,3195,PARTY,ON")
+            gif = QMovie("party.gif")  # Replace with the path to your GIF
+            self.gif_label.setMovie(gif)
+            self.gif_label.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool)
+            self.gif_label.setAttribute(Qt.WA_TranslucentBackground)
+            self.gif_label.setGeometry(QApplication.desktop().screenGeometry())  # Set to fullscreen geometry
+            self.gif_label.show()
+            gif.start()
+            QTimer.singleShot(10000, self.gif_label.hide)  # Hide the GIF after 10 seconds
     def party_off(self):
         self.comm.send_command("CMD,3195,PARTY,OFF")
 
