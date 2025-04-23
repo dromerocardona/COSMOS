@@ -3,7 +3,7 @@ import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QPushButton, \
     QSpacerItem, QGridLayout, QProgressBar, QGroupBox, QComboBox, QFileDialog, QGraphicsOpacityEffect, QShortcut
 from PyQt5.QtCore import Qt, pyqtSignal, QObject, QTimer, QPropertyAnimation
-from PyQt5.QtGui import QFont, QPixmap, QIcon, QKeySequence, QMovie
+from PyQt5.QtGui import QFont, QPixmap, QIcon, QKeySequence, QMovie, QFontDatabase, QFont
 from communication import Communication
 from autogyroRotationGraph import AutoGyroRotationGraph
 from temperatureGraph import TemperatureGraph
@@ -171,6 +171,15 @@ class GroundStation(QMainWindow):
         header_text.setAlignment(Qt.AlignCenter)
         header_text.setFont(QFont("Arial", 24, QFont.Bold))
         header_text.setStyleSheet("color: white;")
+
+        # Load the custom font
+        font_id = QFontDatabase.addApplicationFont("SpeedyRegular-7BLoE.ttf")
+        if font_id != -1:
+            font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
+            custom_font = QFont(font_family, 24, QFont.Bold)
+            header_text.setFont(custom_font)
+        else:
+            print("Failed to load Speedy Regular font.")
 
         # Add left layout and header text to the main header layout
         header_layout.addLayout(left_header_layout)

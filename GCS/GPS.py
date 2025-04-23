@@ -47,7 +47,7 @@ class GPSMap(QWidget, QObject):
             self.latitude = latitude
             self.longitude = longitude
 
-            folium_map = folium.Map(location=[latitude, longitude], zoom_start=15)
+            folium_map = folium.Map(location=[latitude, longitude], zoom_start=14)
             icon = folium.CustomIcon('COSMOS_logo.png', icon_size=(36, 30))
             folium.Marker([latitude, longitude], tooltip="Current Position", icon=icon).add_to(folium_map)
 
@@ -75,7 +75,7 @@ class GPSMap(QWidget, QObject):
             initial_latitude = 31.11922492905565
             initial_longitude = -86.09000126183433
 
-            folium_map = folium.Map(location=[initial_latitude, initial_longitude], zoom_start=15)
+            folium_map = folium.Map(location=[initial_latitude, initial_longitude], zoom_start=14)
             folium_map.save(self.map_file)
             self.browser.setUrl(QtCore.QUrl.fromLocalFile(os.path.abspath(self.map_file)))
         except Exception as e:
