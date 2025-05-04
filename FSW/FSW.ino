@@ -351,9 +351,9 @@ void handleCommand(const char *command) {
         Serial.println("Simulation activated. Waiting for pressure input...");
         strncpy(lastCommand, "SIM_ACTIVATE", sizeof(lastCommand));
         char pressureInput[16];
-        while (!Serial1.available()) delay(1);
-        Serial1.readBytesUntil('\n', pressureInput, sizeof(pressureInput));
-        receivedPressure = atof(pressureInput);
+        if (Serial1.available()) {
+          Serial1.readBytesUntil('\n', pressureInput, sizeof(pressureInput));
+          receivedPressure = atof(pressureInput);
         if (receivedPressure > 0.0) {
           simulatedPressure = receivedPressure;
           Serial.println("Simulated pressure updated.");
@@ -457,10 +457,7 @@ void handleCommand(const char *command) {
 void SingleShotMeasure_setup() {
   Serial.println("Initializing ENS220...");
   Wire.begin();
-  ens220.begin(&Wire, I2C_ADDRESS); {
-    Serial.println("Failed to initialize ENS220!");
-    while (1); // Halt if sensor fails
-  }
+  ens220.begin(&Wire, I2C_ADDRESS); 
   Serial.print("Device UID: ");
   Serial.println(ens220.getUID(), HEX);
   
@@ -696,8 +693,11 @@ void loop() {
     memset(command, 0, sizeof(command));  // Clear the command buffer
   }
 
-  while (Serial1.available()) {
-    Serial1.read();  // Discard old data
+ // Clear remaining Serial1 buffer data
+  if (Serial1.available()) {
+    char discard[64];
+    Serial1.readBytes(discard, min(Serial1.available(), sizeof(discard)));
+    Serial.println("Discarded remaining Serial1 data");
   }
 
   unsigned long missionTime = millis() / 1000;  // Mission time in seconds
