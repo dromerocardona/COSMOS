@@ -199,6 +199,12 @@ class GroundStation(QMainWindow):
         self.serial_port_dropdown.setStyleSheet("background-color: white;")
         right_header_layout.addWidget(self.serial_port_dropdown)
 
+        # Add a button to refresh serial ports
+        self.refresh_ports_button = QPushButton("Refresh")
+        self.refresh_ports_button.clicked.connect(self.update_serial_ports)
+        self.refresh_ports_button.setStyleSheet("background-color: white;")
+        right_header_layout.addWidget(self.refresh_ports_button)
+
         # initialize connection to communication
         self.comm = Communication(
             serial_port=self.serial_port_dropdown.currentText())  # Initialize with selected serial port
@@ -481,9 +487,9 @@ class GroundStation(QMainWindow):
         self.timer.start(1000)
 
         # Timer for updating serial ports
-        self.serial_timer = QTimer(self)
-        self.serial_timer.timeout.connect(self.update_serial_ports)
-        self.serial_timer.start(20000)
+        #self.serial_timer = QTimer(self)
+        #self.serial_timer.timeout.connect(self.update_serial_ports)
+        #self.serial_timer.start(20000)
 
     #enables/disables data transmission
     def toggle_data_transmission(self):
@@ -656,6 +662,7 @@ class GroundStation(QMainWindow):
         if current_ports != available_ports:
             self.serial_port_dropdown.clear()
             self.serial_port_dropdown.addItems(available_ports)
+        print("Serial ports updated.")
 
     def on_button_click(self, button):
         self.change_button_color(button, "#d1d1f0", 500)
