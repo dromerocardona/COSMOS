@@ -60,10 +60,10 @@ into the horizontal plane and the angle between the projected vector
 and horizontal north is returned.
 */
 template<typename T> float computeHeading(LIS3MDL::vector<T> from) {
-  LIS3MDL::vector<int32_t> temp_m = { mag.m.x, mag.m.y, mag.m.z };
+  LIS3MDL::vector<int32_t> temp_m = { -mag.m.y, mag.m.x, mag.m.z };
 
   // copy acceleration readings from LSM6::vector into an LIS3MDL::vector
-  LIS3MDL::vector<int16_t> a = { imu.a.x, imu.a.y, imu.a.z };
+  LIS3MDL::vector<int16_t> a = { -imu.a.x, -imu.a.y, imu.a.z };//switch x/y
 
   // subtract offset (average of min and max) from magnetometer readings
   temp_m.x -= ((int32_t)m_min.x + m_max.x) / 2;
@@ -101,7 +101,7 @@ float computeHeading() {
 
 
 //debugging:
-const bool DEBUG = true;
+const bool DEBUG = false;
 
 void debugCheckpoint(const char *message) {
   static int checkpoint = 0;  // Static variable retains its value between calls
@@ -186,7 +186,7 @@ unsigned long timestampHistory[historySize];  // Store time
 float latestVelocity;
 
 // Variables used for PID
-float setpoint = 1000.0;           // Desired setpoint placeholder
+float setpoint = 180.0;           // Desired setpoint placeholder
 float input = 0.0;                 // Current system input
 float output = 0.0;                // PID output
 float error = 0.0;                 // Current error
@@ -278,7 +278,7 @@ float avg(float arr[], int size) {
 }
 
 // Function for PID Camera Stabilization
-void pidControl(float input, float setpoint, float &lastError, float &integral, Servo &camServo) {
+String pidControl(float input, float setpoint, float &lastError, float &integral, Servo &camServo) {
   // PID tuning parameters
   const float K_proportional = 1.0;  // Proportional gain
   const float K_integral = 0.1;      // Integral gain
@@ -321,7 +321,7 @@ void pidControl(float input, float setpoint, float &lastError, float &integral, 
   if (abs(currentAngle - targetAngle) > 5) {         // Tolerance of 5 degrees
     camServo.writeMicroseconds(targetMicroseconds);  // Reapply correction
   }
-
+  /*
   // Debug output
   Serial.print("Heading: ");
   Serial.print(input);
@@ -329,6 +329,9 @@ void pidControl(float input, float setpoint, float &lastError, float &integral, 
   Serial.print(targetAngle);
   Serial.print("°  Current Servo Angle: ");
   Serial.println(currentAngle);
+  */
+  String telem = String(input, 1) + "," + String((float)targetAngle, 1) + "," + String((float)currentAngle, 1);
+  return telem;  // Return the String object
 }
 
 void rpmISR() {
@@ -376,12 +379,12 @@ void SingleShotMeasure_loop() {
   if (result == ENS220::Result::Ok) {
     if (hasFlag(ens220.getDataStatus(), ENS220::DataStatus::PressureReady) && hasFlag(ens220.getDataStatus(), ENS220::DataStatus::TemperatureReady)) {
       // Send the values that were collected during the ens220.update()
-      Serial.print("P[hPa]:");
-      Serial.print(ens220.getPressureHectoPascal());
+      //Serial.print("P[hPa]:");
       pressure = ens220.getPressureHectoPascal();
-      Serial.print("\tT[C]:");
-      Serial.println(ens220.getTempCelsius());
+      //Serial.print(pressure);
+      //Serial.print("\tT[C]:");
       temperature = ens220.getTempCelsius();
+      //Serial.println(temperature);
     }
   }
 }
@@ -482,17 +485,18 @@ void loop() {
   difference in the horizontal plane between a default vector (the
   +X axis) and north, in degrees.
   */
-  float heading = computeHeading((LIS3MDL::vector<int>){ 1, 0, 0 });
+  debugCheckpoint("pre-pid");
+  float heading = computeHeading();
+  debugCheckpoint("heading calc");
+  Serial.println(pidControl(heading, setpoint, lastError, integral, camServo));
+  debugCheckpoint("pid");
+  //Serial.println(heading,setpoint)
 
   /*
   To use a different vector as a reference, use the version of
   computeHeading() that takes a vector argument; for example, call it like this
   to use the -Z axis as a reference:
   */
-
-
-  Serial.println(heading);
-  delay(100);
   //----------------Tilt compensation end----------------
 
 
@@ -512,11 +516,13 @@ void loop() {
   float gyroX, gyroY, gyroZ;
   if (IMU.accelerationAvailable()) {
     IMU.readAcceleration(accelX, accelY, accelZ);
+    /*
     Serial.print(accelX);
     Serial.print('\t');
     Serial.print(accelY);
     Serial.print('\t');
     Serial.println(accelZ);
+    */
   }
   if (IMU.gyroscopeAvailable()) {
     IMU.readGyroscope(gyroX, gyroY, gyroZ);
@@ -537,15 +543,15 @@ void loop() {
            magEvent1.magnetic.x, magEvent1.magnetic.y,
            magEvent1.magnetic.z);
   debugCheckpoint("successfull telemetry");
-  Serial.println(telemetry);
+  //Serial.println(telemetry);
   // Save telemetry to SD card
   dataFile = SD.open("data.txt", FILE_WRITE);
   if (dataFile) {
     dataFile.println(telemetry);
     dataFile.close();
-    Serial.println("Finished writing to SD card!");
+    //Serial.println("Finished writing to SD card!");
   } else {
-    Serial.println("Error writing to SD card!");
+    //Serial.println("Error writing to SD card!");
   }
   packetCount++;  // Increment packet count
 
@@ -562,17 +568,19 @@ void loop() {
   int comsState = digitalRead(FC_COMS);
 
   if (comsState == HIGH) {
-    Serial.println("FC_COMS is HIGH – Communication Active!");
+    //Serial.println("FC_COMS is HIGH – Communication Active!");
   } else {
-    Serial.println("FC_COMS is LOW – No Communication.");
+    //Serial.println("FC_COMS is LOW – No Communication.");
   }
 
   // Used for some state transitions
   updateAltitudeHistory(altitudeHistory, timestampHistory, altitude, historySize);
   updateVelocityHistory(altitudeHistory, velocityHistory, timestampHistory, historySize);
 
+  /*
   Serial.println("Velocity: ");
   Serial.print(latestVelocity);
+  */
 }
 
 //__________-_-_-___  PulseComs™ by Caleb Wiley __________-_-_-_-_-_______________________
