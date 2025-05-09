@@ -59,38 +59,47 @@ form a basis for the horizontal plane. The From vector is projected
 into the horizontal plane and the angle between the projected vector
 and horizontal north is returned.
 */
-template<typename T> float computeHeading(LIS3MDL::vector<T> from) {
-  LIS3MDL::vector<int32_t> temp_m = { -mag.m.y, mag.m.x, mag.m.z };
+#include <cmath>  // For atan2, fmod, and M_PI
 
-  // copy acceleration readings from LSM6::vector into an LIS3MDL::vector
-  LIS3MDL::vector<int16_t> a = { -imu.a.x, -imu.a.y, imu.a.z };//switch x/y
+float computeHeading() {
+    // Magnetometer readings
+    LIS3MDL::vector<int32_t> temp_m = { mag.m.x, mag.m.y, mag.m.z };
 
-  // subtract offset (average of min and max) from magnetometer readings
-  temp_m.x -= ((int32_t)m_min.x + m_max.x) / 2;
-  temp_m.y -= ((int32_t)m_min.y + m_max.y) / 2;
-  temp_m.z -= ((int32_t)m_min.z + m_max.z) / 2;
+    // Acceleration vector with corrected orientation
+    LIS3MDL::vector<int16_t> a = { -imu.a.y, imu.a.x, imu.a.z };
 
-  // compute E and N
-  LIS3MDL::vector<float> E;
-  LIS3MDL::vector<float> N;
-  LIS3MDL::vector_cross(&temp_m, &a, &E);
-  LIS3MDL::vector_normalize(&E);
-  LIS3MDL::vector_cross(&a, &E, &N);
-  LIS3MDL::vector_normalize(&N);
+    // Subtract offsets from magnetometer readings
+    temp_m.x -= ((int32_t)m_min.x + m_max.x) / 2;
+    temp_m.y -= ((int32_t)m_min.y + m_max.y) / 2;
+    temp_m.z -= ((int32_t)m_min.z + m_max.z) / 2;
 
-  // compute heading
-  float heading = atan2(LIS3MDL::vector_dot(&E, &from), LIS3MDL::vector_dot(&N, &from)) * 180 / PI;
-  if (heading < 0) heading += 360;
-  return heading;
+    // Compute East and North vectors
+    LIS3MDL::vector<float> E;
+    LIS3MDL::vector<float> N;
+    LIS3MDL::vector_cross(&temp_m, &a, &E);
+    LIS3MDL::vector_normalize(&E);
+    LIS3MDL::vector_cross(&a, &E, &N);
+    LIS3MDL::vector_normalize(&N);
+
+    // Compute angle in YZ-plane from N to Z-axis
+    float theta_N_rad = atan2(N.z, N.y);                // Angle of N from Y-axis (radians)
+    float theta_N_deg = theta_N_rad * (180.0f / M_PI); // Convert to degrees
+    float cross = N.y * E.z - N.z * E.y;                // 2D cross product in YZ-plane
+    float angle;
+    if (cross > 0) {
+        angle = 90.0f - theta_N_deg; // Counterclockwise from N to Z
+    } else {
+        angle = theta_N_deg - 90.0f; // Clockwise from N to Z
+    }
+    // Ensure angle is in [0, 360)
+    angle = fmod(angle + 360.0f, 360.0f);
+    return angle;
 }
 
 /*
 Returns the angular difference in the horizontal plane between a
 default vector (the +X axis) and north, in degrees.
 */
-float computeHeading() {
-  return computeHeading((LIS3MDL::vector<int>){ 1, 0, 0 });
-}
 
 
 
