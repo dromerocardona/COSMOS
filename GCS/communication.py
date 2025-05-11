@@ -299,6 +299,7 @@ class Communication:
                 return self.data_list[-1][20]
             except (IndexError, ValueError):
                 return None
+        return None
 
     def get_GPS_LATITUDE(self):
         if self.data_list:
@@ -306,6 +307,7 @@ class Communication:
                 return float(self.data_list[-1][21])
             except (IndexError, ValueError):
                 return None
+        return None
 
     def get_GPS_LONGITUDE(self):
         if self.data_list:
@@ -313,6 +315,7 @@ class Communication:
                 return float(self.data_list[-1][22])
             except (IndexError, ValueError):
                 return None
+        return None
 
     def get_GPS_SATS(self):
         if self.data_list:
@@ -320,6 +323,7 @@ class Communication:
                 return self.data_list[-1][23]
             except (IndexError, ValueError):
                 return None
+        return None
 
     def get_CMD_ECHO(self):
         if self.data_list:
@@ -327,3 +331,4 @@ class Communication:
                 return self.data_list[-1][24]
             except (IndexError, ValueError):
                 return None
+        return None

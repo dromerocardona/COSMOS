@@ -1,9 +1,10 @@
 import sys
 import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QPushButton, \
-    QSpacerItem, QGridLayout, QProgressBar, QGroupBox, QComboBox, QFileDialog, QGraphicsOpacityEffect, QShortcut
+    QSpacerItem, QGridLayout, QProgressBar, QGroupBox, QComboBox, QFileDialog, QGraphicsOpacityEffect, QShortcut, \
+    QInputDialog
 from PyQt5.QtCore import Qt, pyqtSignal, QObject, QTimer, QPropertyAnimation
-from PyQt5.QtGui import QFont, QPixmap, QIcon, QKeySequence, QMovie, QFontDatabase, QFont
+from PyQt5.QtGui import QFont, QPixmap, QIcon, QKeySequence, QMovie, QFontDatabase
 from communication import Communication
 from autogyroRotationGraph import AutoGyroRotationGraph
 from temperatureGraph import TemperatureGraph
@@ -302,8 +303,9 @@ class GroundStation(QMainWindow):
         sidebar_layout.addWidget(sidebar_groupbox)
 
         # Add command buttons to sidebar layout
-        button_width = 100
-        button_height = 80
+        screen_geometry = QApplication.desktop().screenGeometry()
+        button_width = screen_geometry.width() // 18
+        button_height = screen_geometry.height() // 15
         self.reset_csv_button = QPushButton("Reset\nCSV")
         self.reset_csv_button.clicked.connect(self.comm.reset_csv)
         self.reset_csv_button.clicked.connect(lambda: self.on_button_click(self.reset_csv_button))
@@ -504,6 +506,7 @@ class GroundStation(QMainWindow):
         self.start_stop_button.setText("CXOFF")
         self.comm.send_command("CMD,3195,CX,ON")
         self.comm.start_communication(self.signal_emitter)
+        threading.Thread(target=playsound, args=('connect.mp3',), daemon=True).start()
 
     #stop data transmission
     def stop_data_transmission(self):
@@ -511,6 +514,7 @@ class GroundStation(QMainWindow):
         self.start_stop_button.setText("CXON")
         self.comm.send_command("CMD,3195,CX,OFF")
         self.comm.stop_communication()
+        threading.Thread(target=playsound, args=('disconnect.mp3',), daemon=True).start()
 
     #send/execute commands
     def setup_shortcuts(self):
@@ -523,12 +527,21 @@ class GroundStation(QMainWindow):
         party_on_shortcut.activated.connect(self.party_on)
         party_off_shortcut = QShortcut(QKeySequence("Ctrl+SHIFT+P"), self)
         party_off_shortcut.activated.connect(self.party_off)
+        command_shortcut = QShortcut(QKeySequence("Ctrl+/"), self)
+        command_shortcut.activated.connect(self.open_command_input)
+
+    def open_command_input(self):
+        command, ok = QInputDialog.getText(self, "Command Input", "Enter Command:")
+        if ok and command:
+            self.comm.send_command(command)
 
     def set_utc_time(self):
         utc_time = datetime.datetime.now().strftime("%H:%M:%S")
         self.comm.send_command(f"CMD,3195,ST,{utc_time}")
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def set_gps_time(self):
         self.comm.send_command("CMD,3195,ST,GPS_TIME")
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def toggle_sim(self):
         if self.sim:
             self.sim_disable()
@@ -540,32 +553,43 @@ class GroundStation(QMainWindow):
         self.comm.simEnabled = True
         self.SIM_toggle_button.setText("SIM\nDisable")
         self.comm.send_command("CMD,3195,SIM,ENABLE")
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def sim_activate(self):
         if self.comm.simEnabled and self.comm.receivedPacketCount:
             self.comm.send_command("CMD,3195,SIM,ACTIVATE")
             csv_filename, _ = QFileDialog.getOpenFileName(self, "Select CSV file", "", "CSV and Text Files (*.csv *.txt)")
             if csv_filename:
                 self.comm.simulation_mode(csv_filename)
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def sim_disable(self):
         self.comm.simulation = False
         self.SIM_toggle_button.setText("SIM\nEnable")
         self.comm.send_command("CMD,3195,SIM,DISABLE")
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def cal(self):
         self.comm.send_command("CMD,3195,CAL")
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def release_on(self):
         self.comm.send_command("CMD,3195,MEC,RELEASE,ON")
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def release_off(self):
         self.comm.send_command("CMD,3195,MEC,RELEASE,OFF")
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def blade_cam_on(self):
         self.comm.send_command("CMD,3195,MEC,CAMERA,BLADE,ON")
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def blade_cam_off(self):
         self.comm.send_command("CMD,3195,MEC,CAMERA,BLADE,OFF")
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def ground_cam_on(self):
         self.comm.send_command("CMD,3195,MEC,CAMERA,GROUND,ON")
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def ground_cam_off(self):
         self.comm.send_command("CMD,3195,MEC,CAMERA,GROUND,OFF")
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def cal_camera_stabilization(self):
         self.comm.send_command("CMD,3195,MEC,CAMERA,STABLE")
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
 
     def party_on(self):
             self.comm.send_command("CMD,3195,PARTY,ON")
@@ -581,6 +605,7 @@ class GroundStation(QMainWindow):
         self.comm.send_command("CMD,3195,PARTY,OFF")
 
     def copy_csv(self):
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
         destination_folder = QFileDialog.getExistingDirectory(self, "Select Destination Folder")
         if destination_folder:
             source_file = 'Flight_3195.csv'
@@ -645,6 +670,7 @@ class GroundStation(QMainWindow):
 
     #reset graphs
     def reset_graphs(self):
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
         self.altitudeGraph.reset_graph()
         self.autoGyroRotationGraph.reset_graph()
         self.temperatureGraph.reset_graph()
@@ -663,15 +689,22 @@ class GroundStation(QMainWindow):
             self.serial_port_dropdown.clear()
             self.serial_port_dropdown.addItems(available_ports)
         print("Serial ports updated.")
+        threading.Thread(target=playsound, args=('bluetooth.mp3',), daemon=True).start()
 
     def on_button_click(self, button):
         self.change_button_color(button, "#d1d1f0", 500)
 
     def change_button_color(self, button, color, duration):
         original_style = button.styleSheet()
-        button.setStyleSheet(f"color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: {color};")
 
-        QTimer.singleShot(duration, lambda: button.setStyleSheet(original_style))
+        if not hasattr(button, "_color_timer"):
+            button._color_timer = QTimer()
+
+        button._color_timer.stop()  # Stop any active timer
+        button.setStyleSheet(original_style)  # Reset to the original style
+
+        button.setStyleSheet(f"color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: {color};")
+        button._color_timer.singleShot(duration, lambda: button.setStyleSheet(original_style))
 
     #close window/program
     def closeEvent(self, event):
