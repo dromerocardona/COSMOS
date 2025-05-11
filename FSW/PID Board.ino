@@ -139,8 +139,6 @@ void debugCheckpoint(const char *message) {
 //#define FEEDBACK_PIN 9           // Feedback signal pin for servo control
 #define I2C_ADDRESS 0x20         // I2C Address for ENS 220
 #define MAG1_I2C_ADDRESS 0x1C    // First LIS3MDL address
-// This pin is not connected to anything on the PID board #define CAMERA2_PIN 11           // Ground camera
-#define TEAM_ID "3195"
 
 #define PULSECOMS A4
 
@@ -428,9 +426,6 @@ void setup() {
   pinMode(PULSECOMS, INPUT);
   attachInterrupt(digitalPinToInterrupt(PULSECOMS), readPulseComs, RISING);  // Trigger on HIGH pulse
   debugCheckpoint("interupt pin enable");
-
-  pinMode(CAMERA2_PIN, OUTPUT);
-  digitalWrite(CAMERA2_PIN, LOW);
 
   debugCheckpoint("camera stuff");
 
