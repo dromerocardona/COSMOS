@@ -135,15 +135,14 @@ void debugCheckpoint(const char *message) {
 // PINS AND DEFINITIONS
 #define SD_CS_PIN 6  // Chip select pin for SD card
 
-#define SERVO_PIN 13  // Servo pin for GND camera stabilization
+#define SERVO_PIN A5  // Servo pin for GND camera stabilization
 //#define FEEDBACK_PIN 9           // Feedback signal pin for servo control
 #define I2C_ADDRESS 0x20         // I2C Address for ENS 220
-#define DS1307_I2C_ADDRESS 0x68  // I2C Address for DS1307
 #define MAG1_I2C_ADDRESS 0x1C    // First LIS3MDL address
-#define CAMERA2_PIN 11           // Ground camera
+// This pin is not connected to anything on the PID board #define CAMERA2_PIN 11           // Ground camera
 #define TEAM_ID "3195"
 
-#define PULSECOMS 12
+#define PULSECOMS A4
 
 ScioSense::ENS220 ens220;
 I2cInterface i2c_1;            // Added for ENS220 single-shot mode
