@@ -139,6 +139,7 @@ void debugCheckpoint(const char *message) {
 //#define FEEDBACK_PIN 9           // Feedback signal pin for servo control
 #define I2C_ADDRESS 0x20         // I2C Address for ENS 220
 #define MAG1_I2C_ADDRESS 0x1C    // First LIS3MDL address
+#define TEAM_ID "3195"
 
 #define PULSECOMS A4
 
@@ -147,7 +148,6 @@ I2cInterface i2c_1;            // Added for ENS220 single-shot mode
 Adafruit_LIS3MDL lis3mdl;      // Magnetometer
 Adafruit_LIS3MDL lis3mdl_FC;   // First magnetometer
 Adafruit_LIS3MDL lis3mdl_CAM;  // Second magnetometer
-Servo servo;
 Servo camServo;
 File dataFile;
 File backupFile;
@@ -403,10 +403,8 @@ void setup() {
   //----------------end tilt compensation settup---------
   debugCheckpoint("sensor init 1");
 
-  /*--removed for non-functionality
-  // Initialize camera servo
   camServo.attach(SERVO_PIN);
-  */
+  
 
   debugCheckpoint("servo");
 
