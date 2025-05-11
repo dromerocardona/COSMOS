@@ -59,38 +59,47 @@ form a basis for the horizontal plane. The From vector is projected
 into the horizontal plane and the angle between the projected vector
 and horizontal north is returned.
 */
-template<typename T> float computeHeading(LIS3MDL::vector<T> from) {
-  LIS3MDL::vector<int32_t> temp_m = { mag.m.x, mag.m.y, mag.m.z };
+#include <cmath>  // For atan2, fmod, and M_PI
 
-  // copy acceleration readings from LSM6::vector into an LIS3MDL::vector
-  LIS3MDL::vector<int16_t> a = { imu.a.x, imu.a.y, imu.a.z };
+float computeHeading() {
+    // Magnetometer readings
+    LIS3MDL::vector<int32_t> temp_m = { mag.m.x, mag.m.y, mag.m.z };
 
-  // subtract offset (average of min and max) from magnetometer readings
-  temp_m.x -= ((int32_t)m_min.x + m_max.x) / 2;
-  temp_m.y -= ((int32_t)m_min.y + m_max.y) / 2;
-  temp_m.z -= ((int32_t)m_min.z + m_max.z) / 2;
+    // Acceleration vector with corrected orientation
+    LIS3MDL::vector<int16_t> a = { -imu.a.y, imu.a.x, imu.a.z };
 
-  // compute E and N
-  LIS3MDL::vector<float> E;
-  LIS3MDL::vector<float> N;
-  LIS3MDL::vector_cross(&temp_m, &a, &E);
-  LIS3MDL::vector_normalize(&E);
-  LIS3MDL::vector_cross(&a, &E, &N);
-  LIS3MDL::vector_normalize(&N);
+    // Subtract offsets from magnetometer readings
+    temp_m.x -= ((int32_t)m_min.x + m_max.x) / 2;
+    temp_m.y -= ((int32_t)m_min.y + m_max.y) / 2;
+    temp_m.z -= ((int32_t)m_min.z + m_max.z) / 2;
 
-  // compute heading
-  float heading = atan2(LIS3MDL::vector_dot(&E, &from), LIS3MDL::vector_dot(&N, &from)) * 180 / PI;
-  if (heading < 0) heading += 360;
-  return heading;
+    // Compute East and North vectors
+    LIS3MDL::vector<float> E;
+    LIS3MDL::vector<float> N;
+    LIS3MDL::vector_cross(&temp_m, &a, &E);
+    LIS3MDL::vector_normalize(&E);
+    LIS3MDL::vector_cross(&a, &E, &N);
+    LIS3MDL::vector_normalize(&N);
+
+    // Compute angle in YZ-plane from N to Z-axis
+    float theta_N_rad = atan2(N.z, N.y);                // Angle of N from Y-axis (radians)
+    float theta_N_deg = theta_N_rad * (180.0f / M_PI); // Convert to degrees
+    float cross = N.y * E.z - N.z * E.y;                // 2D cross product in YZ-plane
+    float angle;
+    if (cross > 0) {
+        angle = 90.0f - theta_N_deg; // Counterclockwise from N to Z
+    } else {
+        angle = theta_N_deg - 90.0f; // Clockwise from N to Z
+    }
+    // Ensure angle is in [0, 360)
+    angle = fmod(angle + 360.0f, 360.0f);
+    return angle;
 }
 
 /*
 Returns the angular difference in the horizontal plane between a
 default vector (the +X axis) and north, in degrees.
 */
-float computeHeading() {
-  return computeHeading((LIS3MDL::vector<int>){ 1, 0, 0 });
-}
 
 
 
@@ -101,7 +110,7 @@ float computeHeading() {
 
 
 //debugging:
-const bool DEBUG = true;
+const bool DEBUG = false;
 
 void debugCheckpoint(const char *message) {
   static int checkpoint = 0;  // Static variable retains its value between calls
@@ -126,22 +135,19 @@ void debugCheckpoint(const char *message) {
 // PINS AND DEFINITIONS
 #define SD_CS_PIN 6  // Chip select pin for SD card
 
-#define SERVO_PIN 13  // Servo pin for GND camera stabilization
+#define SERVO_PIN A5  // Servo pin for GND camera stabilization
 //#define FEEDBACK_PIN 9           // Feedback signal pin for servo control
 #define I2C_ADDRESS 0x20         // I2C Address for ENS 220
-#define DS1307_I2C_ADDRESS 0x68  // I2C Address for DS1307
 #define MAG1_I2C_ADDRESS 0x1C    // First LIS3MDL address
-#define CAMERA2_PIN 11           // Ground camera
 #define TEAM_ID "3195"
 
-#define PULSECOMS 12
+#define PULSECOMS A4
 
 ScioSense::ENS220 ens220;
 I2cInterface i2c_1;            // Added for ENS220 single-shot mode
 Adafruit_LIS3MDL lis3mdl;      // Magnetometer
 Adafruit_LIS3MDL lis3mdl_FC;   // First magnetometer
 Adafruit_LIS3MDL lis3mdl_CAM;  // Second magnetometer
-Servo servo;
 Servo camServo;
 File dataFile;
 File backupFile;
@@ -161,13 +167,7 @@ char lastCommand[32];                                     // Last received comma
 unsigned int packetCount = 0;
 bool telemetryEnabled = true;  // Telemetry Control
 
-// Camera stabilization variables
-float cameraposition = 0;
-unsigned long lastRpmTime = 0;        // last time of an magnet detection
-volatile unsigned long rpmCount = 0;  // RPM counter
-float currentInterruptTime = 0;       // Current time of an interrupt
 float timeDifference = 0;             // Time difference between two consecutive interrupts
-float lastInterruptTime = 0;
 
 // Altitude calculation variables
 float apogeeAltitude = 0.0;
@@ -186,7 +186,7 @@ unsigned long timestampHistory[historySize];  // Store time
 float latestVelocity;
 
 // Variables used for PID
-float setpoint = 1000.0;           // Desired setpoint placeholder
+float setpoint = 180.0;           // Desired setpoint placeholder
 float input = 0.0;                 // Current system input
 float output = 0.0;                // PID output
 float error = 0.0;                 // Current error
@@ -278,7 +278,7 @@ float avg(float arr[], int size) {
 }
 
 // Function for PID Camera Stabilization
-void pidControl(float input, float setpoint, float &lastError, float &integral, Servo &camServo) {
+String pidControl(float input, float setpoint, float &lastError, float &integral, Servo &camServo) {
   // PID tuning parameters
   const float K_proportional = 1.0;  // Proportional gain
   const float K_integral = 0.1;      // Integral gain
@@ -321,7 +321,7 @@ void pidControl(float input, float setpoint, float &lastError, float &integral, 
   if (abs(currentAngle - targetAngle) > 5) {         // Tolerance of 5 degrees
     camServo.writeMicroseconds(targetMicroseconds);  // Reapply correction
   }
-
+  /*
   // Debug output
   Serial.print("Heading: ");
   Serial.print(input);
@@ -329,12 +329,9 @@ void pidControl(float input, float setpoint, float &lastError, float &integral, 
   Serial.print(targetAngle);
   Serial.print("°  Current Servo Angle: ");
   Serial.println(currentAngle);
-}
-
-void rpmISR() {
-  currentInterruptTime = millis();                            // Get the current time
-  timeDifference = currentInterruptTime - lastInterruptTime;  // Calculate the time difference between interrupts
-  lastInterruptTime = currentInterruptTime;
+  */
+  String telem = String(input, 1) + "," + String((float)targetAngle, 1) + "," + String((float)currentAngle, 1);
+  return telem;  // Return the String object
 }
 
 // ENS220 Sensor Initialization
@@ -376,12 +373,12 @@ void SingleShotMeasure_loop() {
   if (result == ENS220::Result::Ok) {
     if (hasFlag(ens220.getDataStatus(), ENS220::DataStatus::PressureReady) && hasFlag(ens220.getDataStatus(), ENS220::DataStatus::TemperatureReady)) {
       // Send the values that were collected during the ens220.update()
-      Serial.print("P[hPa]:");
-      Serial.print(ens220.getPressureHectoPascal());
+      //Serial.print("P[hPa]:");
       pressure = ens220.getPressureHectoPascal();
-      Serial.print("\tT[C]:");
-      Serial.println(ens220.getTempCelsius());
+      //Serial.print(pressure);
+      //Serial.print("\tT[C]:");
       temperature = ens220.getTempCelsius();
+      //Serial.println(temperature);
     }
   }
 }
@@ -406,10 +403,8 @@ void setup() {
   //----------------end tilt compensation settup---------
   debugCheckpoint("sensor init 1");
 
-  /*--removed for non-functionality
-  // Initialize camera servo
   camServo.attach(SERVO_PIN);
-  */
+  
 
   debugCheckpoint("servo");
 
@@ -417,9 +412,6 @@ void setup() {
   pinMode(PULSECOMS, INPUT);
   attachInterrupt(digitalPinToInterrupt(PULSECOMS), readPulseComs, RISING);  // Trigger on HIGH pulse
   debugCheckpoint("interupt pin enable");
-
-  pinMode(CAMERA2_PIN, OUTPUT);
-  digitalWrite(CAMERA2_PIN, LOW);
 
   debugCheckpoint("camera stuff");
 
@@ -482,17 +474,18 @@ void loop() {
   difference in the horizontal plane between a default vector (the
   +X axis) and north, in degrees.
   */
-  float heading = computeHeading((LIS3MDL::vector<int>){ 1, 0, 0 });
+  debugCheckpoint("pre-pid");
+  float heading = computeHeading();
+  debugCheckpoint("heading calc");
+  Serial.println(pidControl(heading, setpoint, lastError, integral, camServo));
+  debugCheckpoint("pid");
+  //Serial.println(heading,setpoint)
 
   /*
   To use a different vector as a reference, use the version of
   computeHeading() that takes a vector argument; for example, call it like this
   to use the -Z axis as a reference:
   */
-
-
-  Serial.println(heading);
-  delay(100);
   //----------------Tilt compensation end----------------
 
 
@@ -512,11 +505,13 @@ void loop() {
   float gyroX, gyroY, gyroZ;
   if (IMU.accelerationAvailable()) {
     IMU.readAcceleration(accelX, accelY, accelZ);
+    /*
     Serial.print(accelX);
     Serial.print('\t');
     Serial.print(accelY);
     Serial.print('\t');
     Serial.println(accelZ);
+    */
   }
   if (IMU.gyroscopeAvailable()) {
     IMU.readGyroscope(gyroX, gyroY, gyroZ);
@@ -537,15 +532,15 @@ void loop() {
            magEvent1.magnetic.x, magEvent1.magnetic.y,
            magEvent1.magnetic.z);
   debugCheckpoint("successfull telemetry");
-  Serial.println(telemetry);
+  //Serial.println(telemetry);
   // Save telemetry to SD card
   dataFile = SD.open("data.txt", FILE_WRITE);
   if (dataFile) {
     dataFile.println(telemetry);
     dataFile.close();
-    Serial.println("Finished writing to SD card!");
+    //Serial.println("Finished writing to SD card!");
   } else {
-    Serial.println("Error writing to SD card!");
+    //Serial.println("Error writing to SD card!");
   }
   packetCount++;  // Increment packet count
 
@@ -562,17 +557,19 @@ void loop() {
   int comsState = digitalRead(FC_COMS);
 
   if (comsState == HIGH) {
-    Serial.println("FC_COMS is HIGH – Communication Active!");
+    //Serial.println("FC_COMS is HIGH – Communication Active!");
   } else {
-    Serial.println("FC_COMS is LOW – No Communication.");
+    //Serial.println("FC_COMS is LOW – No Communication.");
   }
 
   // Used for some state transitions
   updateAltitudeHistory(altitudeHistory, timestampHistory, altitude, historySize);
   updateVelocityHistory(altitudeHistory, velocityHistory, timestampHistory, historySize);
 
+  /*
   Serial.println("Velocity: ");
   Serial.print(latestVelocity);
+  */
 }
 
 //__________-_-_-___  PulseComs™ by Caleb Wiley __________-_-_-_-_-_______________________
