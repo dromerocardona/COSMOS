@@ -167,13 +167,7 @@ char lastCommand[32];                                     // Last received comma
 unsigned int packetCount = 0;
 bool telemetryEnabled = true;  // Telemetry Control
 
-// Camera stabilization variables
-float cameraposition = 0;
-unsigned long lastRpmTime = 0;        // last time of an magnet detection
-volatile unsigned long rpmCount = 0;  // RPM counter
-float currentInterruptTime = 0;       // Current time of an interrupt
 float timeDifference = 0;             // Time difference between two consecutive interrupts
-float lastInterruptTime = 0;
 
 // Altitude calculation variables
 float apogeeAltitude = 0.0;
@@ -338,12 +332,6 @@ String pidControl(float input, float setpoint, float &lastError, float &integral
   */
   String telem = String(input, 1) + "," + String((float)targetAngle, 1) + "," + String((float)currentAngle, 1);
   return telem;  // Return the String object
-}
-
-void rpmISR() {
-  currentInterruptTime = millis();                            // Get the current time
-  timeDifference = currentInterruptTime - lastInterruptTime;  // Calculate the time difference between interrupts
-  lastInterruptTime = currentInterruptTime;
 }
 
 // ENS220 Sensor Initialization
