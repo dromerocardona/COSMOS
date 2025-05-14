@@ -1,139 +1,137 @@
-/*
-This sketch combines magnetometer readings from an LIS3MDL and accelerometer
-readings from an LSM6 to calculate a tilt-compensated magnetic heading. It
-requires Pololu's LSM6 Arduino library to be installed:
-
-https://github.com/pololu/lsm6-arduino
-
-This program can be used with a board that includes both sensors, like the
-Pololu MinIMU-9 v5 and AltIMU-10 v5, or with separate carrier boards for the two
-sensors, both connected to the same I2C bus. If you are using separate boards,
-make sure the axes are oriented the same way on both (i.e. the X, Y, and Z axes
-of both boards should point in the same direction, and the surfaces of the
-boards should be as close to parallel as possible).
-*/
-
 #include <Wire.h>
 #include <LIS3MDL.h>
 #include <LSM6.h>
+#include <cmath>  // For cos, sin, and atan2
 
 LIS3MDL mag;
 LSM6 imu;
 
-/*
-Calibration values; the default values of +/-32767 for each axis
-lead to an assumed magnetometer bias of 0. Use the Calibrate example
-program to determine appropriate values for your particular unit.
-*/
-LIS3MDL::vector<int16_t> m_min = {-32767, -32767, -32767};
-LIS3MDL::vector<int16_t> m_max = {+32767, +32767, +32767};
+// Calibration variables (for magnetometer)
+float mx_min = 1e6, my_min = 1e6, mz_min = 1e6;
+float mx_max = -1e6, my_max = -1e6, mz_max = -1e6;
+float offset_x = 0, offset_y = 0, offset_z = 0;
+float scale_x = 1, scale_y = 1, scale_z = 1;
+bool calibrated = false;
 
-void setup()
-{
-  Serial.begin(9600);
+// Running average variables
+float avg_cos = 0;      // Average cosine component
+float avg_sin = 0;      // Average sine component
+float avgLen = 5;       // Smoothing factor (higher = smoother, slower response)
+bool first_update = true; // Flag for initializing the average
+
+void setup() {
+  Serial.begin(115200);
   Wire.begin();
 
-  if (!mag.init())
-  {
-    Serial.println("Failed to detect and initialize LIS3MDL magnetometer!");
+  if (!mag.init() || !imu.init()) {
+    Serial.println("Failed to initialize sensors!");
     while (1);
   }
   mag.enableDefault();
-
-  if (!imu.init())
-  {
-    Serial.println("Failed to detect and initialize LSM6 IMU!");
-    while (1);
-  }
   imu.enableDefault();
+
+  Serial.println("Rotate device for 10 seconds to calibrate...");
 }
 
-const int magxoff = -3600;
-const int magyoff = 1800;
-const int magzoff = 0;
+void collectCalibrationData() {
+  mag.read();
+  mx_min = min(mx_min, mag.m.x);
+  my_min = min(my_min, mag.m.y);
+  mz_min = min(mz_min, mag.m.z);
+  mx_max = max(mx_max, mag.m.x);
+  my_max = max(my_max, mag.m.y);
+  mz_max = max(mz_max, mag.m.z);
+}
 
-void loop()
-{
+void computeCalibration() {
+  offset_x = (mx_max + mx_min) / 2.0;
+  offset_y = (my_max + my_min) / 2.0;
+  offset_z = (mz_max + mz_min) / 2.0;
+
+  float rx = (mx_max - mx_min) / 2.0;
+  float ry = (my_max - my_min) / 2.0;
+  float rz = (mz_max - mz_min) / 2.0;
+  float r_avg = (rx + ry + rz) / 3.0;
+
+  scale_x = r_avg / rx;
+  scale_y = r_avg / ry;
+  scale_z = r_avg / rz;
+
+  calibrated = true;
+  Serial.println("Calibration complete.");
+}
+
+float computeTiltCompensatedHeading() {
   mag.read();
   imu.read();
 
-  /*
-  When given no arguments, the heading() function returns the angular
-  difference in the horizontal plane between a default vector (the
-  +X axis) and north, in degrees.
-  */
-  float heading = computeHeading();
-
-  /*
-  To use a different vector as a reference, use the version of
-  computeHeading() that takes a vector argument; for example, call it like this
-  to use the -Z axis as a reference:
-  */
-  //float heading = computeHeading((LIS3MDL::vector<int>){0, 0, -1});
-  
-  Serial.print("0,");
-  Serial.print("360,");
-  Serial.println(heading);
-  /*
-  Serial.print(imu.a.x);
-  Serial.print(",");
-  Serial.print(imu.a.y);
-  Serial.print(",");
-  Serial.print(imu.a.z);
-  Serial.print(",");
-  Serial.print(mag.m.x + magxoff);
-  Serial.print(",");
-  Serial.print(mag.m.y + magyoff);
-  Serial.print(",");
-  Serial.println(mag.m.z + magzoff);
-  delay(100);
-  */
-}
-
-/*
-Returns the angular difference in the horizontal plane between the
-"from" vector and north, in degrees.
-
-Description of heading algorithm:
-Shift and scale the magnetic reading based on calibration data to find
-the North vector. Use the acceleration readings to determine the Up
-vector (gravity is measured as an upward acceleration). The cross
-product of North and Up vectors is East. The vectors East and North
-form a basis for the horizontal plane. The From vector is projected
-into the horizontal plane and the angle between the projected vector
-and horizontal north is returned.
-*/
-template <typename T> float computeHeading(LIS3MDL::vector<T> from)
-{
-  LIS3MDL::vector<int32_t> temp_m = {(mag.m.x+magxoff), (mag.m.y+magyoff), (mag.m.z+magzoff)};
-
-  // copy acceleration readings from LSM6::vector into an LIS3MDL::vector
+  // Apply calibration
+  LIS3MDL::vector<float> m = {
+    (mag.m.x - offset_x) * scale_x,
+    (mag.m.y - offset_y) * scale_y,
+    (mag.m.z - offset_z) * scale_z
+  };
   LIS3MDL::vector<int16_t> a = {-imu.a.y, imu.a.x, imu.a.z};
 
-  // subtract offset (average of min and max) from magnetometer readings
-  temp_m.x -= ((int32_t)m_min.x + m_max.x) / 2;
-  temp_m.y -= ((int32_t)m_min.y + m_max.y) / 2;
-  temp_m.z -= ((int32_t)m_min.z + m_max.z) / 2;
-
-  // compute E and N
-  LIS3MDL::vector<float> E;
-  LIS3MDL::vector<float> N;
-  LIS3MDL::vector_cross(&temp_m, &a, &E);
+  // Tilt compensation
+  LIS3MDL::vector<float> E, N;
+  LIS3MDL::vector_cross(&m, &a, &E);
   LIS3MDL::vector_normalize(&E);
   LIS3MDL::vector_cross(&a, &E, &N);
   LIS3MDL::vector_normalize(&N);
 
-  // compute heading
-  float heading = atan2(LIS3MDL::vector_dot(&E, &from), LIS3MDL::vector_dot(&N, &from)) * 180 / PI;
+  LIS3MDL::vector<int> z_axis = {0, 0, 1};
+  float heading = atan2(LIS3MDL::vector_dot(&E, &z_axis),
+                       LIS3MDL::vector_dot(&N, &z_axis)) * 180.0 / M_PI;
   if (heading < 0) heading += 360;
+
   return heading;
 }
 
-/*
-Returns the angular difference in the horizontal plane between a
-default vector (the +X axis) and north, in degrees.
-*/
-float computeHeading()
-{
-  return computeHeading((LIS3MDL::vector<int>){0, 0, 1});
+void updateRunningAverage(float heading, float& smoothed_heading) {
+  // Convert heading to radians
+  float heading_rad = heading * M_PI / 180.0;
+
+  if (first_update) {
+    // Initialize with the first heading
+    avg_cos = cos(heading_rad);
+    avg_sin = sin(heading_rad);
+    smoothed_heading = heading;
+    first_update = false;
+  } else {
+    // Update averages using EMA
+    float alpha = (avgLen - 1.0) / avgLen; // Weight for previous average
+    avg_cos = alpha * avg_cos + (1 - alpha) * cos(heading_rad);
+    avg_sin = alpha * avg_sin + (1 - alpha) * sin(heading_rad);
+
+    // Compute smoothed heading
+    smoothed_heading = atan2(avg_sin, avg_cos) * 180.0 / M_PI;
+    if (smoothed_heading < 0) smoothed_heading += 360;
+  }
+}
+
+void loop() {
+  static unsigned long startTime = millis();
+
+  // Calibration phase
+  if (!calibrated) {
+    if (millis() - startTime < 10000) {
+      collectCalibrationData();
+      delay(50);
+    } else {
+      computeCalibration();
+    }
+    return;
+  }
+
+  // Compute heading and update running average
+  float heading = computeTiltCompensatedHeading();
+  float smoothed_heading;
+  updateRunningAverage(heading, smoothed_heading);
+
+  // Output for plotting (e.g., Serial Plotter)
+  Serial.print("360,0,");         // Reference lines
+  Serial.print(smoothed_heading); // Smoothed heading
+  Serial.print(",");
+  Serial.println(heading);        // Raw heading
 }
