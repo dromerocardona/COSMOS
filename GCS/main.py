@@ -620,6 +620,7 @@ class GroundStation(QMainWindow):
 
     def party_on(self):
             self.comm.send_command("CMD,3195,PARTY,ON")
+            threading.Thread(target=playsound, args=('celebrate.mp3',), daemon=True).start()
             gif = QMovie("party.gif")
             self.gif_label.setMovie(gif)
             self.gif_label.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool)
