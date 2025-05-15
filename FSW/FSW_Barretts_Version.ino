@@ -16,22 +16,19 @@
 #include <RTClib.h>
 
 // PINS AND DEFINITIONS
-#define BATTERY_PIN A0           // Analog pin for voltage divider circuit
+#define BATTERY_PIN A2          // Analog pin for voltage divider circuit
 #define RPM_PIN A4               // Pin for Hall effect sensor
 #define SD_CS_PIN 6              // Chip select pin for SD card
-#define RELEASE_PIN 12           // Release servo pin
-#define SERVO_PIN 13             // Servo pin for GND camera stabilization
-#define I2C_ADDRESS 0x20         // I2C Address for ENS 220
-#define DS1307_I2C_ADDRESS 0x68  // I2C Address for DS1307
-#define SERIAL_BAUDRATE 115200   // Reduced baud rate for stability
-#define INTN_1 4                 // Interrupt pin for ENS220
-#define CAMERA1_PIN 10           // Blade camera
-#define CAMERA2_PIN 11           // Ground camera
+#define RELEASE_PIN 13          // Release servo pin           // Servo pin for GND camera stabilization
+#define ENS220_I2C_ADDRESS 0x20         // I2C Address for ENS 220
+#define DS1307_I2C_ADDRESS 0x68
+#define MAG_I2C_ADDRESS 0x1E   // I2C Address for DS1307
+#define USB_BAUDRATE 115200 
+#define XBEE_BAUDRATE 115200  // Reduced baud rate for stability
+#define GND_CAM_CTRL 11          // Blade camera
+#define BLADE_CAM_CTRL 10          // Ground camera
 #define LED_DATA 5
 #define NUM_LEDS 5               // Number of LEDs for FastLED
-#define MAG1_I2C_ADDRESS 0x1E    // First LIS3MDL address
-#define IMU1_I2C_ADDRESS 0x6A    // First LSM6DS3 address
-#define IMU2_I2C_ADDRESS 0x6B    // Second LSM6DS3 address
 #define TEAM_ID "3195"
 
 // STATE MANAGEMENT VARIABLES
@@ -49,8 +46,7 @@ Adafruit_NeoPixel pixels(NUM_LEDS, LED_DATA, NEO_GRB + NEO_KHZ800);
 ScioSense::ENS220 ens220;
 I2cInterface i2c_1;            // For ENS220 single-shot mode
 Adafruit_LIS3MDL lis3mdl_FC;   // First magnetometer
-Servo servo;
-Servo camServo;
+Servo releaseServo;
 File dataFile;                 // Global SD file handle
 File backupFile;               // Global backup file handle
 SFE_UBLOX_GNSS gps;
@@ -89,16 +85,6 @@ float altitudeHistory[historySize];           // Store altitude
 float velocityHistory[historySize];           // Store velocity
 unsigned long timestampHistory[historySize];  // Store time
 float latestVelocity;
-float setpoint = 1000.0;           // PID setpoint
-float input = 0.0;                 // PID input
-float output = 0.0;                // PID output
-float error = 0.0;                 // PID error
-float lastError = 0.0;             // Previous error
-float integral = 0.0;              // Cumulative error
-const float K_proportional = 1.0;  // PID gains
-const float K_integral = 0.1;
-const float K_derivative = 0.01;
-float heading;
 
 // Calibration biases for gyroscope and accelerometer
 float gyroBiasX = 0.0, gyroBiasY = 0.0, gyroBiasZ = 0.0;
@@ -110,11 +96,6 @@ double longitude = 0.0;
 double gpsAltitude = 0.0;
 
 // Function Definitions
-void activateReleaseMechanism() {
-  servo.writeMicroseconds(500);
-  Serial.println(F("Release mechanism activated - Servo set to 90 degrees"));
-}
-
 float calculateAltitude(float pressure) {
   const float temperatureLapseRate = 0.0065;
   const float seaLevelTemperature = 288.15;
@@ -210,39 +191,6 @@ float avg(float arr[], int size) {
   return sum / size;
 }
 
-void pidControl(float input, float setpoint, float &lastError, float &integral, Servo &camServo) {
-  const float K_proportional = 1.0;
-  const float K_integral = 0.1;
-  const float K_derivative = 0.01;
-  float error = setpoint - input;
-  if (error > 180) {
-    error = error - 360;
-  } else if (error < -180) {
-    error = error + 360;
-  }
-  integral += error;
-  float derivative = error - lastError;
-  float output = K_proportional * error + K_integral * integral + K_derivative * derivative;
-  lastError = error;
-  int currentAngle = camServo.read();
-  int targetAngle = map(input, 0, 360, 0, 180);
-  int adjustedAngle = currentAngle - (int)output;
-  if (adjustedAngle < 0) adjustedAngle = 0;
-  if (adjustedAngle > 180) adjustedAngle = 180;
-  int targetMicroseconds = map(targetAngle, 0, 180, 1000, 2000);
-  camServo.writeMicroseconds(targetMicroseconds);
-  if (abs(currentAngle - targetAngle) > 5) {
-    camServo.writeMicroseconds(targetMicroseconds);
-  }
-  if (millis() % 1000 == 0) {
-    Serial.print(F("Heading: "));
-    Serial.print(input);
-    Serial.print(F("°  Target Servo Angle: "));
-    Serial.print(targetAngle);
-    Serial.print(F("°  Current Servo Angle: "));
-    Serial.println(currentAngle);
-  }
-}
 
 void rpmISR() {
   static unsigned long lastInterrupt = 0;
@@ -347,39 +295,35 @@ void handleCommand(const char *command) {
       if (strcmp(field2, "RELEASE") == 0) {
         if (strcmp(field3, "ON") == 0) {
           Serial.println(F("MEC RELEASE ON command received."));
-          activateReleaseMechanism();
+          releaseServo.writeMicroseconds(1300);
           strncpy(lastCommand, "MEC_RELEASE_ON", sizeof(lastCommand));
         } else if (strcmp(field3, "OFF") == 0) {
           Serial.println(F("MEC RELEASE OFF command received."));
-          servo.writeMicroseconds(900);
+          releaseServo.writeMicroseconds(1700);
           strncpy(lastCommand, "MEC_RELEASE_OFF", sizeof(lastCommand));
-          Serial.println(F("Release mechanism deactivated - Servo set to 0 degrees"));
+          Serial.println(F("Release mechanism deactivated - CanSat Locked in Container"));
         }
       } else if (strcmp(field2, "CAMERA") == 0) {
         if (strcmp(field3, "BLADE") == 0) {
           if (strcmp(field4, "ON") == 0) {
-            digitalWrite(CAMERA1_PIN, HIGH);
+            digitalWrite(BLADE_CAM_CTRL, LOW);
             Serial.println(F("MEC CAMERA BLADE ON - Camera powered ON."));
-            strncpy(lastCommand, "BLADE_CAM_ON", sizeof(lastCommand));
+            strncpy(lastCommand, "BLADE_CAM_CTRL_ON", sizeof(lastCommand));
           } else if (strcmp(field4, "OFF") == 0) {
-            digitalWrite(CAMERA1_PIN, LOW);
+            digitalWrite(BLADE_CAM_CTRL, HIGH);
             Serial.println(F("MEC CAMERA BLADE OFF - Camera powered OFF."));
-            strncpy(lastCommand, "BLADE_CAM_OFF", sizeof(lastCommand));
+            strncpy(lastCommand, "BLADE_CAM_CTRL_OFF", sizeof(lastCommand));
           }
         } else if (strcmp(field3, "GROUND") == 0) {
           if (strcmp(field4, "ON") == 0) {
-            digitalWrite(CAMERA2_PIN, HIGH);
+            digitalWrite(GND_CAM_CTRL, HIGH);
             Serial.println(F("MEC CAMERA GROUND ON - Camera powered ON."));
             strncpy(lastCommand, "GROUND_CAM_ON", sizeof(lastCommand));
           } else if (strcmp(field4, "OFF") == 0) {
-            digitalWrite(CAMERA2_PIN, LOW);
+            digitalWrite(GND_CAM_CTRL, LOW);
             Serial.println(F("MEC CAMERA GROUND OFF - Camera powered OFF."));
             strncpy(lastCommand, "GROUND_CAM_OFF", sizeof(lastCommand));
           }
-        } else if (strcmp(field3, "STABLE") == 0) {
-          Serial.println(F("MEC CAMERA STABLE command received."));
-          strncpy(lastCommand, "CAM_STABLE", sizeof(lastCommand));
-          pidControl(heading, setpoint, lastError, integral, servo);
         }
       }
       break;
@@ -390,7 +334,7 @@ void handleCommand(const char *command) {
 }
 
 void SingleShotMeasure_setup() {
-  i2c_1.begin(Wire, I2C_ADDRESS);
+  i2c_1.begin(Wire, ENS220_I2C_ADDRESS);
   while (ens220.begin(&i2c_1) != true) {
     Serial.println(F("Waiting for I2C to start"));
     delay(1000);
@@ -512,14 +456,13 @@ void setup() {
   pixels.setPixelColor(0, 0, 100, 0);
   pixels.show();
 
-  Serial.begin(SERIAL_BAUDRATE);
+  Serial.begin(USB_BAUDRATE);
   Serial.println("hello");
-  Serial1.begin(115200);
+  Serial1.begin(XBEE_BAUDRATE);
   Wire.begin();
   Wire.setClock(400000);
 
-  servo.attach(RELEASE_PIN);
-  camServo.attach(SERVO_PIN);
+  releaseServo.attach(RELEASE_PIN);
 
   Serial.println("hello2");
   if (!rtc.begin()) {
@@ -530,10 +473,10 @@ void setup() {
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
   Serial.println("hello3");
-  pinMode(CAMERA1_PIN, OUTPUT);
-  digitalWrite(CAMERA1_PIN, LOW);
-  pinMode(CAMERA2_PIN, OUTPUT);
-  digitalWrite(CAMERA2_PIN, LOW);
+  pinMode(GND_CAM_CTRL, OUTPUT);
+  digitalWrite(GND_CAM_CTRL, LOW);
+  pinMode(BLADE_CAM_CTRL, OUTPUT);
+  digitalWrite(BLADE_CAM_CTRL, LOW);
   if (!SD.begin(SD_CS_PIN)) {
     Serial.println(F("SD card initialization failed!"));
   } else {
@@ -558,7 +501,7 @@ void setup() {
   gps.setNavigationFrequency(1); // Set rate of gps
   gps.setAutoPVTcallbackPtr(&updateGPSdata); // Enable automatic NAV PVT callback
 
-  if (!lis3mdl_FC.begin_I2C(MAG1_I2C_ADDRESS)) {
+  if (!lis3mdl_FC.begin_I2C(MAG_I2C_ADDRESS)) {
     Serial.println(F("Failed to find LIS3MDL #1"));
   } else {
     Serial.println(F("LIS3MDL #1 Found!"));
@@ -600,7 +543,8 @@ void loop() {
   float rpm = (timeDifference > 0) ? (60000 / timeDifference) : 0;
   lastRpmTime = millis();
   rpmCount = 0;
-  float currentVoltage = analogRead(BATTERY_PIN) * voltageDividerFactor;
+  float currentVoltage = ((analogRead(BATTERY_PIN) * 8.058608e-4)/2.647058e-1);
+
 
   // GPS
   gps.checkUblox(); // Check for the arrival of new data and process it
@@ -709,8 +653,6 @@ void loop() {
         pixels.show();
       } else {
         Serial.println(F("Error: dataFile not open!"));
-        analogReadResolution(12);
-        Serial.println(analogRead(BATTERY_PIN));
         pixels.setPixelColor(2, 200, 0, 0);
         pixels.show();
       }
@@ -735,10 +677,9 @@ void loop() {
     case DESCENT:
       updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
       if (!releaseActivated && altitude <= (apogeeAltitude * 0.75)) {
-        activateReleaseMechanism();
+        releaseServo.writeMicroseconds(1300);
         releaseActivated = true;
       }
-      pidControl(heading, setpoint, lastError, integral, servo);
       break;
     case LANDED:
       updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
