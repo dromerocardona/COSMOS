@@ -11,6 +11,8 @@ from temperatureGraph import TemperatureGraph
 from altitudeGraph import AltitudeGraph
 from rotationGraph import RotationGraph
 from voltageGraph import VoltageGraph
+from accelerationGraph import AccelerationGraph
+from magnetometerGraph import MagnetometerGraph
 from GPS import GPSMap
 import time
 from playsound3 import playsound
@@ -411,10 +413,31 @@ class GroundStation(QMainWindow):
         buttons_grid.addWidget(self.BLADE_CAM_off_button, 4, 1)
         buttons_grid.addWidget(self.copyCSV, 4, 2)
 
-        # Create a widget for the buttons grid and add it to the sidebar layout
+        # Create a QGroupBox for GPS coordinates, styled like other telemetry boxes
+        self.gps_coords_box = QGroupBox("")
+        self.gps_coords_box.setStyleSheet("background-color: #d1d1f0;")
+        gps_coords_layout = QVBoxLayout()
+        self.gps_coords_box.setLayout(gps_coords_layout)
+
+        self.GPS_LATITUDE = QLabel("GPS Latitude: N/A")
+        self.GPS_LATITUDE.setAlignment(Qt.AlignLeft)
+        self.GPS_LATITUDE.setStyleSheet("color: black; font-weight: bold;")
+        self.GPS_LONGITUDE = QLabel("GPS Longitude: N/A")
+        self.GPS_LONGITUDE.setAlignment(Qt.AlignLeft)
+        self.GPS_LONGITUDE.setStyleSheet("color: black; font-weight: bold;")
+
+        self.gps_coords_box.setStyleSheet("QGroupBox { background-color: #d1d1f0; border: 1px solid black; }")
+
+        gps_coords_layout.addWidget(self.GPS_LATITUDE)
+        gps_coords_layout.addWidget(self.GPS_LONGITUDE)
+
+        # Add the button grid widget to the sidebar
         buttons_widget = QWidget()
         buttons_widget.setLayout(buttons_grid)
         sidebar_layout.addWidget(buttons_widget)
+
+        # Add the GPS coordinates box under the buttons
+        sidebar_layout.addWidget(self.gps_coords_box)
 
         # Add the sidebar widget to the content layout
         sidebar_widget = QWidget()
@@ -428,14 +451,6 @@ class GroundStation(QMainWindow):
         footer_widget.setStyleSheet("background-color: #a7cbf5;")  # Set footer background color
 
         # Footer data
-        self.accelerationRPY = QLabel("Acceleration R,P,Y: N/A")
-        self.accelerationRPY.setStyleSheet("color: black; font-weight: bold;")
-        self.magnetometerRPY = QLabel("Magnetometer R,P,Y: N/A")
-        self.magnetometerRPY.setStyleSheet("color: black; font-weight: bold;")
-        self.GPS_LATITUDE = QLabel("GPS Latitude: N/A")
-        self.GPS_LATITUDE.setStyleSheet("color: black; font-weight: bold;")
-        self.GPS_LONGITUDE = QLabel("GPS Longitude: N/A")
-        self.GPS_LONGITUDE.setStyleSheet("color: black; font-weight: bold;")
         self.telemetry = QLabel("Telemetry: N/A")
         self.telemetry.setStyleSheet("color: black; font-weight: bold;")
         footer_layout.addWidget(self.telemetry)
@@ -447,36 +462,39 @@ class GroundStation(QMainWindow):
         graphs_widget.setStyleSheet("background-color: #e6e6e6;")  # Set graphs background color
 
         graphs_grid = QGridLayout()
+        screen_geometry = QApplication.desktop().screenGeometry()
+        screen_width = screen_geometry.width()
+        graph_width = int(screen_width * 0.175)
         self.altitudeGraph = AltitudeGraph()
         self.autoGyroRotationGraph = AutoGyroRotationGraph()
+        self.autoGyroRotationGraph.win.setFixedWidth(graph_width)
         self.temperatureGraph = TemperatureGraph()
+        self.temperatureGraph.win.setFixedWidth(graph_width)
         self.rotationGraph = RotationGraph()
+        self.rotationGraph.win.setFixedWidth(graph_width)
         self.voltageGraph = VoltageGraph()
+        self.voltageGraph.win.setFixedWidth(graph_width)
+        self.accelerationGraph = AccelerationGraph()
+        self.accelerationGraph.win.setFixedWidth(graph_width)
+        self.magnetometerGraph = MagnetometerGraph()
+        self.magnetometerGraph.win.setFixedWidth(graph_width)
+
         self.GPS = GPSMap()
         self.GPS.location_updated.connect(self.GPS.update_map)
         self.GPS.update_gui()
+
         graphs_grid.addWidget(self.altitudeGraph.win, 0, 0)
         graphs_grid.addWidget(self.autoGyroRotationGraph.win, 0, 1)
         graphs_grid.addWidget(self.temperatureGraph.win, 0, 2)
-        graphs_grid.addWidget(self.rotationGraph.win, 1, 0)
+        graphs_grid.addWidget(self.accelerationGraph.win, 0, 3)
+        graphs_grid.addWidget(self.rotationGraph.win, 1, 2)
         graphs_grid.addWidget(self.voltageGraph.win, 1, 1)
-        graphs_grid.addWidget(self.GPS.win, 1, 2)
-        graphs_grid.addWidget(self.accelerationRPY, 3, 0)
-        latitude_longitude_layout = QHBoxLayout()
-        latitude_longitude_layout.addWidget(self.GPS_LATITUDE)
-        latitude_longitude_layout.addWidget(self.GPS_LONGITUDE)
-        graphs_grid.addLayout(latitude_longitude_layout, 3, 2, alignment=Qt.AlignCenter)
-        graphs_grid.addWidget(self.magnetometerRPY, 3, 1)
-
-        # Set the style for the labels to be in a colored box
-        self.accelerationRPY.setStyleSheet("background-color: #d1d1f0; padding: 5px; border-radius: 5px; border: 1px solid black;")
-        self.GPS_LATITUDE.setStyleSheet("background-color: #d1d1f0; padding: 5px; border-radius: 5px; border: 1px solid black;")
-        self.magnetometerRPY.setStyleSheet("background-color: #d1d1f0; padding: 5px; border-radius: 5px; border: 1px solid black;")
-        self.GPS_LONGITUDE.setStyleSheet("background-color: #d1d1f0; padding: 5px; border-radius: 5px; border: 1px solid black;")
+        graphs_grid.addWidget(self.GPS.win, 1, 0)
+        graphs_grid.addWidget(self.magnetometerGraph.win, 1, 3)
 
         graphs_layout.addLayout(graphs_grid)
 
-        # Add all elements to main layout
+        # Add all elements to the main layout
         content_layout.addWidget(sidebar_widget)
         content_layout.addWidget(graphs_widget)
         main_layout.addLayout(content_layout)
@@ -640,8 +658,6 @@ class GroundStation(QMainWindow):
         self.gyroRotation.setText(f"Gyro Rate: {self.comm.get_AUTO_GYRO_ROTATION_RATE() or 'N/A'} °/s")
         self.liveCMDEcho.setText(f"CMD Echo: {self.comm.get_CMD_ECHO() or 'N/A'}")
 
-        self.accelerationRPY.setText(f"Acceleration R,P,Y: {f"{self.comm.get_ACCEL_R()}, {self.comm.get_ACCEL_P()}, {self.comm.get_ACCEL_Y()}" or 'N/A'}")
-        self.magnetometerRPY.setText(f"Magnetometer R,P,Y: {f"{self.comm.get_MAG_R()}, {self.comm.get_MAG_P()}, {self.comm.get_MAG_Y()}" or 'N/A'}")
         self.GPS_LATITUDE.setText(f"GPS Latitude: {self.comm.get_GPS_LATITUDE() or 'N/A'}")
         self.GPS_LONGITUDE.setText(f"GPS Longitude: {self.comm.get_GPS_LONGITUDE() or 'N/A'}")
 
@@ -669,6 +685,16 @@ class GroundStation(QMainWindow):
         voltage = self.comm.get_VOLTAGE()
         if voltage is not None:
             self.voltageGraph.update_graph(voltage, current_time)
+        accel_r = self.comm.get_ACCEL_R()
+        accel_p = self.comm.get_ACCEL_P()
+        accel_y = self.comm.get_ACCEL_Y()
+        if accel_r is not None and accel_p is not None and accel_y is not None:
+            self.accelerationGraph.update_graph(accel_r, accel_p, accel_y, current_time)
+        mag_r = self.comm.get_MAG_R()
+        mag_p = self.comm.get_MAG_P()
+        mag_y = self.comm.get_MAG_Y()
+        if mag_r is not None and mag_p is not None and mag_y is not None:
+            self.magnetometerGraph.update_graph(mag_r, mag_p, mag_y, current_time)
 
         latitude = self.comm.get_GPS_LATITUDE()
         longitude = self.comm.get_GPS_LONGITUDE()
