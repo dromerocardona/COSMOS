@@ -69,7 +69,7 @@ class LoadingScreen(QWidget):
         central_layout.setContentsMargins(0, 0, 0, 0)
 
         # Add loading image
-        loading_pixmap = QPixmap('COSMOS_logo.png')  # Update with the correct path to your image
+        loading_pixmap = QPixmap('COSMOS_logo.png')
         self.image_width, image_height = 605, 500
         loading_pixmap = loading_pixmap.scaled(self.image_width, image_height)
         self.image_label = QLabel()
@@ -200,10 +200,19 @@ class GroundStation(QMainWindow):
         self.serial_port_dropdown.setStyleSheet("background-color: white;")
         right_header_layout.addWidget(self.serial_port_dropdown)
 
+        # Add baud rate selection dropdown
+        self.baud_rate_dropdown = QComboBox()
+        self.baud_rate_dropdown.addItems(["110", "300", "600", "1200", "2400", "4800", "9600", "19200", "38400", "57600", "115200"])
+        self.baud_rate_dropdown.setCurrentText("115200")  # default baud rate
+        self.baud_rate_dropdown.setStyleSheet("background-color: white;")
+        self.baud_rate_dropdown.currentIndexChanged.connect(self.change_baud_rate)
+        right_header_layout.addWidget(self.baud_rate_dropdown)
+
         # Add a button to refresh serial ports
         self.refresh_ports_button = QPushButton("Refresh")
         self.refresh_ports_button.clicked.connect(self.update_serial_ports)
-        self.refresh_ports_button.setStyleSheet("background-color: white;")
+        self.refresh_ports_button.setStyleSheet("background-color: white; font-size: 10px;")
+        self.refresh_ports_button.setFixedSize(55, 20)
         right_header_layout.addWidget(self.refresh_ports_button)
 
         # initialize connection to communication
@@ -486,7 +495,7 @@ class GroundStation(QMainWindow):
         # Start timer for updating live data
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_live_data)
-        self.timer.start(1000)
+        self.timer.start(100)
 
         # Timer for updating serial ports
         #self.serial_timer = QTimer(self)
@@ -593,7 +602,7 @@ class GroundStation(QMainWindow):
 
     def party_on(self):
             self.comm.send_command("CMD,3195,PARTY,ON")
-            gif = QMovie("party.gif")  # Replace with the path to your GIF
+            gif = QMovie("party.gif")
             self.gif_label.setMovie(gif)
             self.gif_label.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool)
             self.gif_label.setAttribute(Qt.WA_TranslucentBackground)
@@ -690,6 +699,11 @@ class GroundStation(QMainWindow):
             self.serial_port_dropdown.addItems(available_ports)
         print("Serial ports updated.")
         threading.Thread(target=playsound, args=('bluetooth.mp3',), daemon=True).start()
+
+    def change_baud_rate(self):
+        selected_baud_rate = int(self.baud_rate_dropdown.currentText())
+        self.comm.change_baud_rate(selected_baud_rate)
+        print(f"Baud rate changed to {selected_baud_rate}")
 
     def on_button_click(self, button):
         self.change_button_color(button, "#d1d1f0", 500)

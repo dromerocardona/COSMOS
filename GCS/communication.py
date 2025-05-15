@@ -59,7 +59,6 @@ class Communication:
                         self.parse_csv_data(line)
                         signal_emitter.emit_signal()
                         writer.writerow(line.split(','))
-                    time.sleep(1)
                 except serial.SerialException as e:
                     print(f"Serial error: {e}")
                 except Exception as e:
@@ -93,6 +92,18 @@ class Communication:
         if self.ser:
             self.ser.close()
         print("Communication stopped.")
+
+    def change_baud_rate(self, new_baud_rate):
+        """Change the baud rate dynamically."""
+        if self.ser and self.ser.is_open:
+            self.ser.close()  # Close the serial port
+        self.baud_rate = new_baud_rate
+        try:
+            self.ser = serial.Serial(self.serial_port, self.baud_rate, timeout=self.timeout)
+            print(f"Baud rate changed to {self.baud_rate}")
+        except serial.SerialException as e:
+            print(f"Failed to reopen serial port with new baud rate: {e}")
+            self.ser = None
 
     def simulation_mode(self, csv_filename):
         self.simulation = True
