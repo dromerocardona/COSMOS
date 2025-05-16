@@ -26,7 +26,7 @@ class AccelerationGraph:
 
         self.plot.setLabel('left', 'Acceleration', 'm/s²')
         self.plot.setLabel('bottom', 'Time', 's')
-        self.plot.setRange(yRange=[-100, 100])
+        self.plot.setRange(yRange=[-30, 30])
         self.plot.addLegend()
 
         self.timer = QtCore.QTimer()

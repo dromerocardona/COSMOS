@@ -16,7 +16,7 @@ class TemperatureGraph:
         self.timestamps = []
         self.start_time = None
 
-        self.plot.setLabel('left', 'Temperature (°C)')
+        self.plot.setLabel('left', 'Temperature', '°C')
         self.plot.setLabel('bottom', 'Time', 's')
         self.plot.setRange(yRange=[0, 50])
 

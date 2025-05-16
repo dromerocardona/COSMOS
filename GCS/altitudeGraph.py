@@ -16,7 +16,7 @@ class AltitudeGraph:
         self.timestamps = []
         self.start_time = None
 
-        self.plot.setLabel('left', 'Altitude (m)')
+        self.plot.setLabel('left', 'Altitude', 'm')
         self.plot.setLabel('bottom', 'Time', 's')
         self.plot.setRange(yRange=[0, 600])
 

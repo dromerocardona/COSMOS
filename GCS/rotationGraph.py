@@ -26,7 +26,7 @@ class RotationGraph:
 
         self.plot.setLabel('left', 'Rotation', '°')
         self.plot.setLabel('bottom', 'Time', 's')
-        self.plot.setRange(yRange=[-360, 360])
+        self.plot.setRange(yRange=[-1000, 1000])
         self.plot.addLegend()
 
         self.timer = QtCore.QTimer()
