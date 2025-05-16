@@ -5,7 +5,8 @@ import threading
 
 class Communication:
 
-    def __init__(self, serial_port, baud_rate=115200, timeout=4, csv_filename='Flight_3195.csv'):
+    def __init__(self, serial_port, baud_rate=9600, timeout=4, csv_filename='Flight_3195.csv'):
+        self.sim_thread = None
         self.serial_port = serial_port
         self.baud_rate = baud_rate
         self.timeout = timeout
@@ -65,19 +66,17 @@ class Communication:
                     print(f"Error: {e}")
 
     def send_commands(self):
-                while self.reading:
-                    with self.command_lock:
-                        if self.command_queue:
-                            command = self.command_queue.pop(0)
-                            try:
-                                command_to_send = f"{command}\n"
-                                for _ in range(5):  # Send the command 5 times
-                                    self.ser.write(command_to_send.encode('utf-8'))
-                                    print(f"Command sent: {command}")
-                                    time.sleep(0.1)  # Small delay between sends
-                            except serial.SerialException as e:
-                                print(f"Failed to send command: {e}")
-                    time.sleep(0.1)
+        while self.reading:
+            with self.command_lock:
+                if self.command_queue:
+                    command = self.command_queue.pop(0)
+                    try:
+                        command_to_send = f"{command}\n"
+                        self.ser.write(command_to_send.encode('utf-8'))
+                        print(f"Command sent: {command}")
+                    except serial.SerialException as e:
+                        print(f"Failed to send command: {e}")
+            time.sleep(0.1)
 
     def send_command(self, command):
         with self.command_lock:
@@ -107,20 +106,33 @@ class Communication:
 
     def simulation_mode(self, csv_filename):
         self.simulation = True
-        threading.Thread(target=self._run_simulation, args=(csv_filename,)).start()
+        self.sim_thread = threading.Thread(target=self._run_simulation, args=(csv_filename,), daemon=True)
+        self.sim_thread.start()
 
     def _run_simulation(self, csv_filename):
-        with open(csv_filename, mode='r') as file:
-            csv_reader = csv.reader(file)
-            for line in csv_reader:
-                if not self.simulation:
-                    break
-                if line and line[0] == 'CMD':
-                    line[1] = "3195"
-                    line_str = ','.join(line)
-                    self.send_command(line_str)
-                    print(f"Command sent: {line_str}")
-                    time.sleep(1)
+        """Send commands from the CSV file at 1-second intervals."""
+        try:
+            with open(csv_filename, mode='r') as file:
+                csv_reader = csv.reader(file)
+                for line in csv_reader:
+                    if not self.simulation:  # Stop simulation if disabled
+                        break
+                    if line and line[0] == 'CMD':
+                        line[1] = '3195'
+                        command = ','.join(line)
+                        self.send_command(command)  # Add to the command queue
+                        for _ in range(10):  # Check every 0.1 seconds for stop signal
+                            if not self.simulation:
+                                break
+                            time.sleep(0.1)
+        except Exception as e:
+            print(f"Error in simulation: {e}")
+
+    def stop_simulation(self):
+        """Stop the simulation process."""
+        self.simulation = False
+        if hasattr(self, 'sim_thread') and self.sim_thread.is_alive():
+            self.sim_thread.join()
 
     def stop_reading(self):
         self.reading = False
@@ -310,7 +322,6 @@ class Communication:
                 return self.data_list[-1][20]
             except (IndexError, ValueError):
                 return None
-        return None
 
     def get_GPS_LATITUDE(self):
         if self.data_list:
@@ -318,7 +329,6 @@ class Communication:
                 return float(self.data_list[-1][21])
             except (IndexError, ValueError):
                 return None
-        return None
 
     def get_GPS_LONGITUDE(self):
         if self.data_list:
@@ -326,7 +336,6 @@ class Communication:
                 return float(self.data_list[-1][22])
             except (IndexError, ValueError):
                 return None
-        return None
 
     def get_GPS_SATS(self):
         if self.data_list:
@@ -334,7 +343,6 @@ class Communication:
                 return self.data_list[-1][23]
             except (IndexError, ValueError):
                 return None
-        return None
 
     def get_CMD_ECHO(self):
         if self.data_list:
@@ -342,4 +350,3 @@ class Communication:
                 return self.data_list[-1][24]
             except (IndexError, ValueError):
                 return None
-        return None

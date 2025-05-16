@@ -1,5 +1,6 @@
 import sys
 import threading
+import serial
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QPushButton, \
     QSpacerItem, QGridLayout, QProgressBar, QGroupBox, QComboBox, QFileDialog, QGraphicsOpacityEffect, QShortcut, \
     QInputDialog
@@ -510,7 +511,11 @@ class GroundStation(QMainWindow):
         # Timer for updating serial ports
         #self.serial_timer = QTimer(self)
         #self.serial_timer.timeout.connect(self.update_serial_ports)
-        #self.serial_timer.start(20000)
+        #self.serial_timer.start(1000)
+
+    def disable_button_temporarily(self, button):
+        button.setEnabled(False)
+        QTimer.singleShot(1500, lambda: button.setEnabled(True))
 
     #enables/disables data transmission
     def toggle_data_transmission(self):
@@ -521,18 +526,20 @@ class GroundStation(QMainWindow):
 
     #start data transmission
     def start_data_transmission(self):
+        self.disable_button_temporarily(self.start_stop_button)
         self.reading_data = True
         self.start_stop_button.setText("CXOFF")
-        self.comm.send_command("CMD,3195,CX,ON")
         self.comm.start_communication(self.signal_emitter)
+        self.comm.send_command("CMD,3195,CX,ON")
         threading.Thread(target=playsound, args=('connect.mp3',), daemon=True).start()
 
     #stop data transmission
     def stop_data_transmission(self):
+        self.disable_button_temporarily(self.start_stop_button)
         self.reading_data = False
         self.start_stop_button.setText("CXON")
-        self.comm.send_command("CMD,3195,CX,OFF")
         self.comm.stop_communication()
+        self.comm.send_command("CMD,3195,CX,OFF")
         threading.Thread(target=playsound, args=('disconnect.mp3',), daemon=True).start()
 
     #send/execute commands
@@ -555,12 +562,12 @@ class GroundStation(QMainWindow):
             self.comm.send_command(command)
 
     def set_utc_time(self):
+        self.disable_button_temporarily(self.set_UTC_time_button)
         utc_time = datetime.datetime.now().strftime("%H:%M:%S")
         self.comm.send_command(f"CMD,3195,ST,{utc_time}")
-        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def set_gps_time(self):
+        self.disable_button_temporarily(self.set_GPS_time_button)
         self.comm.send_command("CMD,3195,ST,GPS_TIME")
-        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def toggle_sim(self):
         if self.sim:
             self.sim_disable()
@@ -569,46 +576,47 @@ class GroundStation(QMainWindow):
             self.sim_enable()
             self.sim = True
     def sim_enable(self):
+        self.disable_button_temporarily(self.SIM_toggle_button)
         self.comm.simEnabled = True
         self.SIM_toggle_button.setText("SIM\nDisable")
         self.comm.send_command("CMD,3195,SIM,ENABLE")
-        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def sim_activate(self):
+        self.disable_button_temporarily(self.SIM_activate_button)
         if self.comm.simEnabled and self.comm.receivedPacketCount:
             self.comm.send_command("CMD,3195,SIM,ACTIVATE")
             csv_filename, _ = QFileDialog.getOpenFileName(self, "Select CSV file", "", "CSV and Text Files (*.csv *.txt)")
             if csv_filename:
                 self.comm.simulation_mode(csv_filename)
-        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def sim_disable(self):
+        self.disable_button_temporarily(self.SIM_toggle_button)
         self.comm.simulation = False
+        self.comm.stop_simulation()
         self.SIM_toggle_button.setText("SIM\nEnable")
         self.comm.send_command("CMD,3195,SIM,DISABLE")
-        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def cal(self):
+        self.disable_button_temporarily(self.CAL_button)
         self.comm.send_command("CMD,3195,CAL")
-        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def release_on(self):
+        self.disable_button_temporarily(self.RELEASE_on_button)
         self.comm.send_command("CMD,3195,MEC,RELEASE,ON")
-        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def release_off(self):
+        self.disable_button_temporarily(self.RELEASE_off_button)
         self.comm.send_command("CMD,3195,MEC,RELEASE,OFF")
-        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def blade_cam_on(self):
+        self.disable_button_temporarily(self.BLADE_CAM_on_button)
         self.comm.send_command("CMD,3195,MEC,CAMERA,BLADE,ON")
-        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def blade_cam_off(self):
+        self.disable_button_temporarily(self.BLADE_CAM_off_button)
         self.comm.send_command("CMD,3195,MEC,CAMERA,BLADE,OFF")
-        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def ground_cam_on(self):
+        self.disable_button_temporarily(self.GROUND_CAM_on_button)
         self.comm.send_command("CMD,3195,MEC,CAMERA,GROUND,ON")
-        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def ground_cam_off(self):
+        self.disable_button_temporarily(self.GROUND_CAM_off_button)
         self.comm.send_command("CMD,3195,MEC,CAMERA,GROUND,OFF")
-        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def cal_camera_stabilization(self):
+        self.disable_button_temporarily(self.calCamStabilization)
         self.comm.send_command("CMD,3195,MEC,CAMERA,STABLE")
-        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
 
     def party_on(self):
             self.comm.send_command("CMD,3195,PARTY,ON")
@@ -625,7 +633,6 @@ class GroundStation(QMainWindow):
         self.comm.send_command("CMD,3195,PARTY,OFF")
 
     def copy_csv(self):
-        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
         destination_folder = QFileDialog.getExistingDirectory(self, "Select Destination Folder")
         if destination_folder:
             source_file = 'Flight_3195.csv'
@@ -698,7 +705,6 @@ class GroundStation(QMainWindow):
 
     #reset graphs
     def reset_graphs(self):
-        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
         self.altitudeGraph.reset_graph()
         self.autoGyroRotationGraph.reset_graph()
         self.temperatureGraph.reset_graph()
@@ -707,17 +713,30 @@ class GroundStation(QMainWindow):
 
     def change_serial_port(self):
         selected_port = self.serial_port_dropdown.currentText()
-        self.comm.serial_port = selected_port
-        print(f"Serial port changed to {selected_port}")
+        if selected_port != self.comm.serial_port:
+            self.comm.stop_communication()
+            self.comm.serial_port = selected_port
+            try:
+                self.comm.ser = serial.Serial(selected_port, self.comm.baud_rate, timeout=self.comm.timeout)
+                print(f"Serial port changed to {selected_port}")
+                if self.reading_data:
+                    self.comm.start_communication(self.signal_emitter)
+            except serial.SerialException as e:
+                print(f"Failed to open serial port {selected_port}: {e}")
+                self.comm.ser = None
 
     def update_serial_ports(self):
-        current_ports = set(self.serial_port_dropdown.currentText())
+        current_port = self.serial_port_dropdown.currentText()
         available_ports = set(get_available_serial_ports())
-        if current_ports != available_ports:
-            self.serial_port_dropdown.clear()
-            self.serial_port_dropdown.addItems(available_ports)
+        self.serial_port_dropdown.clear()
+        self.serial_port_dropdown.addItems(available_ports)
+        if current_port in available_ports:
+            self.serial_port_dropdown.setCurrentText(current_port)
+        else:
+            self.comm.stop_communication()
+            self.reading_data = False
+            self.start_stop_button.setText("CXON")
         print("Serial ports updated.")
-        threading.Thread(target=playsound, args=('bluetooth.mp3',), daemon=True).start()
 
     def change_baud_rate(self):
         selected_baud_rate = int(self.baud_rate_dropdown.currentText())
