@@ -17,20 +17,12 @@ from GPS import GPSMap
 import time
 from playsound3 import playsound
 import datetime
-import serial
+from serial.tools import list_ports
 import shutil
+from typing import Iterable
 
-def get_available_serial_ports():
-    ports = [f"COM{i}" for i in range(1, 20)]
-    available_ports = []
-    for port in ports:
-        try:
-            s = serial.Serial(port)
-            s.close()
-            available_ports.append(port)
-        except (OSError, serial.SerialException):
-            pass
-    return available_ports
+def get_available_serial_ports() -> Iterable[str]:
+    return map(lambda c: c.device, list_ports.comports())
 
 # Loading screen
 class LoadingScreen(QWidget):
