@@ -12,12 +12,11 @@
 #include "i2c_interface.h"
 #include "FeedBackServo.h"
 #include <Servo.h>
-
-
-
+#include <LIS3MDL.h>
+#include <LSM6.h>
+#include <cmath>
 
 const int altitude = 0;
-
 const int gyroX = 0;
 const int gyroY = 0;
 const int gyroZ = 0;
@@ -25,89 +24,102 @@ const int accelX = 0;
 const int accelY = 0;
 const int accelZ = 0;
 
-
-
-
-
 //----------------Tilt compensation----------------
-#include <Wire.h>
-#include <LIS3MDL.h>
-#include <LSM6.h>
-
 LIS3MDL mag;
 LSM6 imu;
 
-/*
-Calibration values; the default values of +/-32767 for each axis
-lead to an assumed magnetometer bias of 0. Use the Calibrate example
-program to determine appropriate values for your particular unit.
-*/
-LIS3MDL::vector<int16_t> m_min = { -32767, -32767, -32767 };
-LIS3MDL::vector<int16_t> m_max = { +32767, +32767, +32767 };
+// Calibration variables (for magnetometer)
+float mx_min = 1e6, my_min = 1e6, mz_min = 1e6;
+float mx_max = -1e6, my_max = -1e6, mz_max = -1e6;
+float offset_x = 0, offset_y = 0, offset_z = 0;
+float scale_x = 1, scale_y = 1, scale_z = 1;
+bool calibrated = false;
+
+// Running average variables
+float avg_cos = 0;         // Average cosine component
+float avg_sin = 0;         // Average sine component
+float avgLen = 5;          // Smoothing factor (higher = smoother, slower response)
+bool first_update = true;  // Flag for initializing the average
 
 
-/*
-Returns the angular difference in the horizontal plane between the
-"from" vector and north, in degrees.
-
-Description of heading algorithm:
-Shift and scale the magnetic reading based on calibration data to find
-the North vector. Use the acceleration readings to determine the Up
-vector (gravity is measured as an upward acceleration). The cross
-product of North and Up vectors is East. The vectors East and North
-form a basis for the horizontal plane. The From vector is projected
-into the horizontal plane and the angle between the projected vector
-and horizontal north is returned.
-*/
-#include <cmath>  // For atan2, fmod, and M_PI
-
-float computeHeading() {
-    // Magnetometer readings
-    LIS3MDL::vector<int32_t> temp_m = { mag.m.x, mag.m.y, mag.m.z };
-
-    // Acceleration vector with corrected orientation
-    LIS3MDL::vector<int16_t> a = { -imu.a.y, imu.a.x, imu.a.z };
-
-    // Subtract offsets from magnetometer readings
-    temp_m.x -= ((int32_t)m_min.x + m_max.x) / 2;
-    temp_m.y -= ((int32_t)m_min.y + m_max.y) / 2;
-    temp_m.z -= ((int32_t)m_min.z + m_max.z) / 2;
-
-    // Compute East and North vectors
-    LIS3MDL::vector<float> E;
-    LIS3MDL::vector<float> N;
-    LIS3MDL::vector_cross(&temp_m, &a, &E);
-    LIS3MDL::vector_normalize(&E);
-    LIS3MDL::vector_cross(&a, &E, &N);
-    LIS3MDL::vector_normalize(&N);
-
-    // Compute angle in YZ-plane from N to Z-axis
-    float theta_N_rad = atan2(N.z, N.y);                // Angle of N from Y-axis (radians)
-    float theta_N_deg = theta_N_rad * (180.0f / M_PI); // Convert to degrees
-    float cross = N.y * E.z - N.z * E.y;                // 2D cross product in YZ-plane
-    float angle;
-    if (cross > 0) {
-        angle = 90.0f - theta_N_deg; // Counterclockwise from N to Z
-    } else {
-        angle = theta_N_deg - 90.0f; // Clockwise from N to Z
-    }
-    // Ensure angle is in [0, 360)
-    angle = fmod(angle + 360.0f, 360.0f);
-    return angle;
+void collectCalibrationData() {
+  mag.read();
+  mx_min = min(mx_min, mag.m.x);
+  my_min = min(my_min, mag.m.y);
+  mz_min = min(mz_min, mag.m.z);
+  mx_max = max(mx_max, mag.m.x);
+  my_max = max(my_max, mag.m.y);
+  mz_max = max(mz_max, mag.m.z);
 }
 
-/*
-Returns the angular difference in the horizontal plane between a
-default vector (the +X axis) and north, in degrees.
-*/
+void computeCalibration() {
+  offset_x = (mx_max + mx_min) / 2.0;
+  offset_y = (my_max + my_min) / 2.0;
+  offset_z = (mz_max + mz_min) / 2.0;
 
+  float rx = (mx_max - mx_min) / 2.0;
+  float ry = (my_max - my_min) / 2.0;
+  float rz = (mz_max - mz_min) / 2.0;
+  float r_avg = (rx + ry + rz) / 3.0;
 
+  scale_x = r_avg / rx;
+  scale_y = r_avg / ry;
+  scale_z = r_avg / rz;
 
+  calibrated = true;
+  Serial.println("Calibration complete.");
+}
 
+float computeTiltCompensatedHeading() {
+  mag.read();
+  imu.read();
 
+  // Apply calibration
+  LIS3MDL::vector<float> m = {
+    (mag.m.x - offset_x) * scale_x,
+    (mag.m.y - offset_y) * scale_y,
+    (mag.m.z - offset_z) * scale_z
+  };
+  LIS3MDL::vector<int16_t> a = { -imu.a.y, imu.a.x, imu.a.z };
 
+  // Tilt compensation
+  LIS3MDL::vector<float> E, N;
+  LIS3MDL::vector_cross(&m, &a, &E);
+  LIS3MDL::vector_normalize(&E);
+  LIS3MDL::vector_cross(&a, &E, &N);
+  LIS3MDL::vector_normalize(&N);
 
+  LIS3MDL::vector<int> z_axis = { 0, 0, 1 };
+  float heading = atan2(LIS3MDL::vector_dot(&E, &z_axis),
+                        LIS3MDL::vector_dot(&N, &z_axis))
+                  * 180.0 / M_PI;
+  if (heading < 0) heading += 360;
 
+  return heading;
+}
+
+void updateRunningAverage(float heading, float &smoothed_heading) {
+  // Convert heading to radians
+  float heading_rad = heading * M_PI / 180.0;
+
+  if (first_update) {
+    // Initialize with the first heading
+    avg_cos = cos(heading_rad);
+    avg_sin = sin(heading_rad);
+    smoothed_heading = heading;
+    first_update = false;
+  } else {
+    // Update averages using EMA
+    float alpha = (avgLen - 1.0) / avgLen;  // Weight for previous average
+    avg_cos = alpha * avg_cos + (1 - alpha) * cos(heading_rad);
+    avg_sin = alpha * avg_sin + (1 - alpha) * sin(heading_rad);
+
+    // Compute smoothed heading
+    smoothed_heading = atan2(avg_sin, avg_cos) * 180.0 / M_PI;
+    if (smoothed_heading < 0) smoothed_heading += 360;
+  }
+}
+//-------------------------end tilt comp-----------------------------------
 
 //debugging:
 const bool DEBUG = false;
@@ -123,25 +135,43 @@ void debugCheckpoint(const char *message) {
   }
 }
 
-
-
-
-
-
-
-
-
-
 // PINS AND DEFINITIONS
-#define SD_CS_PIN 6  // Chip select pin for SD card
-
+#define SD_CS_PIN 6   // Chip select pin for SD card
 #define SERVO_PIN A5  // Servo pin for GND camera stabilization
-//#define FEEDBACK_PIN 9           // Feedback signal pin for servo control
-#define I2C_ADDRESS 0x20         // I2C Address for ENS 220
-#define MAG1_I2C_ADDRESS 0x1C    // First LIS3MDL address
+//#define FEEDBACK_PIN 9        // Feedback signal pin for servo control
+#define I2C_ADDRESS 0x20       // I2C Address for ENS 220
+#define MAG1_I2C_ADDRESS 0x1C  // First LIS3MDL address
 #define TEAM_ID "3195"
-
 #define PULSECOMS A4
+//------------------------------------------run cam---------------
+// A Program to Toggle RunCam Split HD recording with Serial UART
+#define BUFF_SIZE 20
+#define Serial1 Serial1
+
+const int pin = A4;
+uint8_t txBuf[BUFF_SIZE], crc;
+int recState = 0;  // 0 = not recording, 1 = recording
+unsigned long highStartTime = 0;
+bool wasHigh = false;
+
+uint8_t calcCrc(uint8_t buf, uint8_t numBytes) {
+  uint8_t crc = 0;
+  for (uint8_t i = 0; i < numBytes; i++)
+    crc = crc8_calc(crc, (buf + i), 0xd5);
+  return crc;
+}
+
+uint8_t crc8_calc(uint8_t crc, unsigned char a, uint8_t poly) {
+  crc ^= a;
+  for (int ii = 0; ii < 8; ++ii) {
+    if (crc & 0x80)
+      crc = (crc << 1) ^ poly;
+    else
+      crc = crc << 1;
+  }
+  return crc;
+}
+//------------------------------------------end runcam------------------
 
 ScioSense::ENS220 ens220;
 I2cInterface i2c_1;            // Added for ENS220 single-shot mode
@@ -166,8 +196,7 @@ float accel2X, accel2Y, accel2Z, gyro2X, gyro2Y, gyro2Z;  // IMU data for second
 char lastCommand[32];                                     // Last received command
 unsigned int packetCount = 0;
 bool telemetryEnabled = true;  // Telemetry Control
-
-float timeDifference = 0;             // Time difference between two consecutive interrupts
+float timeDifference = 0;      // Time difference between two consecutive interrupts
 
 // Altitude calculation variables
 float apogeeAltitude = 0.0;
@@ -186,7 +215,7 @@ unsigned long timestampHistory[historySize];  // Store time
 float latestVelocity;
 
 // Variables used for PID
-float setpoint = 180.0;           // Desired setpoint placeholder
+float setpoint = 180.0;            // Desired setpoint placeholder
 float input = 0.0;                 // Current system input
 float output = 0.0;                // PID output
 float error = 0.0;                 // Current error
@@ -196,7 +225,6 @@ const float K_proportional = 1.0;  // Proportional gain
 const float K_integral = 0.1;      // Integral gain
 const float K_derivative = 0.01;   // Derivative gain
 float heading;
-
 
 // PulseComs™
 const int FC_COMS = PULSECOMS;  // Interrupt pin
@@ -245,7 +273,6 @@ void updateAltitudeHistory(float altitudeHistory[], unsigned long timestampHisto
     altitudeHistory[i] = altitudeHistory[i - 1];
     timestampHistory[i] = timestampHistory[i - 1];
   }
-
   // Update the first element with the new altitude and current timestamp
   altitudeHistory[0] = newAltitude;
   timestampHistory[0] = millis();
@@ -257,16 +284,14 @@ void updateVelocityHistory(float altitudeHistory[], float velocityHistory[], uns
   unsigned long timeDifferenceMillis = timestampHistory[0] - timestampHistory[1];
   float timeDifferenceSeconds = timeDifferenceMillis / 1000.0;  // Convert to seconds
 
-  // Calculate the latest velocity
-  latestVelocity = (altitudeHistory[0] - altitudeHistory[1]) / timeDifferenceSeconds;
+  latestVelocity = (altitudeHistory[0] - altitudeHistory[1]) / timeDifferenceSeconds;  // Calculate the latest velocity
 
   // Shift all elements in velocityHistory to the right
   for (int i = size - 1; i > 0; i--) {
     velocityHistory[i] = velocityHistory[i - 1];
   }
 
-  // Update the first element with the latest velocity
-  velocityHistory[0] = latestVelocity;
+  velocityHistory[0] = latestVelocity;  // Update the first element with the latest velocity
 }
 
 float avg(float arr[], int size) {
@@ -390,6 +415,17 @@ void setup() {
   Serial.println("hi");
   Wire.begin();
   Wire.setClock(400000);
+  Serial1.begin(115200);  //potentialy needs to be changed
+
+  delay(3000);  // Allow RunCam startup time
+
+  // Initialize command buffer
+  txBuf[0] = 0xCC;
+  txBuf[1] = 0x01;
+  txBuf[2] = 0x01;
+  txBuf[3] = calcCrc(txBuf, 3);
+
+  pinMode(pin, INPUT_PULLUP);  // Fix: INPUT_PULLUP was mistyped
   debugCheckpoint("wire set");
   if (!mag.init()) {
     Serial.println("Failed to detect and initialize LIS3MDL magnetometer!");
@@ -400,12 +436,11 @@ void setup() {
     Serial.println("Failed to detect and initialize LSM6 IMU!");
   }
   imu.enableDefault();
+
+  Serial.println("Please rotate device for 10 seconds to calibrate...");
   //----------------end tilt compensation settup---------
   debugCheckpoint("sensor init 1");
-
   camServo.attach(SERVO_PIN);
-  
-
   debugCheckpoint("servo");
 
   // Initialize cameras control pins (e.g., for power on/off)
@@ -462,32 +497,31 @@ void setup() {
 }
 
 void loop() {
-
-
-
   //----------------Tilt compensation----------------
+  static unsigned long startTime = millis();
   mag.read();
   imu.read();
+  if (!calibrated) {
+    if (millis() - startTime < 10000) {
+      collectCalibrationData();
+      delay(50);
+    } else {
+      computeCalibration();
+    }
+    return;
+  }
 
-  /*
-  When given no arguments, the heading() function returns the angular
-  difference in the horizontal plane between a default vector (the
-  +X axis) and north, in degrees.
-  */
-  debugCheckpoint("pre-pid");
-  float heading = computeHeading();
-  debugCheckpoint("heading calc");
-  Serial.println(pidControl(heading, setpoint, lastError, integral, camServo));
-  debugCheckpoint("pid");
-  //Serial.println(heading,setpoint)
+  // Compute heading and update running average
+  float heading = computeTiltCompensatedHeading();
+  float smoothed_heading;
+  updateRunningAverage(heading, smoothed_heading);
 
-  /*
-  To use a different vector as a reference, use the version of
-  computeHeading() that takes a vector argument; for example, call it like this
-  to use the -Z axis as a reference:
-  */
+  // Output for plotting (e.g., Serial Plotter)
+  Serial.print("360,0,");          // Reference lines
+  Serial.print(smoothed_heading);  // Smoothed heading
+  Serial.print(",");
+  Serial.println(heading);  // Raw heading
   //----------------Tilt compensation end----------------
-
 
   unsigned long missionTime = millis() / 1000;  // Mission time in seconds
 
@@ -544,15 +578,12 @@ void loop() {
   }
   packetCount++;  // Increment packet count
 
-
   /*-------dated heading calc---------
   // Calculate heading
   heading = atan2(magEvent2.magnetic.y, magEvent2.magnetic.x);
   heading = heading * 180 / PI;     // Convert to degrees
   if (heading < 0) heading += 360;  // Ensure 0-360 range
   */
-
-
 
   int comsState = digitalRead(FC_COMS);
 
@@ -570,6 +601,31 @@ void loop() {
   Serial.println("Velocity: ");
   Serial.print(latestVelocity);
   */
+
+  // Calibration phase
+  int pinState = digitalRead(pin);
+
+  // Start recording when pin goes LOW and not already recording
+  if (pinState == LOW && recState == 0) {
+    Serial1.write(txBuf, 4);
+    recState = 1;
+    Serial.println("Started Recording");
+  }
+
+  // Wait for pin to be HIGH for 1 second before stopping recording
+  if (pinState == HIGH && recState == 1) {
+    if (!wasHigh) {
+      highStartTime = millis();
+      wasHigh = true;
+    } else if (millis() - highStartTime >= 1000) {
+      Serial1.write(txBuf, 4);
+      recState = 0;
+      Serial.println("Stopped Recording");
+      wasHigh = false;
+    }
+  } else if (pinState == LOW) {
+    wasHigh = false;  // Reset if pin goes LOW again during the 1s countdown
+  }
 }
 
 //__________-_-_-___  PulseComs™ by Caleb Wiley __________-_-_-_-_-_______________________
