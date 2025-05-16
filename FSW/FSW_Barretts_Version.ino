@@ -254,24 +254,31 @@ void handleCommand(const char *command) {
         strncpy(lastCommand, "SIM_ACTIVATE", sizeof(lastCommand));
         char pressureInput[16];
         unsigned long start = millis();
-        while (!Serial1.available() && millis() - start < 1000) {
-          delay(1);
+        size_t bytesRead = 0;
+        while (millis() - start < 1000 && bytesRead < sizeof(pressureInput) - 1) {
+      if (Serial1.available()) {
+        pressureInput[bytesRead] = Serial1.read();
+        if (pressureInput[bytesRead] == '\n') {
+          pressureInput[bytesRead] = '\0';
+          break;
         }
-        if (Serial1.available()) {
-          Serial1.readBytesUntil('\n', pressureInput, sizeof(pressureInput));
-          receivedPressure = atof(pressureInput);
-          if (receivedPressure > 0.0) {
-            simulatedPressure = receivedPressure;
-            Serial.println(F("Simulated pressure updated."));
-          } else {
-            Serial.println(F("Invalid pressure value received."));
-          }
-        }
-      } else if (strcmp(field2, "DISABLE") == 0) {
-        simulationMode = false;
-        Serial.println(F("Simulation mode disabled."));
-        strncpy(lastCommand, "SIM_DISABLE", sizeof(lastCommand));
+        bytesRead++;
       }
+    }
+    pressureInput[bytesRead] = '\0';
+    receivedPressure = atof(pressureInput);
+    if (receivedPressure > 0.0 && receivedPressure < 2000.0) { // Reasonable pressure range
+      simulatedPressure = receivedPressure;
+      Serial.print(F("Simulated pressure updated: "));
+      Serial.println(simulatedPressure);
+    } else {
+      Serial.println(F("Invalid pressure value received."));
+    }
+  } else if (strcmp(field2, "DISABLE") == 0) {
+    simulationMode = false;
+    Serial.println(F("Simulation mode disabled."));
+    strncpy(lastCommand, "SIM_DISABLE", sizeof(lastCommand));
+  }
       break;
     case 4:
       tempPressure = atof(field2);
@@ -489,7 +496,18 @@ void setup() {
     if (!backupFile) {
       Serial.println(F("Failed to open backup.txt!"));
     }
+    if (!SD.begin(SD_CS_PIN)) {
+    Serial.println(F("SD card initialization failed! Halting."));
+    while (true) {
+      pixels.setPixelColor(0, 255, 0, 0); // Red LED to indicate error
+      pixels.show();
+      delay(500);
+    }
   }
+  }
+  dataFile = SD.open("data.txt", FILE_WRITE);
+  backupFile = SD.open("backup.txt", FILE_WRITE);
+
   pinMode(RPM_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(RPM_PIN), rpmISR, RISING);
 
@@ -651,16 +669,25 @@ void loop() {
         dataFile.flush();
         pixels.setPixelColor(2, 0, 0, 0);
         pixels.show();
-      } else {
-        Serial.println(F("Error: dataFile not open!"));
-        pixels.setPixelColor(2, 200, 0, 0);
-        pixels.show();
+      } if (backupFile) {
+    backupFile.println(telemetry);
+    backupFile.flush();
       }
       packetCount++;
       pixels.setPixelColor(4, 0, 0, 0);
-      pixels.show();
+      pixels.show();static unsigned long lastFileClose = 0;
+  if (millis() - lastFileClose > 60000) { // Every 60 seconds
+    if (dataFile) {
+      dataFile.close();
+      dataFile = SD.open("data.txt", FILE_WRITE);
     }
+    if (backupFile) {
+      backupFile.close();
+      backupFile = SD.open("backup.txt", FILE_WRITE);
+    }
+    lastFileClose = millis();
   }
+}
   
   updateAltitudeHistory(altitudeHistory, timestampHistory, altitude, historySize);
   updateVelocityHistory(altitudeHistory, velocityHistory, timestampHistory, historySize);
