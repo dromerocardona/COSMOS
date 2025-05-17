@@ -154,10 +154,10 @@ int recState = 0;  // 0 = not recording, 1 = recording
 unsigned long highStartTime = 0;
 bool wasHigh = false;
 
-uint8_t calcCrc(uint8_t buf, uint8_t numBytes) {
+uint8_t calcCrc(uint8_t *buf, uint8_t numBytes) {
   uint8_t crc = 0;
   for (uint8_t i = 0; i < numBytes; i++)
-    crc = crc8_calc(crc, (buf + i), 0xd5);
+    crc = crc8_calc(crc, buf[i], 0xd5);
   return crc;
 }
 
@@ -303,7 +303,7 @@ float avg(float arr[], int size) {
 }
 
 // Function for PID Camera Stabilization
-String pidControl(float input, float setpoint, float &lastError, float &integral, Servo &camServo) {
+float pidControl(float input, float setpoint, float &lastError, float &integral, Servo &camServo) {
   // PID tuning parameters
   const float K_proportional = 1.0;  // Proportional gain
   const float K_integral = 0.1;      // Integral gain
@@ -329,34 +329,43 @@ String pidControl(float input, float setpoint, float &lastError, float &integral
   // Store the current error as the last error to prepare for the next iteration
   lastError = error;
 
-  // Map heading to servo angle (assuming servo range is 0-180°)
-  int currentAngle = camServo.read();              // Read current servo position
-  int targetAngle = map(input, 0, 360, 0, 180);    // Adjust based on servo range
-  int adjustedAngle = currentAngle - (int)output;  // Adjusting servo based on the PID output
+  //Specs:-------------------------------------------
+  //Control signal: PWM,  3–5 V 50 Hz,  1280–1720 µs
+  //Control signal zero-speed deadband:  1480–1520 µs (+/- 15)
+  //-------------------------------------------
 
-  // Constrain to servo range (0-180°)
-  if (adjustedAngle < 0) adjustedAngle = 0;
-  if (adjustedAngle > 180) adjustedAngle = 180;
+  const int PIDdeadband = 10;  //  +/- degrees
+  //might be added
 
-  // Convert target angle to microseconds (1000 to 2000 range)
-  int targetMicroseconds = map(targetAngle, 0, 180, 1000, 2000);
-  camServo.writeMicroseconds(targetMicroseconds);  // Set servo to target microseconds
-
-  // Read feedback and correct (optional, depends on FeedBackServo implementation)
-  if (abs(currentAngle - targetAngle) > 5) {         // Tolerance of 5 degrees
-    camServo.writeMicroseconds(targetMicroseconds);  // Reapply correction
+  float servoMicroseconds;
+  //Map an assumed or enforced max range onto the PWM write range:
+  if (output < PIDdeadband && output > -PIDdeadband) {
+    servoMicroseconds = 1500;
+  } else {
+    servoMicroseconds = map(output, -360, 360, 1280, 1720);
   }
-  /*
-  // Debug output
+
+
+
+
+
+
+  //int currentAngle = camServo.read();              // Read current servo position
+
+  /*// Debug output
   Serial.print("Heading: ");
   Serial.print(input);
   Serial.print("°  Target Servo Angle: ");
   Serial.print(targetAngle);
   Serial.print("°  Current Servo Angle: ");
   Serial.println(currentAngle);
+
+  //float telem = String(input, 1) + "," + String((float)targetAngle, 1) + "," + String((float)currentAngle, 1);
+  //return telem;  // Return the String object
   */
-  String telem = String(input, 1) + "," + String((float)targetAngle, 1) + "," + String((float)currentAngle, 1);
-  return telem;  // Return the String object
+  //testing
+
+  return servoMicroseconds;
 }
 
 // ENS220 Sensor Initialization
