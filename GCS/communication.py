@@ -2,6 +2,11 @@ import serial
 import csv
 import time
 import threading
+import queue
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Communication:
 
@@ -15,8 +20,7 @@ class Communication:
         self.csv_filename = csv_filename
         self.receivedPacketCount = 0
         self.lastPacket = ""
-        self.command_queue = []
-        self.command_lock = threading.Lock()
+        self.command_queue = queue.Queue(maxsize=100)
         self.read_thread = None
         self.send_thread = None
         self.simulation = False
@@ -24,8 +28,10 @@ class Communication:
 
         try:
             self.ser = serial.Serial(self.serial_port, self.baud_rate, timeout=self.timeout)
+            # Set a short write timeout to prevent blocking
+            self.ser.write_timeout = 0.1
         except serial.SerialException as e:
-            print(f"Failed to open serial port {self.serial_port}: {e}")
+            logging.error(f"Failed to open serial port {self.serial_port}: {e}")
             self.ser = None
 
         with open(self.csv_filename, mode='a', newline='') as file:
@@ -66,21 +72,58 @@ class Communication:
                     print(f"Error: {e}")
 
     def send_commands(self):
+        """Process commands from the queue and send them at 1-second intervals."""
+        last_send_time = time.time()
         while self.reading:
-            with self.command_lock:
-                if self.command_queue:
-                    command = self.command_queue.pop(0)
-                    try:
-                        command_to_send = f"{command}\n"
-                        self.ser.write(command_to_send.encode('utf-8'))
-                        print(f"Command sent: {command}")
-                    except serial.SerialException as e:
-                        print(f"Failed to send command: {e}")
-            time.sleep(0.1)
+            try:
+                # Try to get a command without blocking
+                command = self.command_queue.get_nowait()
+                current_time = time.time()
+                # Ensure 1-second interval between sends
+                if current_time - last_send_time >= 1.0:
+                    start_write_time = time.time()
+                    self._write_serial(command)
+                    write_duration = time.time() - start_write_time
+                    last_send_time = current_time
+                    self.command_queue.task_done()
+                    logging.debug(f"Command sent, queue size: {self.command_queue.qsize()}, write took: {write_duration:.3f}s")
+                else:
+                    # Put the command back if it's too soon to send
+                    self.command_queue.put(command)
+                    time.sleep(0.01)  # Brief sleep to prevent busy-waiting
+            except queue.Empty:
+                time.sleep(0.01)  # Brief sleep to prevent busy-waiting
+            except Exception as e:
+                logging.error(f"Error in send_commands: {e}")
+                time.sleep(0.01)
+
+    def _write_serial(self, command):
+        """Helper method to write to serial port with error handling."""
+        if self.ser is None or not self.ser.is_open:
+            logging.error("Serial port is not available or closed")
+            return
+        try:
+            command_to_send = f"{command}\n"
+            bytes_written = self.ser.write(command_to_send.encode('utf-8'))
+            if bytes_written == len(command_to_send):
+                self.ser.flush()  # Ensure the command is sent
+                logging.info(f"Command sent: {command}")
+            else:
+                logging.warning(f"Partial write for command: {command}, only {bytes_written} bytes written")
+        except serial.SerialTimeoutException:
+            logging.warning(f"Write timeout for command: {command}")
+        except serial.SerialException as e:
+            logging.error(f"Failed to send command: {e}")
+        except Exception as e:
+            logging.error(f"Unexpected error in _write_serial: {e}")
 
     def send_command(self, command):
-        with self.command_lock:
-            self.command_queue.append(command)
+        """Add a command to the queue."""
+        try:
+            self.command_queue.put(command, timeout=0.1)
+            logging.debug(f"Command queued: {command}, queue size: {self.command_queue.qsize()}")
+        except queue.Full:
+            logging.warning("Command queue is full, dropping command")
 
     def stop_communication(self):
         self.reading = False
@@ -114,19 +157,27 @@ class Communication:
         try:
             with open(csv_filename, mode='r') as file:
                 csv_reader = csv.reader(file)
+                next(csv_reader, None)  # Skip header if present
                 for line in csv_reader:
                     if not self.simulation:  # Stop simulation if disabled
                         break
                     if line and line[0] == 'CMD':
                         line[1] = '3195'
                         command = ','.join(line)
+                        start_time = time.time()
                         self.send_command(command)  # Add to the command queue
-                        for _ in range(10):  # Check every 0.1 seconds for stop signal
-                            if not self.simulation:
-                                break
-                            time.sleep(0.1)
+                        logging.debug(f"Simulation command prepared: {command}")
+                        # Sleep to maintain 1-second interval, accounting for processing time
+                        elapsed = time.time() - start_time
+                        remaining = max(0, 1.0 - elapsed)
+                        time.sleep(remaining)
+        except FileNotFoundError:
+            logging.error(f"Simulation CSV file {csv_filename} not found")
         except Exception as e:
-            print(f"Error in simulation: {e}")
+            logging.error(f"Error in simulation: {e}")
+        finally:
+            self.simulation = False
+            logging.info("Simulation stopped")
 
     def stop_simulation(self):
         """Stop the simulation process."""
