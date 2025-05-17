@@ -36,6 +36,7 @@ enum FlightState {
   ASCENT,
   APOGEE,
   DESCENT,
+  PROBE_RELEASE,
   LANDED
 };
 
@@ -436,6 +437,12 @@ void updateTime(char *currentTime, size_t size) {
 }
 
 void updateFlightState(float altitude, float velocity, float x, float y, float z) {
+  static unsigned long apogeeCandidateTime = 0; // Time when apogee conditions first met
+  static bool apogeeCandidate = false; // Flag to track apogee candidate
+  const float velocityThreshold = 1.0; // Velocity range for apogee (±1 m/s)
+  const float accelThreshold = 2.0; // Acceleration threshold for apogee (±2 m/s²)
+  const unsigned long apogeeConfirmWindow = 500; // Confirmation window (ms)
+
   switch (flightState) {
     case LAUNCH_PAD:
       if (altitude > 5 && velocity > 8) {
@@ -444,10 +451,31 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
       }
       break;
     case ASCENT:
-      if (velocity <= -1) {
-        flightState = APOGEE;
-        apogeeAltitude = altitude;
-        Serial.println(F("Flight state: APOGEE"));
+      // Update max altitude
+      if (altitude > maxAltitude) {
+        maxAltitude = altitude;
+      }
+
+      // Check apogee conditions
+      bool velocityCondition = abs(velocity) <= velocityThreshold; // Velocity near zero
+      bool altitudeCondition = altitude <= maxAltitude && altitudeHistory[0] <= altitudeHistory[1]; // Altitude not increasing (current altitude <= max altitude)
+      bool accelCondition = abs(z - accelBiasZ) <= accelThreshold; // Vertical acceleration near zero
+
+      if (velocityCondition && altitudeCondition && accelCondition) {
+        if (!apogeeCandidate) {
+          // Conditions met, start confirmation window
+          apogeeCandidate = true;
+          apogeeCandidateTime = millis();
+        } else if (millis() - apogeeCandidateTime >= apogeeConfirmWindow) {
+          // Conditions held for the confirmation window
+          flightState = APOGEE;
+          apogeeAltitude = altitude;
+          apogeeCandidate = false; // Reset
+          Serial.println(F("Flight state: APOGEE"));
+        }
+      } else {
+        // Conditions not met, reset candidate
+        apogeeCandidate = false;
       }
       break;
     case APOGEE:
@@ -457,6 +485,12 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
       }
       break;
     case DESCENT:
+      if (!releaseActivated && altitude <= (apogeeAltitude * 0.75)) {
+        flightState = PROBE_RELEASE;
+        Serial.println(F("Flight state: PROBE_RELEASE"));
+      }
+      break;
+    case PROBE_RELEASE:
       if (abs(velocity) < 0.1 && millis() - lastOrientationTime > 10000) {
         flightState = LANDED;
         landedTime = millis();
@@ -485,8 +519,6 @@ void updateGPSdata(UBX_NAV_PVT_data_t *ubxDataStruct) {
     snprintf(gpsTime, sizeof(gpsTime), "00:00:00");
   }
 }
-
-
 
 void setup() {
   delay(2000);
@@ -594,8 +626,7 @@ void loop() {
   float rpm = (timeDifference > 0) ? (60000 / timeDifference) : 0;
   lastRpmTime = millis();
   rpmCount = 0;
-  float currentVoltage = ((analogRead(BATTERY_PIN) * 8.058608e-4)/2.647058e-1);
-
+  float currentVoltage = ((analogRead(BATTERY_PIN) * 8.058608e-4) / 2.647058e-1);
 
   // GPS
   gps.checkUblox(); // Check for the arrival of new data and process it
@@ -649,7 +680,7 @@ void loop() {
   if (lastCommand[0] == '\0') strncpy(lastCommand, "NONE", sizeof(lastCommand));
 
   // Telemetry Transmission
-  if (lastTransmissionTime + 880 < millis()) {  // Transmit telemetry every second
+  if (lastTransmissionTime + 880 < millis()) { // Transmit telemetry every second
     lastTransmissionTime = millis();
     if (telemetryEnabled) {
       char telemetry[512];
@@ -665,9 +696,6 @@ void loop() {
       }
       
       // Convert floats to integers (multiply by 10 for 1 decimal, 10000 for 4 decimals)
-      //int altitude_int = (int)(altitude * 10);  // 1 decimal place
-      //int temperature_int = (int)(temperature * 10);
-      //int pressure_int = (int)(pressure * 10);
       int currentVoltage_int = (int)(currentVoltage * 10);
       int gyroX_int = (int)(gyroX * 10);
       int gyroY_int = (int)(gyroY * 10);
@@ -679,13 +707,9 @@ void loop() {
       int magY_int = (int)(magEvent1.magnetic.y * 10);
       int magZ_int = (int)(magEvent1.magnetic.z * 10);
       int rpm_int = (int)(rpm * 10);
-      //int gpsAltitude_int = (int)(gpsAltitude * 10);
-      //int latitude_int = (int)(latitude * 10000);    // 4 decimal places
-      //int longitude_int = (int)(longitude * 10000);  // 4 decimal places
 
-      // Use %d for integers instead of %.1f or %.4f
-        pixels.setPixelColor(4, 255, 0, 0);
-        pixels.show();
+      pixels.setPixelColor(4, 255, 0, 0);
+      pixels.show();
       snprintf(telemetry, sizeof(telemetry),
                "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%.1f,%.4f,%.4f,%u,%s,COSMOS",
                TEAM_ID, currentTime, packetCount, mode, state,
@@ -702,28 +726,28 @@ void loop() {
         dataFile.flush();
         pixels.setPixelColor(2, 0, 0, 0);
         pixels.show();
-      } if (backupFile) {
-    backupFile.println(telemetry);
-    backupFile.flush();
-  }
+      }
+      if (backupFile) {
+        backupFile.println(telemetry);
+        backupFile.flush();
+      }
       packetCount++;
       pixels.setPixelColor(4, 0, 0, 0);
       pixels.show();
       static unsigned long lastFileClose = 0;
-  if (millis() - lastFileClose > 60000) { // Every 60 seconds
-    if (dataFile) {
-      dataFile.close();
-      dataFile = SD.open("data.txt", FILE_WRITE);
+      if (millis() - lastFileClose > 60000) { // Every 60 seconds
+        if (dataFile) {
+          dataFile.close();
+          dataFile = SD.open("data.txt", FILE_WRITE);
+        }
+        if (backupFile) {
+          backupFile.close();
+          backupFile = SD.open("backup.txt", FILE_WRITE);
+        }
+        lastFileClose = millis();
+      }
     }
-    if (backupFile) {
-      backupFile.close();
-      backupFile = SD.open("backup.txt", FILE_WRITE);
-    }
-    lastFileClose = millis();
   }
-}
-    
-  
 
   updateAltitudeHistory(altitudeHistory, timestampHistory, altitude, historySize);
   updateVelocityHistory(altitudeHistory, velocityHistory, timestampHistory, historySize);
@@ -744,6 +768,9 @@ void loop() {
         releaseActivated = true;
       }
       break;
+    case PROBE_RELEASE:
+      updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
+      break;
     case LANDED:
       updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
       if (avg(velocityHistory, historySize) < 1) {
@@ -751,5 +778,4 @@ void loop() {
       }
       break;
   }
-}
 }
