@@ -4,7 +4,6 @@
 #include <Adafruit_LIS3MDL.h>
 #include <Adafruit_Sensor.h>
 #include <ScioSense_ENS220.h>
-#include <ens220.h>
 #include <utils.h>
 #include <SPI.h>
 #include <SD.h>
@@ -105,6 +104,8 @@ float calculateAltitude(float pressure) {
   float altitude = (seaLevelTemperature / temperatureLapseRate) * 
                    (1 - pow((pressure / referencePressure), 
                             (gasConstant * temperatureLapseRate) / (gravity * molarMass)));
+  pixels.setPixelColor(0, 0, 255, 255); // Cyan for sea level pressure
+  pixels.show();
   return altitude;
 }
 
@@ -113,6 +114,8 @@ void calibrateGyroscope() {
   float sumX = 0.0, sumY = 0.0, sumZ = 0.0;
 
   Serial.println("Calibrating gyroscope...");
+  pixels.setPixelColor(0, 255, 128, 0); // Orange for Gryo CAL
+  pixels.show();
   for (int i = 0; i < numSamples; i++) {
     if (IMU.gyroscopeAvailable()) {
       float gx, gy, gz;
@@ -134,6 +137,8 @@ void calibrateGyroscope() {
   Serial.print(gyroBiasY);
   Serial.print(", ");
   Serial.println(gyroBiasZ);
+  pixels.setPixelColor(0, 255, 128, 0); // Orange for completion of Gryo CAL (MAKE IT BLINK)
+  pixels.show();
 }
 
 void calibrateAccelerometer() {
@@ -141,6 +146,8 @@ void calibrateAccelerometer() {
   float sumX = 0.0, sumY = 0.0, sumZ = 0.0;
 
   Serial.println("Calibrating accelerometer...");
+  pixels.setPixelColor(0, 255, 69, 0); // Red Orange for Accel CAL
+  pixels.show();
   for (int i = 0; i < numSamples; i++) {
     if (IMU.accelerationAvailable()) {
       float ax, ay, az;
@@ -162,6 +169,8 @@ void calibrateAccelerometer() {
   Serial.print(accelBiasY);
   Serial.print(", ");
   Serial.println(accelBiasZ);
+  pixels.setPixelColor(0, 255, 69, 0); // Red Orange for completion for Accel CAL (MAKE IT BLINK)
+  pixels.show();
 }
 
 void updateAltitudeHistory(float altitudeHistory[], unsigned long timestampHistory[], float newAltitude, int size) {
@@ -171,6 +180,8 @@ void updateAltitudeHistory(float altitudeHistory[], unsigned long timestampHisto
   }
   altitudeHistory[0] = newAltitude;
   timestampHistory[0] = millis();
+  pixels.setPixelColor(0, 90, 225, 100); // Teal for Updating Altitude History
+  pixels.show();
 }
 
 void updateVelocityHistory(float altitudeHistory[], float velocityHistory[], unsigned long timestampHistory[], int size) {
@@ -181,6 +192,8 @@ void updateVelocityHistory(float altitudeHistory[], float velocityHistory[], uns
     velocityHistory[i] = velocityHistory[i - 1];
   }
   velocityHistory[0] = latestVelocity;
+  pixels.setPixelColor(0, 240, 25, 50); // Light red for Updating velocity History
+  pixels.show();
 }
 
 float avg(float arr[], int size) {
@@ -191,16 +204,17 @@ float avg(float arr[], int size) {
   return sum / size;
 }
 
-
 void rpmISR() {
   static unsigned long lastInterrupt = 0;
   unsigned long now = micros();
   if (now - lastInterrupt > 1000) {
-    currentInterruptTime = now / 1000.0;
-    timeDifference = currentInterruptTime - lastInterruptTime;
+    currentInterruptTime = now;
+    timeDifference = (currentInterruptTime - lastInterruptTime) / 1000.0; // ms
     lastInterruptTime = currentInterruptTime;
     rpmCount++;
     lastInterrupt = now;
+    pixels.setPixelColor(0, 255, 255, 3); // Yellow for RPM
+  pixels.show();
   }
 }
 
@@ -210,6 +224,8 @@ void handleCommand(const char *command) {
                    field1, field2, field3, field4);
   if (num < 1) {
     Serial.println(F("Invalid command"));
+    pixels.setPixelColor(0, 255, 0, 0); // Red for Invalid command
+  pixels.show();
     return;
   }
   float tempPressure;
@@ -227,10 +243,14 @@ void handleCommand(const char *command) {
         telemetryEnabled = true;
         strncpy(lastCommand, "CXON", sizeof(lastCommand));
         Serial.println(F("Telemetry started."));
+      pixels.setPixelColor(0, 0, 255, 0); // Green for CX_ON
+  pixels.show();
       } else if (strcmp(field2, "OFF") == 0) {
         telemetryEnabled = false;
         strncpy(lastCommand, "CXOFF", sizeof(lastCommand));
         Serial.println(F("Telemetry stopped."));
+        pixels.setPixelColor(0, 128, 128, 128); // Gray for CX_OFF
+  pixels.show();
       }
       break;
     case 2:
@@ -238,24 +258,33 @@ void handleCommand(const char *command) {
         Serial.println(F("ST UTC_TIME command received."));
         strncpy(currentTime, field3, sizeof(currentTime));
         strncpy(lastCommand, "ST_UTC_TIME", sizeof(lastCommand));
+        pixels.setPixelColor(0, 0, 50, 255); // Blue UTC time
+  pixels.show();
+
       } else if (strcmp(field2, "GPS") == 0) {
         Serial.println(F("ST GPS command received."));
         strncpy(currentTime, gpsTime, sizeof(currentTime));
         strncpy(lastCommand, "ST_GPS", sizeof(lastCommand));
+        pixels.setPixelColor(0, 140, 50, 0); // Brown light for GPS
+  pixels.show();
       }
       break;
     case 3:
       if (strcmp(field2, "ENABLE") == 0) {
-        simulationMode = true;
-        Serial.println(F("Simulation mode enabled."));
-        strncpy(lastCommand, "SIM_ENABLE", sizeof(lastCommand));
-      } else if (strcmp(field2, "ACTIVATE") == 0 && simulationMode) {
-        Serial.println(F("Simulation activated. Waiting for pressure input..."));
-        strncpy(lastCommand, "SIM_ACTIVATE", sizeof(lastCommand));
-        char pressureInput[16];
-        unsigned long start = millis();
-        size_t bytesRead = 0;
-        while (millis() - start < 1000 && bytesRead < sizeof(pressureInput) - 1) {
+    simulationMode = true;
+    Serial.println(F("Simulation mode enabled."));
+    strncpy(lastCommand, "SIM_ENABLE", sizeof(lastCommand));
+    pixels.setPixelColor(0, 255, 0, 255); // Light Magenta light for SIM_ENABLE
+  pixels.show();
+  } else if (strcmp(field2, "ACTIVATE") == 0 && simulationMode) {
+    Serial.println(F("Simulation activated. Waiting for pressure input..."));
+    strncpy(lastCommand, "SIM_ACTIVATE", sizeof(lastCommand));
+    pixels.setPixelColor(0, 255, 0, 150); // Dark Magenta light for SIM_ENABLE
+  pixels.show();
+    char pressureInput[16] = {0};
+    unsigned long start = millis();
+    size_t bytesRead = 0;
+    while (millis() - start < 1000 && bytesRead < sizeof(pressureInput) - 1) {
       if (Serial1.available()) {
         pressureInput[bytesRead] = Serial1.read();
         if (pressureInput[bytesRead] == '\n') {
@@ -279,7 +308,7 @@ void handleCommand(const char *command) {
     Serial.println(F("Simulation mode disabled."));
     strncpy(lastCommand, "SIM_DISABLE", sizeof(lastCommand));
   }
-      break;
+  break;
     case 4:
       tempPressure = atof(field2);
       if (tempPressure > 0.0) {
@@ -457,6 +486,8 @@ void updateGPSdata(UBX_NAV_PVT_data_t *ubxDataStruct) {
   }
 }
 
+
+
 void setup() {
   delay(2000);
   pixels.begin();
@@ -478,7 +509,7 @@ void setup() {
   if (!rtc.isrunning()) {
     Serial.println(F("RTC is NOT running, setting time to compile time."));
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-  }
+  } 
   Serial.println("hello3");
   pinMode(GND_CAM_CTRL, OUTPUT);
   digitalWrite(GND_CAM_CTRL, LOW);
@@ -539,6 +570,8 @@ void setup() {
   Serial.println("hello?");
   
   SingleShotMeasure_setup();
+
+
 }
 
 void loop() {
@@ -672,10 +705,11 @@ void loop() {
       } if (backupFile) {
     backupFile.println(telemetry);
     backupFile.flush();
-      }
+  }
       packetCount++;
       pixels.setPixelColor(4, 0, 0, 0);
-      pixels.show();static unsigned long lastFileClose = 0;
+      pixels.show();
+      static unsigned long lastFileClose = 0;
   if (millis() - lastFileClose > 60000) { // Every 60 seconds
     if (dataFile) {
       dataFile.close();
@@ -688,7 +722,9 @@ void loop() {
     lastFileClose = millis();
   }
 }
+    
   
+
   updateAltitudeHistory(altitudeHistory, timestampHistory, altitude, historySize);
   updateVelocityHistory(altitudeHistory, velocityHistory, timestampHistory, historySize);
   switch (flightState) {
