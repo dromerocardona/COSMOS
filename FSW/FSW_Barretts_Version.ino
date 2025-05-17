@@ -450,7 +450,7 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
         Serial.println(F("Flight state: ASCENT"));
       }
       break;
-    case ASCENT:
+    case ASCENT: {
       // Update max altitude
       if (altitude > maxAltitude) {
         maxAltitude = altitude;
@@ -478,6 +478,7 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
         apogeeCandidate = false;
       }
       break;
+    }
     case APOGEE:
       if (velocity < 0) {
         flightState = DESCENT;
