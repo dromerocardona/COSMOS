@@ -301,13 +301,19 @@ void handleCommand(const char *command) {
       simulatedPressure = receivedPressure;
       Serial.print(F("Simulated pressure updated: "));
       Serial.println(simulatedPressure);
+       pixels.setPixelColor(0, 85, 155, 55); //   Light Green for Simulated Pressure.
+  pixels.show();
     } else {
       Serial.println(F("Invalid pressure value received."));
+      pixels.setPixelColor(0, 150, 0, 0); //   Maroon for Invalid Pressure.
+  pixels.show();
     }
   } else if (strcmp(field2, "DISABLE") == 0) {
     simulationMode = false;
     Serial.println(F("Simulation mode disabled."));
     strncpy(lastCommand, "SIM_DISABLE", sizeof(lastCommand));
+    pixels.setPixelColor(0, 250, 140, 140); //   White Red for Disable Simulation
+  pixels.show();
   }
   break;
     case 4:
@@ -315,9 +321,13 @@ void handleCommand(const char *command) {
       if (tempPressure > 0.0) {
         simulatedPressure = tempPressure;
         Serial.println(F("Simulated pressure set via SIMP."));
+        pixels.setPixelColor(0, 90, 20, 150); //   Light purple for SIMP Pressure
+  pixels.show();
         strncpy(lastCommand, "SIMP", sizeof(lastCommand));
       } else {
         Serial.println(F("Invalid pressure value in SIMP command."));
+        pixels.setPixelColor(0, 40, 0, 80); //   Purple for invalid SIMP Pressure
+  pixels.show();
       }
       break;
     case 5:
@@ -327,6 +337,8 @@ void handleCommand(const char *command) {
       Serial.print(F("Calibration complete. Reference pressure set to: "));
       Serial.println(referencePressure);
       flightState = LAUNCH_PAD;
+      pixels.setPixelColor(0, 60, 80, 0); //   Turquioise for CAL command
+  pixels.show();
       break;
     case 6:
       if (strcmp(field2, "RELEASE") == 0) {
@@ -334,11 +346,15 @@ void handleCommand(const char *command) {
           Serial.println(F("MEC RELEASE ON command received."));
           releaseServo.writeMicroseconds(1300);
           strncpy(lastCommand, "MEC_RELEASE_ON", sizeof(lastCommand));
+          pixels.setPixelColor(0, 180, 120, 0); //   Dark Yellow for MEC Release ON
+  pixels.show();
         } else if (strcmp(field3, "OFF") == 0) {
           Serial.println(F("MEC RELEASE OFF command received."));
           releaseServo.writeMicroseconds(1700);
           strncpy(lastCommand, "MEC_RELEASE_OFF", sizeof(lastCommand));
           Serial.println(F("Release mechanism deactivated - CanSat Locked in Container"));
+          pixels.setPixelColor(0, 50, 120, 255); //   Light Blue for MEC Release OFF
+  pixels.show();
         }
       } else if (strcmp(field2, "CAMERA") == 0) {
         if (strcmp(field3, "BLADE") == 0) {
@@ -346,10 +362,14 @@ void handleCommand(const char *command) {
             digitalWrite(BLADE_CAM_CTRL, LOW);
             Serial.println(F("MEC CAMERA BLADE ON - Camera powered ON."));
             strncpy(lastCommand, "BLADE_CAM_CTRL_ON", sizeof(lastCommand));
+          pixels.setPixelColor(0, 0, 255, 0); //   Dark Green for Blade CAM on
+  pixels.show();
           } else if (strcmp(field4, "OFF") == 0) {
             digitalWrite(BLADE_CAM_CTRL, HIGH);
             Serial.println(F("MEC CAMERA BLADE OFF - Camera powered OFF."));
             strncpy(lastCommand, "BLADE_CAM_CTRL_OFF", sizeof(lastCommand));
+            pixels.setPixelColor(0, 0, 100, 50); //   Leaf Green for Blade CAM off
+  pixels.show();
           }
         } else if (strcmp(field3, "GROUND") == 0) {
           if (strcmp(field4, "ON") == 0) {
@@ -681,7 +701,7 @@ void loop() {
   if (lastCommand[0] == '\0') strncpy(lastCommand, "NONE", sizeof(lastCommand));
 
   // Telemetry Transmission
-  if (lastTransmissionTime + 880 < millis()) { // Transmit telemetry every second
+  if (lastTransmissionTime + 986 < millis()) { // Transmit telemetry every second
     lastTransmissionTime = millis();
     if (telemetryEnabled) {
       char telemetry[512];
