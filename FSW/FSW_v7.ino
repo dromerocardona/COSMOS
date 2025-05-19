@@ -841,7 +841,7 @@ void loop() {
         default: state = "UNKNOWN"; break;
       }
       
-      int currentVoltage_int = (int)(currentVoltage * 10);
+     /* int currentVoltage_int = (int)(currentVoltage * 10);
       int gyroX_int = (int)(gyroX * 10);
       int gyroY_int = (int)(gyroY * 10);
       int gyroZ_int = (int)(gyroZ * 10);
@@ -851,16 +851,16 @@ void loop() {
       int magX_int = (int)(magEvent1.magnetic.x * 10);
       int magY_int = (int)(magEvent1.magnetic.y * 10);
       int magZ_int = (int)(magEvent1.magnetic.z * 10);
-      int rpm_int = (int)(rpm * 10);
+      int rpm_int = (int)(rpm * 10);*/
 
       pixels.setPixelColor(4, 255, 0, 0); // Red for telemetry transmission
       pixels.show();
       snprintf(telemetry, sizeof(telemetry),
-               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%.1f,%.4f,%.4f,%u,%s,COSMOS",
+               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.1f,%.1f,%.1f,%u,%s,%.1f,%.5f,%.5f,%u,%s,COSMOS",
                TEAM_ID, currentTime, packetCount, mode, state,
-               altitude, temperature, pressure, currentVoltage_int,
-               gyroX_int, gyroY_int, gyroZ_int, accelX_int, accelY_int, accelZ_int,
-               magX_int, magY_int, magZ_int, rpm_int, gpsTime, gpsAltitude,
+               altitude, temperature, pressure, currentVoltage,
+               gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
+               magEvent1.magnetic.x, magEvent1.magnetic.y, magEvent1.magnetic.z, rpm, gpsTime, gpsAltitude,
                latitude, longitude, satellites, lastCommand);
       Serial1.println(telemetry);
       Serial.println(telemetry);
