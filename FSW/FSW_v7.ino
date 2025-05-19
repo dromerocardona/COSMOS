@@ -740,7 +740,7 @@ void setup() {
   }
 
   Serial.println("hello?");
-  
+  Serial.println("telemetryEnabled: " + String(telemetryEnabled));
   SingleShotMeasure_setup();
 }
 
