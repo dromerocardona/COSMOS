@@ -63,7 +63,7 @@ char gpsTime[9] = "00:00:00";                            // GPS time in "HH:MM:S
 float accel2X, accel2Y, accel2Z, gyro2X, gyro2Y, gyro2Z; // IMU data
 char lastCommand[32] = "NONE";                           // Last received command, initialized
 unsigned int packetCount = 0;
-bool telemetryEnabled = true;  // Telemetry control
+bool telemetryEnabled = false;  // Telemetry control
 float cameraposition = 0;
 unsigned long lastRpmTime = 0;        // Last magnet detection
 volatile unsigned long rpmCount = 0;  // RPM counter
