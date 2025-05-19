@@ -56,7 +56,6 @@ unsigned long landedTime = 0;
 unsigned long lastOrientationTime = 0;
 float lastOrientationX = 0.0, lastOrientationY = 0.0, lastOrientationZ = 0.0;
 uint8_t satellites = 0;
-float voltageDividerFactor = 0.00304;                    // Adjust based on resistor values
 float lastTransmissionTime = 0;                          // Last telemetry transmission
 char currentTime[9] = "00:00:00";                        // Mission time in "HH:MM:SS"
 char gpsTime[9] = "00:00:00";                            // GPS time in "HH:MM:SS"
@@ -769,7 +768,8 @@ void loop() {
   float rpm = (timeDifference > 0) ? (60000 / timeDifference) : 0;
   lastRpmTime = millis();
   rpmCount = 0;
-  float currentVoltage = ((analogRead(BATTERY_PIN) * 8.058608e-4) / 2.647058e-1);
+  int adcReading = analogRead(BATTERY_PIN);
+  float currentVoltage = ((adcReading * 8.058608e-4) / 2.647058e-1);
 
   gps.checkUblox();
   gps.checkCallbacks();
