@@ -383,13 +383,13 @@ void handleCommand(const char *command) {
       if (strcmp(field2, "RELEASE") == 0) {
         if (strcmp(field3, "ON") == 0) {
           Serial.println(F("MEC RELEASE ON command received."));
-          releaseServo.writeMicroseconds(1300);
+          releaseServo.writeMicroseconds(1375);
           strncpy(lastCommand, "MEC_RELEASE_ON", sizeof(lastCommand));
           pixels.setPixelColor(0, 180, 120, 0); // Dark Yellow for MEC Release ON
           pixels.show();
         } else if (strcmp(field3, "OFF") == 0) {
           Serial.println(F("MEC RELEASE OFF command received."));
-          releaseServo.writeMicroseconds(1700);
+          releaseServo.writeMicroseconds(1600);
           strncpy(lastCommand, "MEC_RELEASE_OFF", sizeof(lastCommand));
           Serial.println(F("Release mechanism deactivated - CanSat Locked in Container"));
           pixels.setPixelColor(0, 50, 120, 255); // Light Blue for MEC Release OFF
@@ -911,7 +911,7 @@ void loop() {
     case DESCENT:
       updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
       if (!releaseActivated && altitude <= (apogeeAltitude * 0.75)) {
-        releaseServo.writeMicroseconds(1300);
+        releaseServo.writeMicroseconds(1375);
         releaseActivated = true;
         pixels.setPixelColor(0, 255, 0, 100); // Pink for release activation
         pixels.show();
