@@ -25,7 +25,7 @@ class AccelerationGraph:
         self.start_time = None
 
         self.plot.setLabel('left', 'Acceleration', 'm/s²')
-        self.plot.setLabel('bottom', 'Time', 's')
+        self.plot.setLabel('bottom', 'Time', units='s', unitsPrefix='')
         self.plot.setRange(yRange=[-30, 30])
         self.plot.addLegend()
 
