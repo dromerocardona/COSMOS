@@ -125,6 +125,11 @@ class Communication:
         except queue.Full:
             logging.warning("Command queue is full, dropping command")
 
+    def flush_csv(self):
+        """Flush and close the CSV file temporarily to ensure all data is written."""
+        with open(self.csv_filename, mode='a', newline='') as file:
+            pass
+
     def stop_communication(self):
         self.reading = False
         if self.read_thread:
@@ -133,6 +138,7 @@ class Communication:
             self.send_thread.join()
         if self.ser:
             self.ser.close()
+        self.flush_csv()
         print("Communication stopped.")
 
     def change_baud_rate(self, new_baud_rate):
