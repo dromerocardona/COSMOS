@@ -303,7 +303,7 @@ float avg(float arr[], int size) {
 }
 
 // Function for PID Camera Stabilization
-float pidControl(float input, float setpoint, float &lastError, float &integral, Servo &camServo) {
+float pidControl(float input, float setpoint, float &lastError, float &integral, bool invert) {
   // PID tuning parameters
   const float K_proportional = 1.0;  // Proportional gain
   const float K_integral = 0.1;      // Integral gain
@@ -334,15 +334,17 @@ float pidControl(float input, float setpoint, float &lastError, float &integral,
   //Control signal zero-speed deadband:  1480–1520 µs (+/- 15)
   //-------------------------------------------
 
-  const int PIDdeadband = 10;  //  +/- degrees
+  const int PIDdeadband = 5;  //  +/- degrees
   //might be added
 
   float servoMicroseconds;
   //Map an assumed or enforced max range onto the PWM write range:
   if (output < PIDdeadband && output > -PIDdeadband) {
     servoMicroseconds = 1500;
-  } else {
+  } else if (invert==false) {
     servoMicroseconds = map(output, -360, 360, 1280, 1720);
+  } else {
+    servoMicroseconds = map(output, -360, 360, 1720, 1280);
   }
 
 
@@ -510,6 +512,7 @@ void loop() {
   static unsigned long startTime = millis();
   mag.read();
   imu.read();
+  
   if (!calibrated) {
     if (millis() - startTime < 10000) {
       collectCalibrationData();
@@ -524,6 +527,7 @@ void loop() {
   float heading = computeTiltCompensatedHeading();
   float smoothed_heading;
   updateRunningAverage(heading, smoothed_heading);
+  camServo.writeMicroseconds(pidControl(heading, setpoint, lastError, integral, false)); //float input, float setpoint, float &lastError, float &integral, bool invert
 
   // Output for plotting (e.g., Serial Plotter)
   Serial.print("360,0,");          // Reference lines
