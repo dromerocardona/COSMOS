@@ -1,3 +1,4 @@
+
 #include <Arduino_LSM6DS3.h>
 #include <Wire.h>
 #include <Adafruit_LIS3MDL.h>
@@ -12,6 +13,22 @@
 #include <Adafruit_NeoPixel.h>
 #include <Servo.h>
 #include <RTClib.h>
+
+//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!! DONT DELETE!!!!!!!@$&^@%%$#@@
+//debugging://VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!! DONT DELETE!!!!!!!@$&^@%%$#@@
+const bool DEBUG = true;//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!!
+//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!! DONT DELETE!!!!!!!@$&^@%%$#@@
+void debugCheckpoint(const char *message) {//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!!
+  static int checkpoint = 0;  // Static variable retains its value between calls//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!!
+  if (DEBUG) {//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!!
+    checkpoint++;  // Increment the checkpoint number//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!!
+    Serial.print("Checkpoint ");//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!! DONT DELETE!!!!!!!@$&^@%%$#@@
+    Serial.print(checkpoint);  // Print the current checkpoint number//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!!
+    Serial.print(": ");//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!! DONT DELETE!!!!!!!@$&^@%%$#@@
+    Serial.println(message);  // Print the provided message//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!!
+  }// DONT DELETE!!!!!!!@$&^@%%$#@@
+}//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!! DONT DELETE!!!!!!!@$&^@%%$#@@
+//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!!
 
 // PINS AND DEFINITIONS
 #define BATTERY_PIN A2          // Analog pin for voltage divider circuit
@@ -56,13 +73,14 @@ unsigned long landedTime = 0;
 unsigned long lastOrientationTime = 0;
 float lastOrientationX = 0.0, lastOrientationY = 0.0, lastOrientationZ = 0.0;
 uint8_t satellites = 0;
+float voltageDividerFactor = 0.00304;                    // Adjust based on resistor values
 float lastTransmissionTime = 0;                          // Last telemetry transmission
 char currentTime[9] = "00:00:00";                        // Mission time in "HH:MM:SS"
 char gpsTime[9] = "00:00:00";                            // GPS time in "HH:MM:SS"
 float accel2X, accel2Y, accel2Z, gyro2X, gyro2Y, gyro2Z; // IMU data
 char lastCommand[32] = "NONE";                           // Last received command, initialized
-unsigned int packetCount = 1;
-bool telemetryEnabled = false;  // Telemetry control
+unsigned int packetCount = 0;
+bool telemetryEnabled = true;  // Telemetry control
 float cameraposition = 0;
 unsigned long lastRpmTime = 0;        // Last magnet detection
 volatile unsigned long rpmCount = 0;  // RPM counter
@@ -382,13 +400,13 @@ void handleCommand(const char *command) {
       if (strcmp(field2, "RELEASE") == 0) {
         if (strcmp(field3, "ON") == 0) {
           Serial.println(F("MEC RELEASE ON command received."));
-          releaseServo.writeMicroseconds(1375);
+          releaseServo.writeMicroseconds(1300);
           strncpy(lastCommand, "MEC_RELEASE_ON", sizeof(lastCommand));
           pixels.setPixelColor(0, 180, 120, 0); // Dark Yellow for MEC Release ON
           pixels.show();
         } else if (strcmp(field3, "OFF") == 0) {
           Serial.println(F("MEC RELEASE OFF command received."));
-          releaseServo.writeMicroseconds(1600);
+          releaseServo.writeMicroseconds(1700);
           strncpy(lastCommand, "MEC_RELEASE_OFF", sizeof(lastCommand));
           Serial.println(F("Release mechanism deactivated - CanSat Locked in Container"));
           pixels.setPixelColor(0, 50, 120, 255); // Light Blue for MEC Release OFF
@@ -644,6 +662,8 @@ void handleSdFailureBlink() {
 }
 
 void setup() {
+  debugCheckpoint("CHECK? Hello World!");//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!! DONT DELETE!!!!!!!@$&^@%%$#@@
+
   pixels.begin();
   pixels.setPixelColor(0, 0, 100, 0); // Green for startup
   pixels.show();
@@ -654,7 +674,11 @@ void setup() {
   Wire.begin();
   Wire.setClock(400000);
 
+  debugCheckpoint("Coms extablished");//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!! DONT DELETE!!!!!!!@$&^@%%$#@@
+
   releaseServo.attach(RELEASE_PIN);
+
+  debugCheckpoint("Release pin good");//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!! DONT DELETE!!!!!!!@$&^@%%$#@@
 
   Serial.println("hello2");
   if (!rtc.begin()) {
@@ -739,13 +763,15 @@ void setup() {
   }
 
   Serial.println("hello?");
-  Serial.println("telemetryEnabled: " + String(telemetryEnabled));
+  
   SingleShotMeasure_setup();
 }
 
 void loop() {
-  handleSdFailureBlink();
+  debugCheckpoint("CHECK?  Hello World");//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!! DONT DELETE!!!!!!!@$&^@%%$#@@
 
+  handleSdFailureBlink();
+  
   updateTime(currentTime, sizeof(currentTime));
   char command[64] = {0};
   static String commandBuffer = "";
@@ -768,8 +794,7 @@ void loop() {
   float rpm = (timeDifference > 0) ? (60000 / timeDifference) : 0;
   lastRpmTime = millis();
   rpmCount = 0;
-  int adcReading = analogRead(BATTERY_PIN);
-  float currentVoltage = ((adcReading * 8.058608e-4) / 2.647058e-1);
+  float currentVoltage = ((analogRead(BATTERY_PIN) * 8.058608e-4) / 2.647058e-1);
 
   gps.checkUblox();
   gps.checkCallbacks();
@@ -841,7 +866,7 @@ void loop() {
         default: state = "UNKNOWN"; break;
       }
       
-     /* int currentVoltage_int = (int)(currentVoltage * 10);
+      int currentVoltage_int = (int)(currentVoltage * 10);
       int gyroX_int = (int)(gyroX * 10);
       int gyroY_int = (int)(gyroY * 10);
       int gyroZ_int = (int)(gyroZ * 10);
@@ -851,16 +876,16 @@ void loop() {
       int magX_int = (int)(magEvent1.magnetic.x * 10);
       int magY_int = (int)(magEvent1.magnetic.y * 10);
       int magZ_int = (int)(magEvent1.magnetic.z * 10);
-      int rpm_int = (int)(rpm * 10);*/
+      int rpm_int = (int)(rpm * 10);
 
       pixels.setPixelColor(4, 255, 0, 0); // Red for telemetry transmission
       pixels.show();
       snprintf(telemetry, sizeof(telemetry),
-               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.1f,%.1f,%.1f,%u,%s,%.1f,%.5f,%.5f,%u,%s,COSMOS",
+               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%.1f,%.4f,%.4f,%u,%s,COSMOS",
                TEAM_ID, currentTime, packetCount, mode, state,
-               altitude, temperature, pressure, currentVoltage,
-               gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
-               magEvent1.magnetic.x, magEvent1.magnetic.y, magEvent1.magnetic.z, rpm, gpsTime, gpsAltitude,
+               altitude, temperature, pressure, currentVoltage_int,
+               gyroX_int, gyroY_int, gyroZ_int, accelX_int, accelY_int, accelZ_int,
+               magX_int, magY_int, magZ_int, rpm_int, gpsTime, gpsAltitude,
                latitude, longitude, satellites, lastCommand);
       Serial1.println(telemetry);
       Serial.println(telemetry);
@@ -911,7 +936,7 @@ void loop() {
     case DESCENT:
       updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
       if (!releaseActivated && altitude <= (apogeeAltitude * 0.75)) {
-        releaseServo.writeMicroseconds(1375);
+        releaseServo.writeMicroseconds(1300);
         releaseActivated = true;
         pixels.setPixelColor(0, 255, 0, 100); // Pink for release activation
         pixels.show();
