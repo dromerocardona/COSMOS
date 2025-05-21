@@ -15,6 +15,7 @@
 - Ensure pip is installed in the venv (pip is a python package manager)
 - Install the following libraries to the venv using pip (pip install [library]):
     - pyqt5
+    - pyqtwebengine
     - pyqtgraph
     - folium
     - offline_folium
