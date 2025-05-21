@@ -62,7 +62,7 @@ char gpsTime[9] = "00:00:00";                            // GPS time in "HH:MM:S
 float accel2X, accel2Y, accel2Z, gyro2X, gyro2Y, gyro2Z; // IMU data
 char lastCommand[32] = "NONE";                           // Last received command, initialized
 unsigned int packetCount = 1;
-bool telemetryEnabled = false;  // Telemetry control
+bool telemetryEnabled = true;  // Telemetry control
 float cameraposition = 0;
 unsigned long lastRpmTime = 0;        // Last magnet detection
 volatile unsigned long rpmCount = 0;  // RPM counter
@@ -537,17 +537,17 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
 
   switch (flightState) {
     case LAUNCH_PAD:
-      pixels.setPixelColor(0, 255, 255, 255); // White for LAUNCH_PAD
+      pixels.setPixelColor(1, 255, 255, 255); // White for LAUNCH_PAD
       pixels.show();
       if (altitude > 5 && velocity > 8) {
         flightState = ASCENT;
         Serial.println(F("Flight state: ASCENT"));
-        pixels.setPixelColor(0, 0, 255, 0); // Green for ASCENT
+        pixels.setPixelColor(1, 0, 255, 0); // Green for ASCENT
         pixels.show();
       }
       break;
     case ASCENT: {
-      pixels.setPixelColor(0, 0, 255, 0); // Green for ASCENT
+      pixels.setPixelColor(1, 0, 255, 0); // Green for ASCENT
       pixels.show();
       if (altitude > maxAltitude) {
         maxAltitude = altitude;
@@ -566,7 +566,7 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
           apogeeAltitude = altitude;
           apogeeCandidate = false;
           Serial.println(F("Flight state: APOGEE"));
-          pixels.setPixelColor(0, 255, 255, 0); // Yellow for APOGEE
+          pixels.setPixelColor(1, 255, 255, 0); // Yellow for APOGEE
           pixels.show();
         }
       } else {
@@ -575,38 +575,38 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
       break;
     }
     case APOGEE:
-      pixels.setPixelColor(0, 255, 255, 0); // Yellow for APOGEE
+      pixels.setPixelColor(1, 255, 255, 0); // Yellow for APOGEE
       pixels.show();
       if (velocity < 0) {
         flightState = DESCENT;
         Serial.println(F("Flight state: DESCENT"));
-        pixels.setPixelColor(0, 255, 0, 0); // Red for DESCENT
+        pixels.setPixelColor(1, 255, 0, 0); // Red for DESCENT
         pixels.show();
       }
       break;
     case DESCENT:
-      pixels.setPixelColor(0, 255, 0, 0); // Red for DESCENT
+      pixels.setPixelColor(1, 255, 0, 0); // Red for DESCENT
       pixels.show();
       if (!releaseActivated && altitude <= (apogeeAltitude * 0.75)) {
         flightState = PROBE_RELEASE;
         Serial.println(F("Flight state: PROBE_RELEASE"));
-        pixels.setPixelColor(0, 255, 0, 100); // Pink for PROBE_RELEASE
+        pixels.setPixelColor(1, 255, 0, 100); // Pink for PROBE_RELEASE
         pixels.show();
       }
       break;
     case PROBE_RELEASE:
-      pixels.setPixelColor(0, 255, 0, 100); // Pink for PROBE_RELEASE
+      pixels.setPixelColor(1, 255, 0, 100); // Pink for PROBE_RELEASE
       pixels.show();
       if (abs(velocity) < 0.1 && millis() - lastOrientationTime > 10000) {
         flightState = LANDED;
         landedTime = millis();
         Serial.println(F("Flight state: LANDED"));
-        pixels.setPixelColor(0, 128, 0, 128); // Purple for LANDED
+        pixels.setPixelColor(1, 128, 0, 128); // Purple for LANDED
         pixels.show();
       }
       break;
     case LANDED:
-      pixels.setPixelColor(0, 128, 0, 128); // Purple for LANDED
+      pixels.setPixelColor(1, 128, 0, 128); // Purple for LANDED
       pixels.show();
       break;
   }
@@ -768,8 +768,9 @@ void loop() {
   float rpm = (timeDifference > 0) ? (60000 / timeDifference) : 0;
   lastRpmTime = millis();
   rpmCount = 0;
+  analogReadResolution(12);
   int adcReading = analogRead(BATTERY_PIN);
-  float currentVoltage = ((adcReading * 8.058608e-4) / 2.647058e-1);
+  float currentVoltage = (adcReading * 8.058608e-4 / 2.647058e-1);
 
   gps.checkUblox();
   gps.checkCallbacks();
@@ -825,8 +826,12 @@ void loop() {
   if (gpsTime[0] == '\0') strncpy(gpsTime, "00:00:00", sizeof(gpsTime));
   if (lastCommand[0] == '\0') strncpy(lastCommand, "NONE", sizeof(lastCommand));
 
-  if (lastTransmissionTime + 986 < millis()) {
-    lastTransmissionTime = millis();
+// Store previous time for comparison
+static char previoustime[9] = "00:00:00";
+char previoustimeTemp[9];
+strcpy(previoustimeTemp, previoustime); // Copy prevTime to compare after updateTime
+
+ if (strcmp(currentTime, previoustimeTemp) != 0) {
     if (telemetryEnabled) {
       char telemetry[512];
       const char *mode = simulationMode ? "S" : "F";
@@ -840,28 +845,16 @@ void loop() {
         case LANDED: state = "LANDED"; break;
         default: state = "UNKNOWN"; break;
       }
-      
-     /* int currentVoltage_int = (int)(currentVoltage * 10);
-      int gyroX_int = (int)(gyroX * 10);
-      int gyroY_int = (int)(gyroY * 10);
-      int gyroZ_int = (int)(gyroZ * 10);
-      int accelX_int = (int)(accelX * 10);
-      int accelY_int = (int)(accelY * 10);
-      int accelZ_int = (int)(accelZ * 10);
-      int magX_int = (int)(magEvent1.magnetic.x * 10);
-      int magY_int = (int)(magEvent1.magnetic.y * 10);
-      int magZ_int = (int)(magEvent1.magnetic.z * 10);
-      int rpm_int = (int)(rpm * 10);*/
+  
 
       pixels.setPixelColor(4, 255, 0, 0); // Red for telemetry transmission
       pixels.show();
       snprintf(telemetry, sizeof(telemetry),
-               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.1f,%.1f,%.1f,%u,%s,%.1f,%.5f,%.5f,%u,%s,COSMOS",
+               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.1f,%.1f,%.1f,%u,%u,%.1f,%.5f,%.5f,%u,%u,COSMOS",
                TEAM_ID, currentTime, packetCount, mode, state,
-               altitude, temperature, pressure, currentVoltage,
+                altitude, temperature, pressure, currentVoltage,
                gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
-               magEvent1.magnetic.x, magEvent1.magnetic.y, magEvent1.magnetic.z, rpm, gpsTime, gpsAltitude,
-               latitude, longitude, satellites, lastCommand);
+               magEvent1.magnetic.x, magEvent1.magnetic.y, magEvent1.magnetic.z, rpm, gpsTime, gpsAltitude, latitude, longitude, satellites, lastCommand);
       Serial1.println(telemetry);
       Serial.println(telemetry);
       if (dataFile && !sdFailed) {
@@ -894,6 +887,8 @@ void loop() {
         pixels.show();
       }
     }
+    // Update prevTime after sending telemetry
+    strcpy(previoustime, currentTime);
   }
 
   updateAltitudeHistory(altitudeHistory, timestampHistory, altitude, historySize);
