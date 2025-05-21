@@ -17,7 +17,7 @@ class AltitudeGraph:
         self.start_time = None
 
         self.plot.setLabel('left', 'Altitude', 'm')
-        self.plot.setLabel('bottom', 'Time', units='s', unitsPrefix='')
+        self.plot.setLabel('bottom', 'Time', units='s', unitsPrefix=None)
         self.plot.setRange(yRange=[0, 600])
 
         self.timer = QtCore.QTimer()

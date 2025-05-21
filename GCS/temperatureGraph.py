@@ -17,7 +17,7 @@ class TemperatureGraph:
         self.start_time = None
 
         self.plot.setLabel('left', 'Temperature', '°C')
-        self.plot.setLabel('bottom', 'Time', units='s', unitsPrefix='')
+        self.plot.setLabel('bottom', 'Time', units='s', unitsPrefix=None)
         self.plot.setRange(yRange=[0, 50])
 
         self.timer = QtCore.QTimer()
