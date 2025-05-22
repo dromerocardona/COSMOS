@@ -1,4 +1,4 @@
-
+// LIBRARY INCLUSIONS
 #include <Arduino_LSM6DS3.h>
 #include <Wire.h>
 #include <Adafruit_LIS3MDL.h>
@@ -29,6 +29,8 @@ void debugCheckpoint(const char *message) {//VERY IMOPORTANT DEBUGGING!!!!!!!!!!
   }// DONT DELETE!!!!!!!@$&^@%%$#@@
 }//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!! DONT DELETE!!!!!!!@$&^@%%$#@@
 //VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!!
+
+//tl;dr don't delete this ^
 
 // PINS AND DEFINITIONS
 #define BATTERY_PIN A2          // Analog pin for voltage divider circuit
@@ -286,7 +288,7 @@ void handleCommand(const char *command) {
     pixels.show();
     return;
   }
-  float tempPressure;
+  float recievedPressure;
   int cmdType = 0;
   if (strcmp(field1, "CX") == 0) cmdType = 1;
   else if (strcmp(field1, "ST") == 0) cmdType = 2;
@@ -294,6 +296,7 @@ void handleCommand(const char *command) {
   else if (strcmp(field1, "SIMP") == 0) cmdType = 4;
   else if (strcmp(field1, "CAL") == 0) cmdType = 5;
   else if (strcmp(field1, "MEC") == 0) cmdType = 6;
+  else if (strcmp(field1, "PARTY") == 0) cmdType = 7;
 
   switch (cmdType) {
     case 1:
@@ -328,42 +331,16 @@ void handleCommand(const char *command) {
       break;
     case 3:
       if (strcmp(field2, "ENABLE") == 0) {
-        simulationMode = true;
         Serial.println(F("Simulation mode enabled."));
         strncpy(lastCommand, "SIM_ENABLE", sizeof(lastCommand));
         pixels.setPixelColor(0, 255, 0, 255); // Light Magenta light for SIM_ENABLE
         pixels.show();
-      } else if (strcmp(field2, "ACTIVATE") == 0 && simulationMode) {
+      } else if (strcmp(field2, "ACTIVATE") == 0) {
+        simulationMode = true; // Do not worry, sim activate cannot be sent on the GCS w/o sim enable
         Serial.println(F("Simulation activated. Waiting for pressure input..."));
         strncpy(lastCommand, "SIM_ACTIVATE", sizeof(lastCommand));
         pixels.setPixelColor(0, 255, 0, 150); // Dark Magenta light for SIM_ACTIVATE
         pixels.show();
-        char pressureInput[16] = {0};
-        unsigned long start = millis();
-        size_t bytesRead = 0;
-        while (millis() - start < 1000 && bytesRead < sizeof(pressureInput) - 1) {
-          if (Serial1.available()) {
-            pressureInput[bytesRead] = Serial1.read();
-            if (pressureInput[bytesRead] == '\n') {
-              pressureInput[bytesRead] = '\0';
-              break;
-            }
-            bytesRead++;
-          }
-        }
-        pressureInput[bytesRead] = '\0';
-        receivedPressure = atof(pressureInput);
-        if (receivedPressure > 0.0 && receivedPressure < 2000.0) {
-          simulatedPressure = receivedPressure;
-          Serial.print(F("Simulated pressure updated: "));
-          Serial.println(simulatedPressure);
-          pixels.setPixelColor(0, 85, 155, 55); // Light Green for Simulated Pressure
-          pixels.show();
-        } else {
-          Serial.println(F("Invalid pressure value received."));
-          pixels.setPixelColor(0, 150, 0, 0); // Maroon for Invalid Pressure
-          pixels.show();
-        }
       } else if (strcmp(field2, "DISABLE") == 0) {
         simulationMode = false;
         Serial.println(F("Simulation mode disabled."));
@@ -373,9 +350,9 @@ void handleCommand(const char *command) {
       }
       break;
     case 4:
-      tempPressure = atof(field2);
-      if (tempPressure > 0.0) {
-        simulatedPressure = tempPressure;
+      recievedPressure = atof(field2);
+      if (recievedPressure) {
+        simulatedPressure = recievedPressure;
         Serial.println(F("Simulated pressure set via SIMP."));
         pixels.setPixelColor(0, 90, 20, 150); // Light purple for SIMP Pressure
         pixels.show();
@@ -392,6 +369,8 @@ void handleCommand(const char *command) {
       referencePressure = ens220.getPressureHectoPascal();
       Serial.print(F("Calibration complete. Reference pressure set to: "));
       Serial.println(referencePressure);
+      calibrateGyroscope();  // Call calibration function for gyroscope
+      calibrateAccelerometer();  // Call calibration function for accelerometer
       flightState = LAUNCH_PAD;
       pixels.setPixelColor(0, 60, 80, 0); // Turquoise for CAL command
       pixels.show();
@@ -442,6 +421,15 @@ void handleCommand(const char *command) {
             pixels.show();
           }
         }
+      }
+      break;
+    case 7:
+      if (strcmp(field2, "ON") == 0) {
+        Serial.println("PARTY ON command received.");
+        // Add code to turn on party mode (e.g., LED effects)
+      } else if (strcmp(field2, "OFF") == 0) {
+        Serial.println("PARTY OFF command received.");
+        // Add code to turn off party mode (e.g., LED effects)
       }
       break;
     default:
@@ -822,7 +810,13 @@ void loop() {
   }
   SingleShotMeasure_loop();
 
+  //Calculate altitude in flight/simulation mode
   float altitude = calculateAltitude(pressure);
+  if (simulationMode) {
+    float simulatedAltitude = (1 - pow(simulatedPressure / 1013.25, 0.190284)) * 145366.45;  // Approximation formula
+    altitude = simulatedAltitude;
+  }
+
   if (flightState == ASCENT && altitude > maxAltitude) {
     maxAltitude = altitude;
     pixels.setPixelColor(0, 255, 200, 0); // Bright yellow for new max altitude
