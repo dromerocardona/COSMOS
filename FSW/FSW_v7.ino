@@ -134,7 +134,36 @@ const int CALIBRATION_SAMPLES = 100;
 int calibrationSampleCount = 0;
 float calibSumX = 0.0, calibSumY = 0.0, calibSumZ = 0.0;
 
+// Party Mode variables
+bool partyMode = false;
+unsigned long lastPartyUpdateTime = 0;
+const unsigned long PARTY_UPDATE_INTERVAL = 50; // 50ms for smooth transitions
+uint8_t partyPhase = 0;
+
 // Function Definitions
+
+void partyModeEffect() {
+  if (!partyMode) return; // Exit if Party Mode is off
+
+  // Only update if enough time has passed (non-blocking)
+  if (millis() - lastPartyUpdateTime < PARTY_UPDATE_INTERVAL) return;
+
+  // Use sine waves for smooth RGB color transitions
+  float phase = (float)partyPhase * 0.05; // Increment for smooth changes
+  uint8_t r = (sin(phase) + 1) * 127.5; // Range 0-255
+  uint8_t g = (sin(phase + 2.094) + 1) * 127.5; // Phase shift by 120 degrees (2π/3)
+  uint8_t b = (sin(phase + 4.188) + 1) * 127.5; // Phase shift by 240 degrees (4π/3)
+
+  // Apply to all LEDs except those reserved for critical status
+  for (int i = 1; i < NUM_LEDS; i++) { // Skip LED 0 for status indicators
+    pixels.setPixelColor(i, r, g, b);
+  }
+  pixels.show();
+
+  partyPhase++;
+  lastPartyUpdateTime = millis();
+}
+
 float calculateAltitude(float pressure) {
   const float temperatureLapseRate = 0.0065;
   const float seaLevelTemperature = 288.15;
@@ -426,10 +455,21 @@ void handleCommand(const char *command) {
     case 7:
       if (strcmp(field2, "ON") == 0) {
         Serial.println("PARTY ON command received.");
-        // Add code to turn on party mode (e.g., LED effects)
+        Serial.println("PARTY ON command received.");
+        partyMode = true;
+        partyPhase = 0;
+        lastPartyUpdateTime = millis();
+        strncpy(lastCommand, "PARTY_ON", sizeof(lastCommand));
       } else if (strcmp(field2, "OFF") == 0) {
         Serial.println("PARTY OFF command received.");
-        // Add code to turn off party mode (e.g., LED effects)
+        Serial.println("PARTY OFF command received.");
+        partyMode = false;
+        strncpy(lastCommand, "PARTY_OFF", sizeof(lastCommand));
+        pixels.setPixelColor(0, 0, 0, 0); // Turn off LED 0 when Party Mode ends
+        for (int i = 1; i < NUM_LEDS; i++) {
+          pixels.setPixelColor(i, 0, 0, 0); // Clear other LEDs
+        }
+        pixels.show();
       }
       break;
     default:
@@ -759,6 +799,7 @@ void loop() {
   debugCheckpoint("CHECK?  Hello World");//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!! DONT DELETE!!!!!!!@$&^@%%$#@@
 
   handleSdFailureBlink();
+  partyModeEffect(); // Run Party Mode effect if enabled
   
   updateTime(currentTime, sizeof(currentTime));
   char command[64] = {0};
