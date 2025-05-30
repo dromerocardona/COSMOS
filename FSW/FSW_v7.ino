@@ -93,7 +93,7 @@ float apogeeAltitude = 0.0;
 float maxAltitude = 0;
 bool releaseActivated = false;
 bool simulationMode = false;
-float simulatedPressure = 100.0;
+float simulatedPressure = 100.0; // OR 0???
 float receivedPressure = 0.0;       // For SIM_ACTIVATE
 float referencePressure = 1013.25;  // Sea level pressure
 const int historySize = 10;
@@ -370,6 +370,27 @@ void handleCommand(const char *command) {
         strncpy(lastCommand, "SIM_ACTIVATE", sizeof(lastCommand));
         pixels.setPixelColor(0, 255, 0, 150); // Dark Magenta light for SIM_ACTIVATE
         pixels.show();
+        char pressureInput[16] = {0};
+        unsigned long start = millis();
+        size_t bytesRead = 0;
+        while (millis() - start < 1000 && bytesRead < sizeof(pressureInput) - 1) {
+          if (Serial1.available()) {
+            pressureInput[bytesRead] = Serial1.read();
+            if (pressureInput[bytesRead] == '\n') {
+              pressureInput[bytesRead] = '\0';
+              break;
+            }
+            bytesRead++;
+          }
+        }
+        pressureInput[bytesRead] = '\0';
+        receivedPressure = atof(pressureInput);
+        if (receivedPressure > 0.0 && receivedPressure < 2000.0) {
+          simulatedPressure = receivedPressure;
+          Serial.print(F("Simulated pressure updated: "));
+          Serial.println(simulatedPressure);
+          pixels.setPixelColor(0, 85, 155, 55); // Light Green for Simulated Pressure
+          pixels.show();
       } else if (strcmp(field2, "DISABLE") == 0) {
         simulationMode = false;
         Serial.println(F("Simulation mode disabled."));
@@ -380,8 +401,8 @@ void handleCommand(const char *command) {
       break;
     case 4:
       recievedPressure = atof(field2);
-      if (recievedPressure) {
-        simulatedPressure = recievedPressure;
+      if (recievedPressure) { // might be tempPressure test to find out
+        simulatedPressure = recievedPressure; // might be tempPressure test to find out
         Serial.println(F("Simulated pressure set via SIMP."));
         pixels.setPixelColor(0, 90, 20, 150); // Light purple for SIMP Pressure
         pixels.show();
@@ -598,26 +619,12 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
       if (altitude > maxAltitude) {
         maxAltitude = altitude;
       }
-
-      bool velocityCondition = abs(velocity) <= velocityThreshold;
-      bool altitudeCondition = altitude <= maxAltitude && altitudeHistory[0] <= altitudeHistory[1];
-      bool accelCondition = abs(z - accelBiasZ) <= accelThreshold;
-
-      if (velocityCondition && altitudeCondition && accelCondition) {
-        if (!apogeeCandidate) {
-          apogeeCandidate = true;
-          apogeeCandidateTime = millis();
-        } else if (millis() - apogeeCandidateTime >= apogeeConfirmWindow) {
+      if (altitude > 30 && velocity < 0)
           flightState = APOGEE;
           apogeeAltitude = altitude;
-          apogeeCandidate = false;
           Serial.println(F("Flight state: APOGEE"));
-          pixels.setPixelColor(0, 255, 255, 0); // Yellow for APOGEE
+          pixels.setPixelColor(1, 255, 255, 0); // Yellow for APOGEE
           pixels.show();
-        }
-      } else {
-        apogeeCandidate = false;
-      }
       break;
     }
     case APOGEE:
@@ -823,7 +830,9 @@ void loop() {
   float rpm = (timeDifference > 0) ? (60000 / timeDifference) : 0;
   lastRpmTime = millis();
   rpmCount = 0;
-  float currentVoltage = ((analogRead(BATTERY_PIN) * 8.058608e-4) / 2.647058e-1);
+ // analogReadResolution(12); if no decimal is there
+ // int adcReading = analogRead(BATTERY_PIN); if no decimal is there
+  float currentVoltage = ((analogRead(BATTERY_PIN) * 8.058608e-4) / 2.647058e-1); // (adcReading * 8.058608e-4 / 2.647058e-1); use this if no decimal is given
 
   gps.checkUblox();
   gps.checkCallbacks();
@@ -851,13 +860,32 @@ void loop() {
   }
   SingleShotMeasure_loop();
 
-  //Calculate altitude in flight/simulation mode
+
+   //Calculate altitude in flight/simulation mode
+  Serial.print("simulationMode: ");
+Serial.println(simulationMode);
+float altitude = calculateAltitude(pressure);
+if (simulationMode) {
+  const float temperatureLapseRate = 0.0065;
+  const float seaLevelTemperature = 288.15;
+  const float gasConstant = 8.3144598;
+  const float molarMass = 0.0289644;
+  const float gravity = 9.80665;
+    float simulatedAltitude = (seaLevelTemperature / temperatureLapseRate) * 
+                   (1-pow((simulatedPressure / referencePressure / 100), 
+                            (gasConstant * temperatureLapseRate) / (gravity * molarMass)));
+    altitude = simulatedAltitude;
+    Serial.println("2");
+}
+  
+ /*  //Calculate altitude in flight/simulation mode
   float altitude = calculateAltitude(pressure);
   if (simulationMode) {
     float simulatedAltitude = (1 - pow(simulatedPressure / 1013.25, 0.190284)) * 145366.45;  // Approximation formula
     altitude = simulatedAltitude;
   }
-
+  TEST PLEASE!!!!!
+*/
   if (flightState == ASCENT && altitude > maxAltitude) {
     maxAltitude = altitude;
     pixels.setPixelColor(0, 255, 200, 0); // Bright yellow for new max altitude
@@ -900,7 +928,7 @@ void loop() {
         case LANDED: state = "LANDED"; break;
         default: state = "UNKNOWN"; break;
       }
-      
+      /* CAN BE REMOVED
       int currentVoltage_int = (int)(currentVoltage * 10);
       int gyroX_int = (int)(gyroX * 10);
       int gyroY_int = (int)(gyroY * 10);
@@ -912,7 +940,7 @@ void loop() {
       int magY_int = (int)(magEvent1.magnetic.y * 10);
       int magZ_int = (int)(magEvent1.magnetic.z * 10);
       int rpm_int = (int)(rpm * 10);
-
+*/
       pixels.setPixelColor(4, 255, 0, 0); // Red for telemetry transmission
       pixels.show();
       snprintf(telemetry, sizeof(telemetry),
@@ -922,6 +950,15 @@ void loop() {
                gyroX_int, gyroY_int, gyroZ_int, accelX_int, accelY_int, accelZ_int,
                magX_int, magY_int, magZ_int, rpm_int, gpsTime, gpsAltitude,
                latitude, longitude, satellites, lastCommand);
+
+      /* if the telemetry above doesn't work try this below
+snprintf(telemetry, sizeof(telemetry),
+               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.1f,%.1f,%.1f,%u,%u,%.1f,%.5f,%.5f,%u,%u,COSMOS",
+               TEAM_ID, currentTime, packetCount, mode, state,
+                altitude, temperature, pressure, currentVoltage,
+               gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
+               magEvent1.magnetic.x, magEvent1.magnetic.y, magEvent1.magnetic.z, rpm, gpsTime, gpsAltitude, latitude, longitude, satellites, lastCommand);
+ */
       Serial1.println(telemetry);
       Serial.println(telemetry);
       if (dataFile && !sdFailed) {
