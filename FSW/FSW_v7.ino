@@ -1,4 +1,4 @@
-
+// LIBRARY INCLUSIONS
 #include <Arduino_LSM6DS3.h>
 #include <Wire.h>
 #include <Adafruit_LIS3MDL.h>
@@ -29,6 +29,8 @@ void debugCheckpoint(const char *message) {//VERY IMOPORTANT DEBUGGING!!!!!!!!!!
   }// DONT DELETE!!!!!!!@$&^@%%$#@@
 }//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!! DONT DELETE!!!!!!!@$&^@%%$#@@
 //VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!!
+
+//tl;dr don't delete this ^
 
 // PINS AND DEFINITIONS
 #define BATTERY_PIN A2          // Analog pin for voltage divider circuit
@@ -91,7 +93,7 @@ float apogeeAltitude = 0.0;
 float maxAltitude = 0;
 bool releaseActivated = false;
 bool simulationMode = false;
-float simulatedPressure = 0.0;
+float simulatedPressure = 100.0; // OR 0???
 float receivedPressure = 0.0;       // For SIM_ACTIVATE
 float referencePressure = 1013.25;  // Sea level pressure
 const int historySize = 10;
@@ -132,7 +134,36 @@ const int CALIBRATION_SAMPLES = 100;
 int calibrationSampleCount = 0;
 float calibSumX = 0.0, calibSumY = 0.0, calibSumZ = 0.0;
 
+// Party Mode variables
+bool partyMode = false;
+unsigned long lastPartyUpdateTime = 0;
+const unsigned long PARTY_UPDATE_INTERVAL = 50; // 50ms for smooth transitions
+uint8_t partyPhase = 0;
+
 // Function Definitions
+
+void partyModeEffect() {
+  if (!partyMode) return; // Exit if Party Mode is off
+
+  // Only update if enough time has passed (non-blocking)
+  if (millis() - lastPartyUpdateTime < PARTY_UPDATE_INTERVAL) return;
+
+  // Use sine waves for smooth RGB color transitions
+  float phase = (float)partyPhase * 0.05; // Increment for smooth changes
+  uint8_t r = (sin(phase) + 1) * 127.5; // Range 0-255
+  uint8_t g = (sin(phase + 2.094) + 1) * 127.5; // Phase shift by 120 degrees (2π/3)
+  uint8_t b = (sin(phase + 4.188) + 1) * 127.5; // Phase shift by 240 degrees (4π/3)
+
+  // Apply to all LEDs except those reserved for critical status
+  for (int i = 1; i < NUM_LEDS; i++) { // Skip LED 0 for status indicators
+    pixels.setPixelColor(i, r, g, b);
+  }
+  pixels.show();
+
+  partyPhase++;
+  lastPartyUpdateTime = millis();
+}
+
 float calculateAltitude(float pressure) {
   const float temperatureLapseRate = 0.0065;
   const float seaLevelTemperature = 288.15;
@@ -286,7 +317,7 @@ void handleCommand(const char *command) {
     pixels.show();
     return;
   }
-  float tempPressure;
+  float recievedPressure;
   int cmdType = 0;
   if (strcmp(field1, "CX") == 0) cmdType = 1;
   else if (strcmp(field1, "ST") == 0) cmdType = 2;
@@ -294,6 +325,7 @@ void handleCommand(const char *command) {
   else if (strcmp(field1, "SIMP") == 0) cmdType = 4;
   else if (strcmp(field1, "CAL") == 0) cmdType = 5;
   else if (strcmp(field1, "MEC") == 0) cmdType = 6;
+  else if (strcmp(field1, "PARTY") == 0) cmdType = 7;
 
   switch (cmdType) {
     case 1:
@@ -328,12 +360,12 @@ void handleCommand(const char *command) {
       break;
     case 3:
       if (strcmp(field2, "ENABLE") == 0) {
-        simulationMode = true;
         Serial.println(F("Simulation mode enabled."));
         strncpy(lastCommand, "SIM_ENABLE", sizeof(lastCommand));
         pixels.setPixelColor(0, 255, 0, 255); // Light Magenta light for SIM_ENABLE
         pixels.show();
-      } else if (strcmp(field2, "ACTIVATE") == 0 && simulationMode) {
+      } else if (strcmp(field2, "ACTIVATE") == 0) {
+        simulationMode = true; // Do not worry, sim activate cannot be sent on the GCS w/o sim enable
         Serial.println(F("Simulation activated. Waiting for pressure input..."));
         strncpy(lastCommand, "SIM_ACTIVATE", sizeof(lastCommand));
         pixels.setPixelColor(0, 255, 0, 150); // Dark Magenta light for SIM_ACTIVATE
@@ -359,11 +391,6 @@ void handleCommand(const char *command) {
           Serial.println(simulatedPressure);
           pixels.setPixelColor(0, 85, 155, 55); // Light Green for Simulated Pressure
           pixels.show();
-        } else {
-          Serial.println(F("Invalid pressure value received."));
-          pixels.setPixelColor(0, 150, 0, 0); // Maroon for Invalid Pressure
-          pixels.show();
-        }
       } else if (strcmp(field2, "DISABLE") == 0) {
         simulationMode = false;
         Serial.println(F("Simulation mode disabled."));
@@ -373,9 +400,9 @@ void handleCommand(const char *command) {
       }
       break;
     case 4:
-      tempPressure = atof(field2);
-      if (tempPressure > 0.0) {
-        simulatedPressure = tempPressure;
+      recievedPressure = atof(field2);
+      if (recievedPressure) { // might be tempPressure test to find out
+        simulatedPressure = recievedPressure; // might be tempPressure test to find out
         Serial.println(F("Simulated pressure set via SIMP."));
         pixels.setPixelColor(0, 90, 20, 150); // Light purple for SIMP Pressure
         pixels.show();
@@ -392,6 +419,8 @@ void handleCommand(const char *command) {
       referencePressure = ens220.getPressureHectoPascal();
       Serial.print(F("Calibration complete. Reference pressure set to: "));
       Serial.println(referencePressure);
+      calibrateGyroscope();  // Call calibration function for gyroscope
+      calibrateAccelerometer();  // Call calibration function for accelerometer
       flightState = LAUNCH_PAD;
       pixels.setPixelColor(0, 60, 80, 0); // Turquoise for CAL command
       pixels.show();
@@ -442,6 +471,26 @@ void handleCommand(const char *command) {
             pixels.show();
           }
         }
+      }
+      break;
+    case 7:
+      if (strcmp(field2, "ON") == 0) {
+        Serial.println("PARTY ON command received.");
+        Serial.println("PARTY ON command received.");
+        partyMode = true;
+        partyPhase = 0;
+        lastPartyUpdateTime = millis();
+        strncpy(lastCommand, "PARTY_ON", sizeof(lastCommand));
+      } else if (strcmp(field2, "OFF") == 0) {
+        Serial.println("PARTY OFF command received.");
+        Serial.println("PARTY OFF command received.");
+        partyMode = false;
+        strncpy(lastCommand, "PARTY_OFF", sizeof(lastCommand));
+        pixels.setPixelColor(0, 0, 0, 0); // Turn off LED 0 when Party Mode ends
+        for (int i = 1; i < NUM_LEDS; i++) {
+          pixels.setPixelColor(i, 0, 0, 0); // Clear other LEDs
+        }
+        pixels.show();
       }
       break;
     default:
@@ -570,26 +619,12 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
       if (altitude > maxAltitude) {
         maxAltitude = altitude;
       }
-
-      bool velocityCondition = abs(velocity) <= velocityThreshold;
-      bool altitudeCondition = altitude <= maxAltitude && altitudeHistory[0] <= altitudeHistory[1];
-      bool accelCondition = abs(z - accelBiasZ) <= accelThreshold;
-
-      if (velocityCondition && altitudeCondition && accelCondition) {
-        if (!apogeeCandidate) {
-          apogeeCandidate = true;
-          apogeeCandidateTime = millis();
-        } else if (millis() - apogeeCandidateTime >= apogeeConfirmWindow) {
+      if (altitude > 30 && velocity < 0)
           flightState = APOGEE;
           apogeeAltitude = altitude;
-          apogeeCandidate = false;
           Serial.println(F("Flight state: APOGEE"));
-          pixels.setPixelColor(0, 255, 255, 0); // Yellow for APOGEE
+          pixels.setPixelColor(1, 255, 255, 0); // Yellow for APOGEE
           pixels.show();
-        }
-      } else {
-        apogeeCandidate = false;
-      }
       break;
     }
     case APOGEE:
@@ -771,6 +806,7 @@ void loop() {
   debugCheckpoint("CHECK?  Hello World");//VERY IMOPORTANT DEBUGGING!!!!!!!!!!!!!!!!!!! DONT DELETE!!!!!!!@$&^@%%$#@@
 
   handleSdFailureBlink();
+  partyModeEffect(); // Run Party Mode effect if enabled
   
   updateTime(currentTime, sizeof(currentTime));
   char command[64] = {0};
@@ -794,7 +830,9 @@ void loop() {
   float rpm = (timeDifference > 0) ? (60000 / timeDifference) : 0;
   lastRpmTime = millis();
   rpmCount = 0;
-  float currentVoltage = ((analogRead(BATTERY_PIN) * 8.058608e-4) / 2.647058e-1);
+ // analogReadResolution(12); if no decimal is there
+ // int adcReading = analogRead(BATTERY_PIN); if no decimal is there
+  float currentVoltage = ((analogRead(BATTERY_PIN) * 8.058608e-4) / 2.647058e-1); // (adcReading * 8.058608e-4 / 2.647058e-1); use this if no decimal is given
 
   gps.checkUblox();
   gps.checkCallbacks();
@@ -822,7 +860,32 @@ void loop() {
   }
   SingleShotMeasure_loop();
 
+
+   //Calculate altitude in flight/simulation mode
+  Serial.print("simulationMode: ");
+Serial.println(simulationMode);
+float altitude = calculateAltitude(pressure);
+if (simulationMode) {
+  const float temperatureLapseRate = 0.0065;
+  const float seaLevelTemperature = 288.15;
+  const float gasConstant = 8.3144598;
+  const float molarMass = 0.0289644;
+  const float gravity = 9.80665;
+    float simulatedAltitude = (seaLevelTemperature / temperatureLapseRate) * 
+                   (1-pow((simulatedPressure / referencePressure / 100), 
+                            (gasConstant * temperatureLapseRate) / (gravity * molarMass)));
+    altitude = simulatedAltitude;
+    Serial.println("2");
+}
+  
+ /*  //Calculate altitude in flight/simulation mode
   float altitude = calculateAltitude(pressure);
+  if (simulationMode) {
+    float simulatedAltitude = (1 - pow(simulatedPressure / 1013.25, 0.190284)) * 145366.45;  // Approximation formula
+    altitude = simulatedAltitude;
+  }
+  TEST PLEASE!!!!!
+*/
   if (flightState == ASCENT && altitude > maxAltitude) {
     maxAltitude = altitude;
     pixels.setPixelColor(0, 255, 200, 0); // Bright yellow for new max altitude
@@ -865,7 +928,7 @@ void loop() {
         case LANDED: state = "LANDED"; break;
         default: state = "UNKNOWN"; break;
       }
-      
+      /* CAN BE REMOVED
       int currentVoltage_int = (int)(currentVoltage * 10);
       int gyroX_int = (int)(gyroX * 10);
       int gyroY_int = (int)(gyroY * 10);
@@ -877,7 +940,7 @@ void loop() {
       int magY_int = (int)(magEvent1.magnetic.y * 10);
       int magZ_int = (int)(magEvent1.magnetic.z * 10);
       int rpm_int = (int)(rpm * 10);
-
+*/
       pixels.setPixelColor(4, 255, 0, 0); // Red for telemetry transmission
       pixels.show();
       snprintf(telemetry, sizeof(telemetry),
@@ -887,6 +950,15 @@ void loop() {
                gyroX_int, gyroY_int, gyroZ_int, accelX_int, accelY_int, accelZ_int,
                magX_int, magY_int, magZ_int, rpm_int, gpsTime, gpsAltitude,
                latitude, longitude, satellites, lastCommand);
+
+      /* if the telemetry above doesn't work try this below
+snprintf(telemetry, sizeof(telemetry),
+               "%s,%s,%u,%s,%s,%.1f,%.1f,%.1f,%.1f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.1f,%.1f,%.1f,%u,%u,%.1f,%.5f,%.5f,%u,%u,COSMOS",
+               TEAM_ID, currentTime, packetCount, mode, state,
+                altitude, temperature, pressure, currentVoltage,
+               gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
+               magEvent1.magnetic.x, magEvent1.magnetic.y, magEvent1.magnetic.z, rpm, gpsTime, gpsAltitude, latitude, longitude, satellites, lastCommand);
+ */
       Serial1.println(telemetry);
       Serial.println(telemetry);
       if (dataFile && !sdFailed) {
