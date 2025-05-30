@@ -17,7 +17,7 @@ class VoltageGraph:
         self.start_time = None
 
         self.plot.setLabel('left', 'Voltage', 'V')
-        self.plot.setLabel('bottom', 'Time', units='s', unitsPrefix=None)
+        self.plot.setLabel('bottom', 'Time (s)')
         self.plot.setRange(yRange=[0, 10])
 
         self.timer = QtCore.QTimer()

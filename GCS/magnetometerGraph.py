@@ -25,7 +25,7 @@ class MagnetometerGraph:
         self.start_time = None
 
         self.plot.setLabel('left', 'Mag Reading', 'gauss')
-        self.plot.setLabel('bottom', 'Time', units='s', unitsPrefix=None)
+        self.plot.setLabel('bottom', 'Time (s)')
         self.plot.setRange(yRange=[-360, 360])
         self.plot.addLegend()
 

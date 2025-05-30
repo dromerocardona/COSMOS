@@ -17,7 +17,7 @@ class AutoGyroRotationGraph:
         self.start_time = None
 
         self.plot.setLabel('left', 'Autogyro Rotation Rate (RPM)',color='black')
-        self.plot.setLabel('bottom', 'Time', units='s', unitsPrefix=None)
+        self.plot.setLabel('bottom', 'Time (s)')
         self.plot.setRange(yRange=[0, 200])
 
         self.timer = QtCore.QTimer()
