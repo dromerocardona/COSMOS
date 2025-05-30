@@ -65,7 +65,7 @@ class LoadingScreen(QWidget):
 
         # Add loading image
         loading_pixmap = QPixmap('COSMOS_logo.png')
-        self.image_width, image_height = 605, 500
+        self.image_width, image_height = 500, 500
         loading_pixmap = loading_pixmap.scaled(self.image_width, image_height)
         self.image_label = QLabel()
         self.image_label.setPixmap(loading_pixmap)
@@ -436,6 +436,14 @@ class GroundStation(QMainWindow):
         sidebar_widget = QWidget()
         sidebar_widget.setLayout(sidebar_layout)
         sidebar_widget.setStyleSheet("background-color: #e9eeff;")
+        screen_geometry = QApplication.desktop().screenGeometry()
+        sidebar_width = screen_geometry.width() // 5
+        sidebar_widget.setFixedWidth(sidebar_width)
+
+        # Ensure child elements handle overflow
+        for label in sidebar_widget.findChildren(QLabel):
+            label.setWordWrap(True)  # Enable word wrapping for labels
+            label.setStyleSheet("color: black; font-weight: bold; overflow: hidden; text-overflow: ellipsis;")
 
         # Add footer
         footer_layout = QVBoxLayout()
@@ -580,17 +588,21 @@ class GroundStation(QMainWindow):
         self.comm.simEnabled = True
         self.SIM_toggle_button.setText("SIM\nDisable")
         self.comm.send_command("CMD,3195,SIM,ENABLE")
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
     def sim_activate(self):
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
         self.disable_button_temporarily(self.SIM_activate_button)
-        if self.comm.simEnabled and self.comm.receivedPacketCount:
+        if self.comm.simEnabled and len(list(get_available_serial_ports())):
             self.comm.send_command("CMD,3195,SIM,ACTIVATE")
             csv_filename, _ = QFileDialog.getOpenFileName(self, "Select CSV file", "", "CSV and Text Files (*.csv *.txt)")
             if csv_filename:
                 self.comm.simulation_mode(csv_filename)
     def sim_disable(self):
+        threading.Thread(target=playsound, args=('click.mp3',), daemon=True).start()
         self.disable_button_temporarily(self.SIM_toggle_button)
         self.comm.simulation = False
-        self.comm.stop_simulation()
+        if len(list(get_available_serial_ports())):
+            self.comm.stop_simulation()
         self.SIM_toggle_button.setText("SIM\nEnable")
         self.comm.send_command("CMD,3195,SIM,DISABLE")
     def cal(self):
@@ -726,6 +738,7 @@ class GroundStation(QMainWindow):
                 self.comm.ser = None
 
     def update_serial_ports(self):
+        threading.Thread(target=playsound, args=('bluetooth.mp3',), daemon=True).start()
         current_port = self.serial_port_dropdown.currentText()
         available_ports = set(get_available_serial_ports())
         self.serial_port_dropdown.clear()
