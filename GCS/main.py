@@ -135,6 +135,7 @@ class GroundStation(QMainWindow):
         self.setGeometry(100, 100, 1200, 800)
         self.setWindowIcon(QIcon('COSMOS_logo.png'))
         self.setStyleSheet("background-color: #b0aee7;")
+        self.dark_mode = False
 
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
@@ -439,23 +440,23 @@ class GroundStation(QMainWindow):
         sidebar_layout.addWidget(self.gps_coords_box)
 
         # Add the sidebar widget to the content layout
-        sidebar_widget = QWidget()
-        sidebar_widget.setLayout(sidebar_layout)
-        sidebar_widget.setStyleSheet("background-color: #e9eeff;")
+        self.sidebar_widget = QWidget()
+        self.sidebar_widget.setLayout(sidebar_layout)
+        self.sidebar_widget.setStyleSheet("background-color: #e9eeff;")
         screen_geometry = QApplication.desktop().screenGeometry()
         sidebar_width = screen_geometry.width() // 5
-        sidebar_widget.setFixedWidth(sidebar_width)
+        self.sidebar_widget.setFixedWidth(sidebar_width)
 
         # Ensure child elements handle overflow
-        for label in sidebar_widget.findChildren(QLabel):
+        for label in self.sidebar_widget.findChildren(QLabel):
             label.setWordWrap(True)  # Enable word wrapping for labels
             label.setStyleSheet("color: black; font-weight: bold; overflow: hidden; text-overflow: ellipsis;")
 
         # Add footer
         footer_layout = QVBoxLayout()
-        footer_widget = QWidget()
-        footer_widget.setLayout(footer_layout)
-        footer_widget.setStyleSheet("background-color: #a7cbf5;")  # Set footer background color
+        self.footer_widget = QWidget()
+        self.footer_widget.setLayout(footer_layout)
+        self.footer_widget.setStyleSheet("background-color: #a7cbf5;")  # Set footer background color
 
         # Footer data
         self.telemetry = QLabel("Telemetry: N/A")
@@ -464,9 +465,9 @@ class GroundStation(QMainWindow):
 
         # Graphs/GPS layout
         graphs_layout = QVBoxLayout()
-        graphs_widget = QWidget()
-        graphs_widget.setLayout(graphs_layout)
-        graphs_widget.setStyleSheet("background-color: #e6e6e6;")  # Set graphs background color
+        self.graphs_widget = QWidget()
+        self.graphs_widget.setLayout(graphs_layout)
+        self.graphs_widget.setStyleSheet("background-color: #e6e6e6;")  # Set graphs background color
 
         graphs_grid = QGridLayout()
         screen_geometry = QApplication.desktop().screenGeometry()
@@ -502,10 +503,10 @@ class GroundStation(QMainWindow):
         graphs_layout.addLayout(graphs_grid)
 
         # Add all elements to the main layout
-        content_layout.addWidget(sidebar_widget)
-        content_layout.addWidget(graphs_widget)
+        content_layout.addWidget(self.sidebar_widget)
+        content_layout.addWidget(self.graphs_widget)
         main_layout.addLayout(content_layout)
-        main_layout.addWidget(footer_widget)
+        main_layout.addWidget(self.footer_widget)
 
         self.showMaximized()
         self.setup_shortcuts()
@@ -569,6 +570,10 @@ class GroundStation(QMainWindow):
         party_off_shortcut.activated.connect(self.party_off)
         command_shortcut = QShortcut(QKeySequence("Ctrl+/"), self)
         command_shortcut.activated.connect(self.open_command_input)
+        dark_mode_shortcut = QShortcut(QKeySequence("Ctrl+D"), self)
+        dark_mode_shortcut.activated.connect(self.toggle_dark_mode)
+        light_mode_shortcut = QShortcut(QKeySequence("Ctrl+Shift+D"), self)
+        light_mode_shortcut.activated.connect(self.toggle_dark_mode)
 
     def open_command_input(self):
         command, ok = QInputDialog.getText(self, "Command Input", "Enter Command:")
@@ -729,6 +734,55 @@ class GroundStation(QMainWindow):
         self.rotationGraph.reset_graph()
         self.voltageGraph.reset_graph()
 
+    def toggle_dark_mode(self):
+        """Toggle between dark mode and light mode."""
+        self.dark_mode = not self.dark_mode
+        text_color = "white" if self.dark_mode else "black"
+        button_color = "#444444" if self.dark_mode else "#a7cbf5"
+
+        self.altitudeGraph.toggle_dark_mode(self.dark_mode)
+        self.autoGyroRotationGraph.toggle_dark_mode(self.dark_mode)
+        self.temperatureGraph.toggle_dark_mode(self.dark_mode)
+        self.rotationGraph.toggle_dark_mode(self.dark_mode)
+        self.voltageGraph.toggle_dark_mode(self.dark_mode)
+        self.accelerationGraph.toggle_dark_mode(self.dark_mode)
+        self.magnetometerGraph.toggle_dark_mode(self.dark_mode)
+
+        self.setStyleSheet("background-color: black;" if self.dark_mode else "background-color: #b0aee7;")
+        self.central_widget.setStyleSheet("background-color: black;" if self.dark_mode else "background-color: #b0aee7;")
+        self.sidebar_widget.setStyleSheet("background-color: #545454;" if self.dark_mode else "background-color: #e9eeff;")
+        self.graphs_widget.setStyleSheet("background-color: #545454;" if self.dark_mode else "background-color: #e6e6e6;")
+        self.gps_coords_box.setStyleSheet(
+            "QGroupBox { background-color: #95989c; border: 1px solid black; }" if self.dark_mode else "QGroupBox { background-color: #d1d1f0; border: 1px solid black; }")
+        self.sidebar_widget.findChild(QGroupBox, "").setStyleSheet(
+            "QGroupBox { background-color: #95989c; border: 1px solid black; }" if self.dark_mode else "QGroupBox { background-color: #d1d1f0; border: 1px solid black; }")
+        self.footer_widget.setStyleSheet("background-color: #95989c;" if self.dark_mode else "background-color: #a7cbf5;")
+
+        # Update text color for sidebar data labels
+        sidebar_labels = [
+            self.liveMode, self.liveState, self.liveMissionTime, self.liveGPSTime,
+            self.livePacketCount, self.liveReceivedPackets, self.liveGPSAltitude,
+            self.gyroRotation, self.liveCMDEcho, self.simulationState
+        ]
+        for label in sidebar_labels:
+            label.setStyleSheet(f"color: {text_color}; font-weight: bold;")
+
+        # Update text color for GPS box labels
+        self.GPS_LATITUDE.setStyleSheet(f"color: {text_color}; font-weight: bold;")
+        self.GPS_LONGITUDE.setStyleSheet(f"color: {text_color}; font-weight: bold;")
+
+        # Update button styles
+        buttons = [
+            self.reset_csv_button, self.set_UTC_time_button, self.set_GPS_time_button,
+            self.SIM_toggle_button, self.SIM_activate_button, self.CAL_button,
+            self.RELEASE_on_button, self.RELEASE_off_button, self.BLADE_CAM_on_button,
+            self.BLADE_CAM_off_button, self.GROUND_CAM_on_button, self.GROUND_CAM_off_button,
+            self.start_stop_button, self.calCamStabilization, self.copyCSV
+        ]
+        for button in buttons:
+            button.setStyleSheet(
+                f"color: {text_color}; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: {button_color};")
+
     def change_serial_port(self):
         selected_port = self.serial_port_dropdown.currentText()
         if selected_port != self.comm.serial_port:
@@ -770,6 +824,8 @@ class GroundStation(QMainWindow):
 
     def change_button_color(self, button, color, duration):
         original_style = button.styleSheet()
+        text_color = "white" if self.dark_mode else "black"
+        dark_mode_color = "#444444" if self.dark_mode else "#a7cbf5"
 
         if not hasattr(button, "_color_timer"):
             button._color_timer = QTimer()
@@ -777,8 +833,10 @@ class GroundStation(QMainWindow):
         button._color_timer.stop()  # Stop any active timer
         button.setStyleSheet(original_style)  # Reset to the original style
 
-        button.setStyleSheet(f"color: black; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: {color};")
-        button._color_timer.singleShot(duration, lambda: button.setStyleSheet(original_style))
+        button.setStyleSheet(
+            f"color: white; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: {color};")
+        button._color_timer.singleShot(duration, lambda: button.setStyleSheet(
+            f"color: {text_color}; border: 1px solid black; font-weight: bold; border-radius: 5px; background-color: {dark_mode_color};"))
 
     #close window/program
     def closeEvent(self, event):

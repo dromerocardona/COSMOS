@@ -68,3 +68,24 @@ class RotationGraph:
         self.data_y.clear()
         self.timestamps.clear()
         self.start_time = None
+
+    def toggle_dark_mode(self, dark_mode: bool):
+        if dark_mode:
+            self.win.setBackground('#4f5052')  # Set black background
+            pg.setConfigOption('foreground', 'w')  # White text
+            title_color = 'w'
+        else:
+            self.win.setBackground('w')  # Set white background
+            pg.setConfigOption('foreground', 'k')  # Black text
+            title_color = 'k'
+
+        # Update axis colors
+        self.plot.getAxis('left').setPen(title_color)
+        self.plot.getAxis('bottom').setPen(title_color)
+
+        # Update title color
+        self.plot.setTitle("<b>Rotation</b>", color=title_color, size="12pt")
+
+        # Update tick label colors
+        self.plot.getAxis('left').setTextPen(title_color)
+        self.plot.getAxis('bottom').setTextPen(title_color)
