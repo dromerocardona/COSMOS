@@ -25,6 +25,7 @@ class Communication:
         self.send_thread = None
         self.simulation = False
         self.simEnabled = False
+        self.simulation_state_callback = lambda state: None
 
         try:
             self.ser = serial.Serial(self.serial_port, self.baud_rate, timeout=self.timeout)
@@ -161,6 +162,8 @@ class Communication:
     def _run_simulation(self, csv_filename):
         """Send commands from the CSV file at 1-second intervals."""
         try:
+            commands_sent = 0
+            self.simulation_state_callback("Simulation: Running (0 commands sent)")
             with open(csv_filename, mode='r') as file:
                 csv_reader = csv.reader(file)
                 next(csv_reader, None)  # Skip header if present
@@ -172,15 +175,20 @@ class Communication:
                         command = ','.join(line)
                         start_time = time.time()
                         self.send_command(command)  # Add to the command queue
+                        commands_sent += 1
+                        self.simulation_state_callback(f"Simulation: Running ({commands_sent})")
                         logging.debug(f"Simulation command prepared: {command}")
                         # Sleep to maintain 1-second interval, accounting for processing time
                         elapsed = time.time() - start_time
                         remaining = max(0, 1.0 - elapsed)
                         time.sleep(remaining)
+            self.simulation_state_callback(f"Simulation: Completed")
         except FileNotFoundError:
             logging.error(f"Simulation CSV file {csv_filename} not found")
+            self.simulation_state_callback("Simulation: Error (File not found)")
         except Exception as e:
             logging.error(f"Error in simulation: {e}")
+            self.simulation_state_callback(f"Simulation: Error")
         finally:
             self.simulation = False
             logging.info("Simulation stopped")

@@ -214,6 +214,8 @@ class GroundStation(QMainWindow):
         self.comm = Communication(
             serial_port=self.serial_port_dropdown.currentText())  # Initialize with selected serial port
 
+        self.comm.simulation_state_callback = self.update_simulation_state
+
         # Enclose sats in a white box
         sats_box = QGroupBox()
         sats_box.setStyleSheet("background-color: white;")
@@ -292,6 +294,9 @@ class GroundStation(QMainWindow):
         self.liveCMDEcho = QLabel("CMD Echo: N/A")
         self.liveCMDEcho.setFont(QFont("Arial", 11, QFont.Bold))
         self.liveCMDEcho.setStyleSheet("color: black; font-weight: bold;")
+        self.simulationState = QLabel("Simulation: Not running")
+        self.simulationState.setFont(QFont("Arial", 11, QFont.Bold))
+        self.simulationState.setStyleSheet("color: black; font-weight: bold;")
         sidebar_groupbox_layout.addWidget(self.liveMode)
         sidebar_groupbox_layout.addWidget(self.liveState)
         sidebar_groupbox_layout.addWidget(self.liveMissionTime)
@@ -301,6 +306,7 @@ class GroundStation(QMainWindow):
         sidebar_groupbox_layout.addWidget(self.liveGPSAltitude)
         sidebar_groupbox_layout.addWidget(self.gyroRotation)
         sidebar_groupbox_layout.addWidget(self.liveCMDEcho)
+        sidebar_groupbox_layout.addWidget(self.simulationState)
 
         # Add the QGroupBox to the sidebar layout
         sidebar_groupbox.setStyleSheet("QGroupBox { background-color: #d1d1f0; border: 1px solid black; }")
@@ -755,6 +761,9 @@ class GroundStation(QMainWindow):
         selected_baud_rate = int(self.baud_rate_dropdown.currentText())
         self.comm.change_baud_rate(selected_baud_rate)
         print(f"Baud rate changed to {selected_baud_rate}")
+
+    def update_simulation_state(self, state):
+        self.simulationState.setText(state)
 
     def on_button_click(self, button):
         self.change_button_color(button, "#d1d1f0", 500)
