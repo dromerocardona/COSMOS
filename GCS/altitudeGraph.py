@@ -11,7 +11,7 @@ class AltitudeGraph:
         self.win = pg.GraphicsLayoutWidget(show=True, title="Altitude")
         self.win.setStyleSheet("border: 1px solid black;")
         self.plot = self.win.addPlot(title="<b>Altitude</b>")
-        self.curve = self.plot.plot(pen=pg.mkPen(color='g', width=2))
+        self.curve = self.plot.plot(pen=pg.mkPen(color='#1e8d12', width=3), symbol='o', symbolSize=8, symbolBrush='#1e8d12')
         self.data = []
         self.timestamps = []
         self.start_time = None

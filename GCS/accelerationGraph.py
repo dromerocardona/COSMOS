@@ -14,9 +14,9 @@ class AccelerationGraph:
 
         self.plot.addLegend()
 
-        self.curve_r = self.plot.plot(pen=pg.mkPen(color='r', width=2), name="ACCEL_R")
-        self.curve_p = self.plot.plot(pen=pg.mkPen(color='g', width=2), name="ACCEL_P")
-        self.curve_y = self.plot.plot(pen=pg.mkPen(color='b', width=2), name="ACCEL_Y")
+        self.curve_r = self.plot.plot(pen=pg.mkPen(color='r', width=3), name="ACCEL_R", symbol='o', symbolSize=8, symbolBrush='r')
+        self.curve_p = self.plot.plot(pen=pg.mkPen(color='#1e8d12', width=3), name="ACCEL_P", symbol='o', symbolSize=8, symbolBrush='#1e8d12')
+        self.curve_y = self.plot.plot(pen=pg.mkPen(color='b', width=3), name="ACCEL_Y", symbol='o', symbolSize=8, symbolBrush='b')
 
         self.data_r = []
         self.data_p = []
