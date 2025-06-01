@@ -38,7 +38,7 @@ bool calibrated = false;
 // Running average variables
 float avg_cos = 0;         // Average cosine component
 float avg_sin = 0;         // Average sine component
-float avgLen = 5;          // Smoothing factor (higher = smoother, slower response)
+float avgLen = 2.5;        // Smoothing factor (higher = smoother, slower response)
 bool first_update = true;  // Flag for initializing the average
 
 
@@ -137,7 +137,7 @@ void debugCheckpoint(const char *message) {
 
 // PINS AND DEFINITIONS
 #define SD_CS_PIN 6   // Chip select pin for SD card
-#define SERVO_PIN A5  // Servo pin for GND camera stabilization
+#define SERVO_PIN A3  // Servo pin for GND camera stabilization
 //#define FEEDBACK_PIN 9        // Feedback signal pin for servo control
 #define I2C_ADDRESS 0x20       // I2C Address for ENS 220
 #define MAG1_I2C_ADDRESS 0x1C  // First LIS3MDL address
@@ -305,9 +305,10 @@ float avg(float arr[], int size) {
 // Function for PID Camera Stabilization
 float pidControl(float input, float setpoint, float &lastError, float &integral, bool invert) {
   // PID tuning parameters
-  const float K_proportional = 1.0;  // Proportional gain
-  const float K_integral = 0.1;      // Integral gain
-  const float K_derivative = 0.01;   // Derivative gain
+  const float K_proportional = 0.5;  // Proportional gain
+  const float K_integral = 0;        // Integral gain
+  const float K_derivative = 0;      // Derivative gain
+  const float rng = K_proportional * 180;
 
   // Calculate the error
   float error = setpoint - input;  // Calculate the error based on difference between setpoint and input
@@ -334,20 +335,29 @@ float pidControl(float input, float setpoint, float &lastError, float &integral,
   //Control signal zero-speed deadband:  1480–1520 µs (+/- 15)
   //-------------------------------------------
 
-  const int PIDdeadband = 5;  //  +/- degrees
-  //might be added
-
   float servoMicroseconds;
-  //Map an assumed or enforced max range onto the PWM write range:
-  if (output < PIDdeadband && output > -PIDdeadband) {
-    servoMicroseconds = 1500;
-  } else if (invert==false) {
-    servoMicroseconds = map(output, -360, 360, 1280, 1720);
+
+  if (invert == false) {
+    if (output > 0) {
+      servoMicroseconds = map(output, 0, rng, 1520, 1720);
+    } else if (output < 0) {
+      servoMicroseconds = map(output, -rng, 0, 1280, 1480);
+    } else {
+    }
   } else {
-    servoMicroseconds = map(output, -360, 360, 1720, 1280);
+    if (output > 0) {
+      servoMicroseconds = map(output, 0, rng, 1280, 1480);
+    } else if (output < 0) {
+      servoMicroseconds = map(output, -rng, 0, 1520, 1720);
+    } else {
+    }
   }
-
-
+  Serial.print(output);
+  Serial.print(",");
+  Serial.print(error);
+  Serial.print(",");
+  Serial.print(servoMicroseconds);
+  Serial.print(",");
 
 
 
@@ -505,29 +515,40 @@ void setup() {
   debugCheckpoint("round two sensor init");
 
   SingleShotMeasure_setup();
+
+
+  static unsigned long startTime = millis();
+
+  delay(5000);
+  while (!calibrated){
+    if (!calibrated) {
+      if (millis() - startTime < 10000) {
+        collectCalibrationData();
+      } else {
+        computeCalibration();
+      }
+      if (millis()-startTime < 5000){
+        camServo.writeMicroseconds(1380);
+      }else if (millis()-startTime > 5000){
+        camServo.writeMicroseconds(1620);
+      }
+      return;
+    }
+  }
 }
 
 void loop() {
   //----------------Tilt compensation----------------
-  static unsigned long startTime = millis();
+
   mag.read();
   imu.read();
-  
-  if (!calibrated) {
-    if (millis() - startTime < 10000) {
-      collectCalibrationData();
-      delay(50);
-    } else {
-      computeCalibration();
-    }
-    return;
-  }
+
 
   // Compute heading and update running average
   float heading = computeTiltCompensatedHeading();
   float smoothed_heading;
   updateRunningAverage(heading, smoothed_heading);
-  camServo.writeMicroseconds(pidControl(heading, setpoint, lastError, integral, false)); //float input, float setpoint, float &lastError, float &integral, bool invert
+  camServo.writeMicroseconds(pidControl(heading, setpoint, lastError, integral, true));  //float input, float setpoint, float &lastError, float &integral, bool invert
 
   // Output for plotting (e.g., Serial Plotter)
   Serial.print("360,0,");          // Reference lines
