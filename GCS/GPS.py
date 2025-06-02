@@ -72,8 +72,8 @@ class GPSMap(QWidget, QObject):
         """Create an initial map with a default location."""
         try:
             # Replace with desired default location
-            initial_latitude = 31.11922492905565
-            initial_longitude = -86.09000126183433
+            initial_latitude = 38.3780916
+            initial_longitude = -79.6119949
 
             folium_map = folium.Map(location=[initial_latitude, initial_longitude], zoom_start=14)
             folium_map.save(self.map_file)
