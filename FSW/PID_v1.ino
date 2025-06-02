@@ -114,10 +114,10 @@ float cascadePidControl(float currentPosition, float positionSetpoint, float cur
                         float &lastPosError, float &posIntegral,
                         float &lastVelError, float &velIntegral,
                         bool invert) {
-    // Outer Loop: Position Controller
-    const float Kp_pos = 1.0f;
+    // Outer Loop: Position Controller  this will tune the position. this should be tunned with a predictable response on the secondary loop 
+    const float Kp_pos = 1.0f;//tune first  (the cumulative size of p and d will directly determine both the response and instability of the system (same for the inner loop))
     const float Ki_pos = 0.0f;
-    const float Kd_pos = 1.5f;
+    const float Kd_pos = 1.5f;//second
     const float rng = 360.0f;
 
     float posError = positionSetpoint - currentPosition;
@@ -132,10 +132,10 @@ float cascadePidControl(float currentPosition, float positionSetpoint, float cur
     if (desiredVelocity > rng) desiredVelocity = rng;
     else if (desiredVelocity < -rng) desiredVelocity = -rng;
 
-    // Inner Loop: Velocity Controller
-    const float Kp_vel = 1.0f;
-    const float Ki_vel = 0.0f;
-    const float Kd_vel = 0.5f;
+    // Inner Loop: Velocity Controller  this should be tunned second to stabilize occilation on the position loop by dampening velocity values
+    const float Kp_vel = 1.0f;//fune first (tuning above 2 may have a bennificial response effect)
+    const float Ki_vel = 0.0f;//will potentialy have a beneficial effect.  values above 0.1 may cause uncontrolled windup
+    const float Kd_vel = 0.2f;//tune second  (this could stabilize a large p value)
 
     float velError = desiredVelocity - currentVelocity;
     velIntegral += velError;
