@@ -10,7 +10,7 @@
 #include <SD.h>
 #include <Arduino.h>
 #include "i2c_interface.h"
-#include "FeedBackServo.h"
+//#include "FeedBackServo.h"
 #include <Servo.h>
 #include <LIS3MDL.h>
 #include <LSM6.h>
@@ -38,7 +38,7 @@ bool calibrated = false;
 // Running average variables
 float avg_cos = 0;         // Average cosine component
 float avg_sin = 0;         // Average sine component
-float avgLen = 2.5;        // Smoothing factor (higher = smoother, slower response)
+float avgLen = 2;          // Smoothing factor (higher = smoother, slower response)
 bool first_update = true;  // Flag for initializing the average
 
 
@@ -215,15 +215,15 @@ unsigned long timestampHistory[historySize];  // Store time
 float latestVelocity;
 
 // Variables used for PID
-float setpoint = 180.0;            // Desired setpoint placeholder
+float setpoint = 359;            // Desired setpoint placeholder
 float input = 0.0;                 // Current system input
 float output = 0.0;                // PID output
 float error = 0.0;                 // Current error
 float lastError = 0.0;             // Previous error
 float integral = 0.0;              // tracks cumulative error
-const float K_proportional = 1.0;  // Proportional gain
+/*const float K_proportional = 1.0;  // Proportional gain ///potentialy redundant
 const float K_integral = 0.1;      // Integral gain
-const float K_derivative = 0.01;   // Derivative gain
+const float K_derivative = 0.01;   // Derivative gain*/
 float heading;
 
 // PulseComs™
@@ -305,10 +305,10 @@ float avg(float arr[], int size) {
 // Function for PID Camera Stabilization
 float pidControl(float input, float setpoint, float &lastError, float &integral, bool invert) {
   // PID tuning parameters
-  const float K_proportional = 0.5;  // Proportional gain
+  const float K_proportional = 1;  // Proportional gain
   const float K_integral = 0;        // Integral gain
-  const float K_derivative = 0;      // Derivative gain
-  const float rng = K_proportional * 180;
+  const float K_derivative = 1.5;      // Derivative gain
+  const float rng = 360;
 
   // Calculate the error
   float error = setpoint - input;  // Calculate the error based on difference between setpoint and input
@@ -334,21 +334,25 @@ float pidControl(float input, float setpoint, float &lastError, float &integral,
   //Control signal: PWM,  3–5 V 50 Hz,  1280–1720 µs
   //Control signal zero-speed deadband:  1480–1520 µs (+/- 15)
   //-------------------------------------------
-
+  int MMoffset = 10;
+  int Maxms = 1595+MMoffset;
+  int Minms = 1355-MMoffset;
   float servoMicroseconds;
+  int Deadzonecenter = 1475;
+  int Dzoffset = -10; //controls how much of the deadzone to use
 
   if (invert == false) {
     if (output > 0) {
-      servoMicroseconds = map(output, 0, rng, 1520, 1720);
+      servoMicroseconds = map(output, 0, rng, Deadzonecenter+Dzoffset, Maxms);
     } else if (output < 0) {
-      servoMicroseconds = map(output, -rng, 0, 1280, 1480);
+      servoMicroseconds = map(output, -rng, 0, Minms, Deadzonecenter-Dzoffset);
     } else {
     }
   } else {
     if (output > 0) {
-      servoMicroseconds = map(output, 0, rng, 1280, 1480);
+      servoMicroseconds = map(output, 0, rng, Minms, Deadzonecenter-Dzoffset);
     } else if (output < 0) {
-      servoMicroseconds = map(output, -rng, 0, 1520, 1720);
+      servoMicroseconds = map(output, -rng, 0, Deadzonecenter+Dzoffset, Maxms);
     } else {
     }
   }
@@ -516,24 +520,20 @@ void setup() {
 
   SingleShotMeasure_setup();
 
-
-  static unsigned long startTime = millis();
-
   delay(5000);
-  while (!calibrated){
-    if (!calibrated) {
-      if (millis() - startTime < 10000) {
-        collectCalibrationData();
-      } else {
-        computeCalibration();
-      }
-      if (millis()-startTime < 5000){
-        camServo.writeMicroseconds(1380);
-      }else if (millis()-startTime > 5000){
-        camServo.writeMicroseconds(1620);
-      }
-      return;
+  static unsigned long startTime = millis();
+  while (!calibrated) {
+    if (millis() - startTime < 10000) {
+      collectCalibrationData();
+    } else {
+      computeCalibration();
     }
+    if (millis() - startTime < 5000) {
+      camServo.writeMicroseconds(1355);
+    } else if (millis() - startTime > 5000) {
+      camServo.writeMicroseconds(1595);
+    }
+    delay(10);
   }
 }
 
