@@ -88,6 +88,7 @@ float maxAltitude = 0;
 bool releaseActivated = false;
 bool simulationMode = false;
 float simulatedPressure = 100.0;
+bool firstSimpReceived = false;
 float receivedPressure = 0.0;
 float referencePressure = 1013.25;
 const int historySize = 10;
@@ -451,6 +452,33 @@ void handleCommand(const char *command) {
       if (receivedPressure > 0.0 && receivedPressure < 2000.0) {
         simulationMode = true;
         simulatedPressure = receivedPressure;
+        
+        // Calibrate on first SIMP command
+        if (!firstSimpReceived) {
+          referencePressure = receivedPressure;
+          Serial.print(F("First SIMP command: Reference pressure set to: "));
+          Serial.print(referencePressure);
+          Serial.println(F(" hPa"));
+
+          for (int i = 0; i < historySize; i++) {
+            altitudeHistory[i] = 0.0;
+            velocityHistory[i] = 0.0;
+            timestampHistory[i] = 0;
+          }
+          maxAltitude = 0.0;
+          apogeeAltitude = 0.0;
+          latestVelocity = 0.0;
+          flightState = LAUNCH_PAD;
+          Serial.println(F("History arrays and altitude variables reset."));
+          
+          calibrateGyroscope();
+          calibrateAccelerometer();
+          
+          firstSimpReceived = true;
+          pixels.setPixelColor(1, 255, 128, 0);
+          pixels.show();
+        }
+        
         Serial.print(F("Simulated pressure set via SIMP: "));
         Serial.print(simulatedPressure);
         Serial.println(F(" hPa"));
