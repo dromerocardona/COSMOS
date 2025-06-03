@@ -196,7 +196,7 @@ class Communication:
     def stop_simulation(self):
         """Stop the simulation process."""
         self.simulation = False
-        if hasattr(self, 'sim_thread') and self.sim_thread.is_alive():
+        if getattr(self, 'sim_thread', None) is not None and self.sim_thread.is_alive():
             self.sim_thread.join()
 
     def stop_reading(self):
