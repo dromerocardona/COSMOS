@@ -616,6 +616,7 @@ class GroundStation(QMainWindow):
             self.comm.stop_simulation()
         self.SIM_toggle_button.setText("SIM\nEnable")
         self.comm.send_command("CMD,3195,SIM,DISABLE")
+        self.comm.simEnabled = False
     def cal(self):
         self.disable_button_temporarily(self.CAL_button)
         self.comm.send_command("CMD,3195,CAL")
