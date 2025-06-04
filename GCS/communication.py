@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 
 class Communication:
 
-    def __init__(self, serial_port, baud_rate=9600, timeout=4, csv_filename='Flight_3195.csv'):
+    def __init__(self, serial_port, baud_rate=115200, timeout=4, csv_filename='Flight_3195.csv'):
         self.sim_thread = None
         self.serial_port = serial_port
         self.baud_rate = baud_rate
