@@ -76,7 +76,7 @@ char gpsTime[9] = "00:00:00";
 float accel2X, accel2Y, accel2Z, gyro2X, gyro2Y, gyro2Z;
 char lastCommand[16] = "NONE";  // Reduced from 32 to 16
 unsigned int packetCount = 0;
-bool telemetryEnabled = true;
+bool telemetryEnabled = false; // SHOULD ALWAYS BE FALSE SO THT THE TELEMETRY DOESN"T START AUTOMATICALLY AND ONLY STARTS WHEN ITS CX_ON
 float cameraposition = 0;
 unsigned long lastRpmTime = 0;
 volatile unsigned long rpmCount = 0;
