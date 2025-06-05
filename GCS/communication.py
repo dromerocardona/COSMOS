@@ -197,6 +197,7 @@ class Communication:
         self.simulation = False
         if getattr(self, 'sim_thread', None) is not None and self.sim_thread.is_alive():
             self.sim_thread.join()
+        self.command_queue.queue.clear()
 
     def stop_reading(self):
         self.reading = False
