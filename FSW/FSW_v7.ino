@@ -622,34 +622,24 @@ void SingleShotMeasure_loop() {
 }
 
 void updateTime(char *currentTime, size_t size) {
-  if (rtc.isrunning()) {
-    DateTime now = rtc.now();
-    snprintf(currentTime, size, "%02d:%02d:%02d", now.hour(), now.minute(), now.second());
-    pixels.setPixelColor(0, 0, 0, 100); // blue for UTC time
-    pixels.show();
-  } else {
-    Serial.println(F("RTC not running, using fallback time."));
-    static unsigned long previousMillis = 0;
-    const unsigned long interval = 1000;
-    unsigned long currentMillis = millis();
-    if (currentMillis - previousMillis >= interval) {
-      previousMillis = currentMillis;
-      int hours, minutes, seconds;
-      if (sscanf(currentTime, "%2d:%2d:%2d", &hours, &minutes, &seconds) == 3) {
-        seconds++;
-        if (seconds >= 60) {
-          seconds = 0;
-          minutes++;
-          if (minutes >= 60) {
-            minutes = 0;
-            hours++;
-            if (hours >= 24) hours = 0;
-          }
+  static unsigned long previousMillis = 0;
+  const unsigned long interval = 1000;
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    int hours, minutes, seconds;
+    if (sscanf(currentTime, "%2d:%2d:%2d", &hours, &minutes, &seconds) == 3) {
+      seconds++;
+      if (seconds >= 60) {
+        seconds = 0;
+        minutes++;
+        if (minutes >= 60) {
+          minutes = 0;
+          hours++;
+          if (hours >= 24) hours = 0;
         }
-        snprintf(currentTime, size, "%02d:%02d:%02d", hours, minutes, seconds);
       }
-      pixels.setPixelColor(0, 100, 0, 0); //red for error
-      pixels.show();
+      snprintf(currentTime, size, "%02d:%02d:%02d", hours, minutes, seconds);
     }
   }
 }
