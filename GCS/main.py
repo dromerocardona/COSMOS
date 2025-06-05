@@ -582,7 +582,7 @@ class GroundStation(QMainWindow):
 
     def set_utc_time(self):
         self.disable_button_temporarily(self.set_UTC_time_button)
-        utc_time = datetime.datetime.now().strftime("%H:%M:%S")
+        utc_time = datetime.datetime.utcnow().strftime("%H:%M:%S")
         self.comm.send_command(f"CMD,3195,ST,UTC_TIME,{utc_time}")
     def set_gps_time(self):
         self.disable_button_temporarily(self.set_GPS_time_button)
