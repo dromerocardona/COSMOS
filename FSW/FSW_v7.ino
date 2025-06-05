@@ -207,8 +207,6 @@ void calibrateGyroscope() {
     Serial.print(gyroBiasY);
     Serial.print(F(", "));
     Serial.println(gyroBiasZ);
-    pixels.setPixelColor(1, 0, 255, 0); // Green for successful CAL
-    pixels.show();
   } else {
     Serial.println(F("Gyroscope calibration failed: insufficient samples"));
     pixels.setPixelColor(1, 255, 0, 0); // red for failed CAL
@@ -253,8 +251,6 @@ void calibrateAccelerometer() {
     Serial.print(accelBiasY);
     Serial.print(F(", "));
     Serial.println(accelBiasZ);
-    pixels.setPixelColor(1, 0, 255, 0); // Green for Successful accel CAL
-    pixels.show();
   } else {
     Serial.println(F("Accelerometer calibration failed: insufficient samples"));
     pixels.setPixelColor(1, 255, 0, 0);// red for failed Accel Cal
