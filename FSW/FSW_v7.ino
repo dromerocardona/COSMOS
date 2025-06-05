@@ -122,11 +122,12 @@ bool partyMode = false;
 unsigned long lastPartyUpdateTime = 0;
 const unsigned long PARTY_UPDATE_INTERVAL = 50;
 uint8_t partyPhase = 0;
+int landedVelocities = 0;
 
 void partyModeEffect() {
   if (!partyMode) return;
   if (millis() - lastPartyUpdateTime < PARTY_UPDATE_INTERVAL) return;
-  float phase = (float)partyPhase * 0.05;
+  float phase = (float)partyPhase * 0.8;
   uint8_t r = (sin(phase) + 1) * 127.5;
   uint8_t g = (sin(phase + 2.094) + 1) * 127.5;
   uint8_t b = (sin(phase + 4.188) + 1) * 127.5;
@@ -263,12 +264,23 @@ void calibrateAccelerometer() {
 }
 
 void updateAltitudeHistory(float altitudeHistory[], unsigned long timestampHistory[], float newAltitude, int size) {
-  for (int i = size - 1; i > 0; i--) {
-    altitudeHistory[i] = altitudeHistory[i - 1];
-    timestampHistory[i] = timestampHistory[i - 1];
+  if (simulationMode) {
+    if (newAltitude != altitudeHistory[0]) {
+      for (int i = size - 1; i > 0; i--) {
+        altitudeHistory[i] = altitudeHistory[i - 1];
+        timestampHistory[i] = timestampHistory[i - 1];
+      }
+      altitudeHistory[0] = newAltitude;
+      timestampHistory[0] = millis();
+    }
+  } else {
+      for (int i = size - 1; i > 0; i--) {
+        altitudeHistory[i] = altitudeHistory[i - 1];
+        timestampHistory[i] = timestampHistory[i - 1];
+      }
+      altitudeHistory[0] = newAltitude;
+      timestampHistory[0] = millis();
   }
-  altitudeHistory[0] = newAltitude;
-  timestampHistory[0] = millis();
 }
 
 void updateVelocityHistory(float altitudeHistory[], float velocityHistory[], unsigned long timestampHistory[], int size) {
@@ -751,7 +763,7 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
       if (altitude > maxAltitude) {
         maxAltitude = altitude;
       }
-      if (altitude > 30 && velocity < -20) {
+      if (altitude > 30 && velocity < -5) {
         flightState = APOGEE;
         apogeeAltitude = altitude;
         if (altitude < maxAltitude) {
@@ -800,7 +812,10 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
       Serial.print(velocity);
       Serial.print(F(" m/s, Time since last orientation change: "));
       Serial.println(millis() - lastOrientationTime);
-      if (abs(velocity) < 0.5 && millis() - probeReleaseTime > 10000) {  // Relaxed velocity threshold and use probeReleaseTime
+      if ((abs(velocity) < 0.5)) {  // Relaxed velocity threshold and use probeReleaseTime
+        landedVelocities++;
+      }
+      if (landedVelocities >= 10) {
         flightState = LANDED;
         landedTime = millis();
         Serial.println(F("Flight state: LANDED"));
@@ -1105,15 +1120,13 @@ void loop() {
       break;
     case DESCENT:
       updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
-      if (!releaseActivated && altitude <= (apogeeAltitude * 0.75)) {
-        releaseServo.writeMicroseconds(1300);
-        releaseActivated = true;
-        pixels.setPixelColor(2, 255, 0, 100);
-        pixels.show();
-      }
       break;
     case PROBE_RELEASE:
       updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
+      releaseServo.writeMicroseconds(1300);
+      releaseActivated = true;
+      pixels.setPixelColor(2, 255, 0, 100);
+      pixels.show();
       break;
     case LANDED:
       updateFlightState(altitude, velocityHistory[0], accelX, accelY, accelZ);
