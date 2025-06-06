@@ -24,7 +24,7 @@ class RotationGraph:
         self.timestamps = []
         self.start_time = None
 
-        self.plot.setLabel('left', 'Rotation', '°')
+        self.plot.setLabel('left', 'Rotation (°/s)')
         self.plot.setLabel('bottom', 'Time (s)')
         self.plot.setRange(yRange=[-1000, 1000])
         self.plot.addLegend()
