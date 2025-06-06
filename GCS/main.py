@@ -679,7 +679,7 @@ class GroundStation(QMainWindow):
         self.livePacketCount.setText(f"Packet Count: {self.comm.get_PACKET_COUNT() or 'N/A'}")
         self.liveReceivedPackets.setText(f"Received Packets: {self.comm.receivedPacketCount or 'N/A'}")
         self.liveGPSAltitude.setText(f"GPS Altitude: {self.comm.get_GPS_ALTITUDE() or 'N/A'} m")
-        self.gyroRotation.setText(f"Gyro Rate: {self.comm.get_AUTO_GYRO_ROTATION_RATE() or 'N/A'} °/s²")
+        self.gyroRotation.setText(f"Gyro Rate: {self.comm.get_AUTO_GYRO_ROTATION_RATE() or 'N/A'} °/s")
         self.liveCMDEcho.setText(f"CMD Echo: {self.comm.get_CMD_ECHO() or 'N/A'}")
 
         self.GPS_LATITUDE.setText(f"GPS Latitude: {self.comm.get_GPS_LATITUDE() or 'N/A'}")

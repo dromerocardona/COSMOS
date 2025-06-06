@@ -16,7 +16,7 @@ class AutoGyroRotationGraph:
         self.timestamps = []
         self.start_time = None
 
-        self.plot.setLabel('left', 'Autogyro Rotation Rate (RPM)',color='black')
+        self.plot.setLabel('left', 'Autogyro Rotation Rate (°/s)',color='black')
         self.plot.setLabel('bottom', 'Time (s)')
         self.plot.setRange(yRange=[0, 200])
 
@@ -32,7 +32,7 @@ class AutoGyroRotationGraph:
         self.start_tracking()
         elapsed_time = timestamp - self.start_time
 
-        self.data.append(autogyrorate/6)
+        self.data.append(autogyrorate)
         self.timestamps.append(elapsed_time)
         self.data = self.data[-20:]
         self.timestamps = self.timestamps[-20:]
