@@ -36,7 +36,7 @@ void debugCheckpoint(const char *message) {
 #define MAG_I2C_ADDRESS 0x1E
 #define USB_BAUDRATE 115200
 #define XBEE_BAUDRATE 115200
-#define GND_CAM_CTRL 11
+#define GND_CAM_CTRL 11 //PID board pin
 #define BLADE_CAM_CTRL 10
 #define LED_DATA 5
 #define NUM_LEDS 5
@@ -519,14 +519,14 @@ void handleCommand(const char *command) {
           }
         } else if (strcmp(field3, "GROUND") == 0) {
           if (strcmp(field4, "ON") == 0) {
-            digitalWrite(GND_CAM_CTRL, HIGH);
+            digitalWrite(GND_CAM_CTRL, LOW);
             Serial.println(F("MEC CAMERA GROUND ON - Camera powered ON."));
             strncpy(lastCommand, "GROUND_CAM_ON", sizeof(lastCommand));
             lastCommand[sizeof(lastCommand) - 1] = '\0';
             pixels.setPixelColor(4, 100, 255, 0); // Yellow for Ground Camera On
             pixels.show();
           } else if (strcmp(field4, "OFF") == 0) {
-            digitalWrite(GND_CAM_CTRL, LOW);
+            digitalWrite(GND_CAM_CTRL, HIGH);
             Serial.println(F("MEC CAMERA GROUND OFF - Camera powered OFF."));
             strncpy(lastCommand, "GROUND_CAM_OFF", sizeof(lastCommand));
             lastCommand[sizeof(lastCommand) - 1] = '\0';
