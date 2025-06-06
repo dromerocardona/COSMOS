@@ -10,17 +10,19 @@
 #include <SD.h>
 #include <Arduino.h>
 #include "i2c_interface.h"
-//#include "FeedBackServo.h"
 #include <Servo.h>
 #include <LIS3MDL.h>
 #include <LSM6.h>
 #include <cmath>
 
+//buffer for delaying SD writes to avoid escessive open/close file commands
+char buffer[16384];
+int bufferIndex = 0;  // Tracks the current position in the buffer
 
 //--Feedback
 const int feedbackPin = A5;
 const int outputPin = A3;
-const int timeout = 1000000;  // 1 second timeout
+const int timeout = 100000;  // 0.11 second timeout
 float tHigh = 0;
 float tLow = 0;
 float dutyCycle = 0;
@@ -83,8 +85,8 @@ void computeCalibration() {
 }
 
 float computeTiltCompensatedHeading() {
-  mag.read();
-  imu.read();
+  //mag.read();
+  //imu.read();
 
   // Apply calibration
   LIS3MDL::vector<float> m = {
@@ -160,7 +162,7 @@ void debugCheckpoint(const char *message) {
 #define BUFF_SIZE 20
 #define Serial1 Serial1
 
-const int pin = A4;
+//const int pin = A4;
 uint8_t txBuf[BUFF_SIZE], crc;
 int recState = 0;  // 0 = not recording, 1 = recording
 unsigned long highStartTime = 0;
@@ -186,10 +188,8 @@ uint8_t crc8_calc(uint8_t crc, unsigned char a, uint8_t poly) {
 //------------------------------------------end runcam------------------
 
 ScioSense::ENS220 ens220;
-I2cInterface i2c_1;            // Added for ENS220 single-shot mode
-Adafruit_LIS3MDL lis3mdl;      // Magnetometer
-Adafruit_LIS3MDL lis3mdl_FC;   // First magnetometer
-Adafruit_LIS3MDL lis3mdl_CAM;  // Second magnetometer
+I2cInterface i2c_1;        // Added for ENS220 single-shot mode
+Adafruit_LIS3MDL lis3mdl;  // Magnetometer
 Servo camServo;
 File dataFile;
 File backupFile;
@@ -199,13 +199,11 @@ unsigned long landedTime = 0;
 unsigned long lastOrientationTime = 0;
 //float lastOrientationX = 0.0, lastOrientationY = 0.0, lastOrientationZ = 0.0;
 uint8_t satellites = 0;
-float voltageDividerFactor = 0.012089;                    // Adjust based on resistor values in voltage divider
-float lastTransmissionTime = 0;                           // Last time of telemetry transmission
-char currentTime[9] = "00:00:00";                         // Mission time in "HH:MM:SS"
-char gpsTime[9] = "00:00:00";                             // GPS time in "HH:MM:SS"
-float mag2X, mag2Y, mag2Z;                                // Magnetometer data for second sensor
-float accel2X, accel2Y, accel2Z, gyro2X, gyro2Y, gyro2Z;  // IMU data for second sensor (if separate IMU object is used)
-char lastCommand[32];                                     // Last received command
+float voltageDividerFactor = 0.012089;  // Adjust based on resistor values in voltage divider
+float lastTransmissionTime = 0;         // Last time of telemetry transmission
+char currentTime[9] = "00:00:00";       // Mission time in "HH:MM:SS"
+float magX, magY, magZ;                 // Magnetometer data for second sensor
+char lastCommand[32];                   // Last received command
 unsigned int packetCount = 0;
 bool telemetryEnabled = true;  // Telemetry Control
 float timeDifference = 0;      // Time difference between two consecutive interrupts
@@ -227,20 +225,16 @@ unsigned long timestampHistory[historySize];  // Store time
 float latestVelocity;
 
 // Variables used for PID
-float setpoint = 357;   // Desired setpoint placeholder
+float setpoint = 1;     // Desired setpoint
 float input = 0.0;      // Current system input
 float output = 0.0;     // PID output
 float error = 0.0;      // Current error
 float lastError = 0.0;  // Previous error
 float integral = 0.0;   // tracks cumulative error
-/*const float K_proportional = 1.0;  // Proportional gain ///potentialy redundant
-const float K_integral = 0.1;      // Integral gain
-const float K_derivative = 0.01;   // Derivative gain*/
 float heading;
 
 // PulseComs™
-const int FC_COMS = PULSECOMS;  // Interrupt pin
-volatile int pulseCount = 0;    // Must be 'volatile' since used in interrupt
+volatile int pulseCount = 0;  // Must be 'volatile' since used in interrupt
 volatile unsigned long lastPulseTime = 0;
 const unsigned long pulseTimeout = 500;  // Max gap between pulses (adjustable)
 
@@ -259,7 +253,6 @@ void readPulseComs() {
   lastPulseTime = currentTime;
 
   if (pulseCount >= 3) {
-    Serial.println("Three HIGH pulses detected!");
     pulseCount = 0;  // Reset after recognition
   }
 }
@@ -319,11 +312,11 @@ float lastDerivative = 0.0;  // Previous derivative
 
 float pidControl(float input, float setpoint, float &lastError, float &integral, float &lastDerivative, bool invert, float currentAngle, float expCoefficient = 0.0) {
   // PID tuning parameters
-  const float K_proportional = 0.01;     // Proportional gain
-  const float K_integral = 0.0;          // Integral gain
-  const float K_derivative = 0.4;        // Derivative gain
-  const float K_secondDerivative = 0.0;  // Second derivative gain
-  const float rng = 360.0;               // Range for mapping output
+  const float K_proportional = 0.01;   // Proportional gain
+  const float K_integral = 0.0;        // Integral gain
+  const float K_derivative = 0.45;     // Derivative gain
+  const float K_secondDerivative = 0;  // Second derivative gain
+  const float rng = 360.0;             // Range for mapping output
 
 
   float adjusted = -currentAngle - (-currentAngle - input);
@@ -369,12 +362,12 @@ float pidControl(float input, float setpoint, float &lastError, float &integral,
   lastDerivative = derivative;
 
   // Servo control specifications
-  float MMoffset = 10;
+  float MMoffset = 150;
   float Maxms = 1595 + MMoffset;  // 1605
   float Minms = 1355 - MMoffset;  // 1345
   float servoMicroseconds;
   float Deadzonecenter = 1475;
-  float Dzoffset = -10;  // Controls the deadzone width
+  float Dzoffset = -5;  // Controls the deadzone width
 
   // Map the output to servo microseconds based on inversion
   if (!invert) {
@@ -402,13 +395,6 @@ float pidControl(float input, float setpoint, float &lastError, float &integral,
       servoMicroseconds = Deadzonecenter;  // Center position, 1475
     }
   }
-  // Optional debugging output
-  Serial.print(output);
-  Serial.print(",");
-  Serial.print(error);
-  Serial.print(",");
-  Serial.print(servoMicroseconds);
-  Serial.print(",");
 
   return servoMicroseconds;
 }
@@ -452,24 +438,21 @@ void SingleShotMeasure_loop() {
   if (result == ENS220::Result::Ok) {
     if (hasFlag(ens220.getDataStatus(), ENS220::DataStatus::PressureReady) && hasFlag(ens220.getDataStatus(), ENS220::DataStatus::TemperatureReady)) {
       // Send the values that were collected during the ens220.update()
-      //Serial.print("P[hPa]:");
       pressure = ens220.getPressureHectoPascal();
-      //Serial.print(pressure);
-      //Serial.print("\tT[C]:");
       temperature = ens220.getTempCelsius();
-      //Serial.println(temperature);
     }
   }
 }
 
 void setup() {
   //----------------Tilt compensation----------------
+  delay(50);
   Serial.begin(115200);
-  delay(5000);
-  Serial.println("hi");
+  Serial1.begin(115200);
+  delay(500);
   Wire.begin();
+  delay(50);
   Wire.setClock(400000);
-  Serial1.begin(115200);  //potentialy needs to be changed
 
   delay(3000);  // Allow RunCam startup time
 
@@ -478,8 +461,8 @@ void setup() {
   txBuf[1] = 0x01;
   txBuf[2] = 0x01;
   txBuf[3] = calcCrc(txBuf, 3);
-
-  pinMode(pin, INPUT_PULLUP);  // Fix: INPUT_PULLUP was mistyped
+  delay(50);
+  delay(50);
   debugCheckpoint("wire set");
   if (!mag.init()) {
     Serial.println("Failed to detect and initialize LIS3MDL magnetometer!");
@@ -498,10 +481,10 @@ void setup() {
   debugCheckpoint("servo");
 
   // Initialize cameras control pins (e.g., for power on/off)
-  pinMode(PULSECOMS, INPUT);
+  pinMode(PULSECOMS, INPUT_PULLUP);
   pinMode(feedbackPin, INPUT);
-  attachInterrupt(digitalPinToInterrupt(PULSECOMS), readPulseComs, RISING);  // Trigger on HIGH pulse
-  debugCheckpoint("interupt pin enable");
+  //attachInterrupt(digitalPinToInterrupt(PULSECOMS), readPulseComs, RISING);  // Trigger on HIGH pulse
+  //debugCheckpoint("interupt pin enable");
 
   debugCheckpoint("camera stuff");
 
@@ -515,14 +498,14 @@ void setup() {
 
   debugCheckpoint("sd");
 
-  if (!lis3mdl_FC.begin_I2C(MAG1_I2C_ADDRESS)) {
+  if (!lis3mdl.begin_I2C(MAG1_I2C_ADDRESS)) {
     Serial.println("Failed to find LIS3MDL #1");
   } else {
     Serial.println("LIS3MDL #1 Found!");
-    lis3mdl_FC.setPerformanceMode(LIS3MDL_MEDIUMMODE);
-    lis3mdl_FC.setOperationMode(LIS3MDL_CONTINUOUSMODE);
-    lis3mdl_FC.setDataRate(LIS3MDL_DATARATE_155_HZ);
-    lis3mdl_FC.setRange(LIS3MDL_RANGE_4_GAUSS);
+    lis3mdl.setPerformanceMode(LIS3MDL_MEDIUMMODE);
+    lis3mdl.setOperationMode(LIS3MDL_CONTINUOUSMODE);
+    lis3mdl.setDataRate(LIS3MDL_DATARATE_155_HZ);
+    lis3mdl.setRange(LIS3MDL_RANGE_4_GAUSS);
   }
 
   // Initialize first IMU (LSM6DS3)
@@ -568,64 +551,243 @@ void setup() {
 }
 
 void loop() {
-  
-  mag.read();
-  imu.read();
+  if (true) {
+    // Calibration phase
+    int pinState = digitalRead(PULSECOMS);
 
+    // Start recording when pin goes LOW and not already recording
+    if (pinState == LOW && recState == 0) {
+      Serial1.write(txBuf, 4);
+      recState = 1;
+      Serial.println("Started Recording");
+    }
 
-  // Read magnetometer data
-  sensors_event_t magEvent1;
-  lis3mdl.getEvent(&magEvent1);
-  // Read second magnetometer
-  sensors_event_t magEvent2;
-  lis3mdl_CAM.getEvent(&magEvent2);
-  mag2X = magEvent2.magnetic.x;
-  mag2Y = magEvent2.magnetic.y;
-  mag2Z = magEvent2.magnetic.z;
-  // Read accelerometer and gyroscope data
-  float accelX, accelY, accelZ;
-  float gyroX, gyroY, gyroZ;
-  if (IMU.accelerationAvailable()) {
-    IMU.readAcceleration(accelX, accelY, accelZ);
-    /*
-    Serial.print(accelX);
-    Serial.print('\t');
-    Serial.print(accelY);
-    Serial.print('\t');
-    Serial.println(accelZ);
-    */
+    // Wait for pin to be HIGH for 1 second before stopping recording
+    if (pinState == HIGH && recState == 1) {
+      if (!wasHigh) {
+        highStartTime = millis();
+        wasHigh = true;
+      } else if (millis() - highStartTime >= 15000) {
+        Serial1.write(txBuf, 4);
+        recState = 0;
+        Serial.println("Stopped Recording");
+        wasHigh = false;
+      }
+    } else if (pinState == LOW) {
+      wasHigh = false;  // Reset if pin goes LOW again during the 1s countdown
+    }
+
+    mag.read();
+    imu.read();
+    // Read magnetometer data
+    sensors_event_t magEvent;
+    lis3mdl.getEvent(&magEvent);
+    magX = magEvent.magnetic.x;
+    magY = magEvent.magnetic.y;
+    magZ = magEvent.magnetic.z;
+    // Read accelerometer and gyroscope data
+    float accelX, accelY, accelZ;
+    float gyroX, gyroY, gyroZ;
+    if (IMU.accelerationAvailable()) {
+      IMU.readAcceleration(accelX, accelY, accelZ);
+    }
+    // Compute heading and update running average
+    float heading = computeTiltCompensatedHeading();
+
+    tHigh = pulseIn(feedbackPin, HIGH, timeout);
+    tLow = pulseIn(feedbackPin, LOW, timeout);
+
+    float tCycle = tHigh + tLow;
+    dutyCycle = (tHigh / tCycle) * 100.0;
+
+    // Datasheet values
+    const float dutyMin = 2.9;
+    const float dutyMax = 96.3;
+    const float fullCircle = 360.0;
+
+    // Angle calculation
+    currentAngle = ((dutyCycle - dutyMin) * fullCircle) / (dutyMax - dutyMin + 1);
+
+    // Clamp angle between 0 and 359.99
+    if (currentAngle < 0) currentAngle = 0;
+    else if (currentAngle >= 360) currentAngle = 359.99;
+
+    camServo.writeMicroseconds(pidControl(heading, setpoint, lastError, integral, lastDerivative, true, currentAngle, 0));
+
+    // Read gyroscope data for velocity
+    if (IMU.gyroscopeAvailable()) {
+      IMU.readGyroscope(gyroX, gyroY, gyroZ);
+    }
+
+    SingleShotMeasure_loop();
+    float altitude = calculateAltitude(pressure);
+
+    // Update altitude and velocity history
+    updateAltitudeHistory(altitudeHistory, timestampHistory, altitude, historySize);
+    updateVelocityHistory(altitudeHistory, velocityHistory, timestampHistory, historySize);
+
+    logTelemetry(altitude, temperature, pressure,
+                 gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
+                 magX, magY, magZ, heading, lastError);  //Cam-non-staiblize telem
+    // Call flushBuffer() periodically or when done
   }
-  // Compute heading and update running average
-  float heading = computeTiltCompensatedHeading();
 
 
 
+  if (true) {
+    // Calibration phase
+    int pinState = digitalRead(PULSECOMS);
+
+    // Start recording when pin goes LOW and not already recording
+    if (pinState == LOW && recState == 0) {
+      Serial1.write(txBuf, 4);
+      recState = 1;
+      Serial.println("Started Recording");
+    }
+
+    // Wait for pin to be HIGH for 1 second before stopping recording
+    if (pinState == HIGH && recState == 1) {
+      if (!wasHigh) {
+        highStartTime = millis();
+        wasHigh = true;
+      } else if (millis() - highStartTime >= 15000) {
+        Serial1.write(txBuf, 4);
+        recState = 0;
+        Serial.println("Stopped Recording");
+        wasHigh = false;
+      }
+    } else if (pinState == LOW) {
+      wasHigh = false;  // Reset if pin goes LOW again during the 1s countdown
+    }
+
+    mag.read();
+    imu.read();
+    // Read magnetometer data
+    sensors_event_t magEvent;
+    lis3mdl.getEvent(&magEvent);
+    magX = magEvent.magnetic.x;
+    magY = magEvent.magnetic.y;
+    magZ = magEvent.magnetic.z;
+    // Read accelerometer and gyroscope data
+    float accelX, accelY, accelZ;
+    float gyroX, gyroY, gyroZ;
+    if (IMU.accelerationAvailable()) {
+      IMU.readAcceleration(accelX, accelY, accelZ);
+    }
+    // Compute heading and update running average
+    float heading = computeTiltCompensatedHeading();
+
+    tHigh = pulseIn(feedbackPin, HIGH, timeout);
+    tLow = pulseIn(feedbackPin, LOW, timeout);
+
+    float tCycle = tHigh + tLow;
+    dutyCycle = (tHigh / tCycle) * 100.0;
+
+    // Datasheet values
+    const float dutyMin = 2.9;
+    const float dutyMax = 96.3;
+    const float fullCircle = 360.0;
+
+    // Angle calculation
+    currentAngle = ((dutyCycle - dutyMin) * fullCircle) / (dutyMax - dutyMin + 1);
+
+    // Clamp angle between 0 and 359.99
+    if (currentAngle < 0) currentAngle = 0;
+    else if (currentAngle >= 360) currentAngle = 359.99;
+
+    camServo.writeMicroseconds(pidControl(heading, setpoint, lastError, integral, lastDerivative, true, currentAngle, 0));
 
 
-  tHigh = pulseIn(feedbackPin, HIGH, timeout);
-  tLow = pulseIn(feedbackPin, LOW, timeout);
+    // Read gyroscope data for velocity
+    if (IMU.gyroscopeAvailable()) {
+      IMU.readGyroscope(gyroX, gyroY, gyroZ);
+    }
 
-  if (tHigh == 0 || tLow == 0) {
-    Serial.println("No signal detected");
-    return;
+    SingleShotMeasure_loop();
+    float altitude = calculateAltitude(pressure);
+
+    // Update altitude and velocity history
+    updateAltitudeHistory(altitudeHistory, timestampHistory, altitude, historySize);
+    updateVelocityHistory(altitudeHistory, velocityHistory, timestampHistory, historySize);
+
+    logTelemetryStab(altitude, temperature, pressure,
+                     gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
+                     magX, magY, magZ, heading, lastError);  //Cam-non-staiblize telem
   }
-
-  float tCycle = tHigh + tLow;
-  dutyCycle = (tHigh / tCycle) * 100.0;
-
-  // Datasheet values
-  const float dutyMin = 2.9;
-  const float dutyMax = 96.3;
-  const float fullCircle = 360.0;
-
-  // Angle calculation
-  currentAngle = ((dutyCycle - dutyMin) * fullCircle) / (dutyMax - dutyMin + 1);
-
-  // Clamp angle between 0 and 359.99
-  if (currentAngle < 0) currentAngle = 0;
-  else if (currentAngle >= 360) currentAngle = 359.99;
-
-  camServo.writeMicroseconds(pidControl(heading, setpoint, lastError, integral, lastDerivative, true, currentAngle, 0));
 }
+
+
+
+
+void logTelemetry(float altitude, float temperature, float pressure,
+                  float gyroX, float gyroY, float gyroZ,
+                  float accelX, float accelY, float accelZ,
+                  float magX, float magY, float magZ, float heading, float lastError) {
+  // Temporary buffer for one telemetry string
+  char temp[256];
+  // Format the telemetry data into temp
+  int len = snprintf(temp, sizeof(temp),
+                     "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,COSMOS,T\n",
+                     altitude, temperature, pressure,
+                     gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
+                     magX, magY, magZ, heading, lastError);
+
+  // Check if adding this string would exceed the buffer size
+  if (bufferIndex + len >= 16384) {
+    // Write the current buffer to the file
+    File dataFile = SD.open("data.txt", FILE_WRITE);
+    if (dataFile) {
+      dataFile.write(buffer, bufferIndex);
+      dataFile.close();
+    }
+    bufferIndex = 0;  // Reset the buffer
+  }
+
+  // Append the formatted string to the buffer
+  memcpy(buffer + bufferIndex, temp, len);
+  bufferIndex += len;
+}
+
+void logTelemetryStab(float altitude, float temperature, float pressure,
+                      float gyroX, float gyroY, float gyroZ,
+                      float accelX, float accelY, float accelZ,
+                      float magX, float magY, float magZ, float heading, float lastError) {
+  // Temporary buffer for one telemetry string
+  char temp[256];
+  // Format the telemetry data into temp
+  int len = snprintf(temp, sizeof(temp),
+                     "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,COSMOS,S\n",
+                     altitude, temperature, pressure,
+                     gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
+                     magX, magY, magZ, heading, lastError);
+
+  // Check if adding this string would exceed the buffer size
+  if (bufferIndex + len >= 16384) {
+    // Write the current buffer to the file
+    File dataFile = SD.open("data.txt", FILE_WRITE);
+    if (dataFile) {
+      dataFile.write(buffer, bufferIndex);
+      dataFile.close();
+    }
+    bufferIndex = 0;  // Reset the buffer
+  }
+
+  // Append the formatted string to the buffer
+  memcpy(buffer + bufferIndex, temp, len);
+  bufferIndex += len;
+}
+
+void flushBuffer() {
+  // Write any remaining data in the buffer
+  if (bufferIndex > 0) {
+    File dataFile = SD.open("data.txt", FILE_WRITE);
+    if (dataFile) {
+      dataFile.write(buffer, bufferIndex);
+      dataFile.close();
+    }
+    bufferIndex = 0;
+  }
+}
+
 
 //__________-_-_-___  PulseComs™ by Caleb Wiley __________-_-_-_-_-_______________________
