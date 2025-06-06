@@ -749,8 +749,8 @@ class GroundStation(QMainWindow):
         self.accelerationGraph.toggle_dark_mode(self.dark_mode)
         self.magnetometerGraph.toggle_dark_mode(self.dark_mode)
 
-        self.setStyleSheet("background-color: black;" if self.dark_mode else "background-color: #b0aee7;")
-        self.central_widget.setStyleSheet("background-color: black;" if self.dark_mode else "background-color: #b0aee7;")
+        self.setStyleSheet("background-color: #4f5052;" if self.dark_mode else "background-color: #b0aee7;")
+        self.central_widget.setStyleSheet("background-color: #444444;" if self.dark_mode else "background-color: #b0aee7;")
         self.sidebar_widget.setStyleSheet("background-color: #545454;" if self.dark_mode else "background-color: #e9eeff;")
         self.graphs_widget.setStyleSheet("background-color: #545454;" if self.dark_mode else "background-color: #e6e6e6;")
         self.gps_coords_box.setStyleSheet(
