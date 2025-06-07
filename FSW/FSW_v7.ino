@@ -85,7 +85,8 @@ volatile float currentInterruptTime = 0;
 volatile float timeDifference = 0;
 volatile float lastInterruptTime = 0;
 float apogeeAltitude = 0.0;
-float maxAltitude = 0;
+float maxAltitude = 0.0;
+int apogeeTime = 0;
 bool releaseActivated = false;
 bool simulationMode = false;
 float simulatedPressure = 100.0;
@@ -709,10 +710,7 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
       }
       if (altitude > 30 && velocity < -5) {
         flightState = APOGEE;
-        apogeeAltitude = altitude;
-        if (altitude < maxAltitude) {
-          apogeeAltitude = maxAltitude;
-        }
+        apogeeTime = millis();
         Serial.println(F("Flight state: APOGEE"));
         Serial.print(F("Altitude: "));
         Serial.print(altitude);
@@ -726,7 +724,7 @@ void updateFlightState(float altitude, float velocity, float x, float y, float z
     case APOGEE:
       pixels.setPixelColor(2, 255, 255, 0); // Yellow for Apogee
       pixels.show();
-      if (velocity < 0) {
+      if (velocity < 0 && millis() > (apogeeTime + 1000)) {
         flightState = DESCENT;
         Serial.println(F("Flight state: DESCENT"));
         Serial.print(F("Altitude: "));
@@ -986,6 +984,7 @@ static unsigned long lastRpmUpdate = 0;
 
   if (flightState == ASCENT && altitude > maxAltitude) {
     maxAltitude = altitude;
+    apogeeAltitude = maxAltitude;
     pixels.setPixelColor(0, 255, 200, 0); // orange for who knows whawt
     pixels.show();
   }
