@@ -41,6 +41,7 @@ void debugCheckpoint(const char *message) {
 #define LED_DATA 5
 #define NUM_LEDS 5
 #define TEAM_ID "3195"
+#define PULSES_PER_REVOLUTION 1 // Number of pulses per revolution of the mechanism
 
 // STATE MANAGEMENT VARIABLES
 enum FlightState {
@@ -76,7 +77,7 @@ char gpsTime[9] = "00:00:00";
 float accel2X, accel2Y, accel2Z, gyro2X, gyro2Y, gyro2Z;
 char lastCommand[16] = "NONE";  // Reduced from 32 to 16
 unsigned int packetCount = 0;
-bool telemetryEnabled = false; // SHOULD ALWAYS BE FALSE SO THT THE TELEMETRY DOESN"T START AUTOMATICALLY AND ONLY STARTS WHEN ITS CX_ON
+bool telemetryEnabled = true; // SHOULD ALWAYS BE FALSE SO THT THE TELEMETRY DOESN"T START AUTOMATICALLY AND ONLY STARTS WHEN ITS CX_ON
 float cameraposition = 0;
 unsigned long lastRpmTime = 0;
 volatile unsigned long rpmCount = 0;
@@ -297,15 +298,19 @@ float avg(float arr[], int size) {
   return sum / size;
 }
 
+
+volatile unsigned long interruptCount = 0;
+
 void rpmISR() {
-  static unsigned long lastInterrupt = 0;
   unsigned long now = micros();
-  if (now - lastInterrupt > 1000) {
+  if (now - lastInterruptTime > 50000) {
     currentInterruptTime = now;
-    timeDifference = (currentInterruptTime - lastInterruptTime) / 1000.0;
-    lastInterruptTime = currentInterruptTime;
+    timeDifference = (now - lastInterruptTime) / 1000.0;
+    lastInterruptTime = now;
     rpmCount++;
-    lastInterrupt = now;
+    if (DEBUG) {
+      Serial.println(F("RPM ISR triggered"));
+    }
   }
 }
 
@@ -842,11 +847,11 @@ void setup() {
       pixels.setPixelColor(0, 255, 50, 50); // dim red for failed backup file
       pixels.show();
     }
-    pixels.setPixelColor(0, 0, 200, 0); // green for opening backup file
-    pixels.show();
   }
+  pinMode(RPM_PIN, INPUT_PULLDOWN);
+  attachInterrupt(digitalPinToInterrupt(RPM_PIN), rpmISR, RISING);
+
   dataFile.println("TEAM_ID,MISSION_TIME,PACKET_COUNT,MODE,STATE,ALTITUDE,TEMPERATURE,PRESSURE,VOLTAGE,GYRO_R,GYRO_P,GYRO_Y,ACCEL_R,ACCEL_P,ACCEL_Y,MAG_R,MAG_P,MAG_Y,AUTO_GYRO_ROTATION_RATE,GPS_TIME,GPS_ALTITUDE,GPS_LATITUDE,GPS_LONGITUDE,GPS_SATS,CMD_ECHO,TEAM_NAME");
-  pinMode(RPM_PIN, INPUT);
   attachInterrupt(digitalPinToInterrupt(RPM_PIN), rpmISR, RISING);
   if (!gps.begin()) {
     Serial.println("GNSS v3 initialization failed!");
@@ -912,10 +917,35 @@ void loop() {
   if (calibratingGyro) calibrateGyroscope();
   if (calibratingAccel) calibrateAccelerometer();
 
-  unsigned long missionTime = millis() / 1000;
-  float rpm = (timeDifference > 0) ? (60000.0 / timeDifference) : 0.0;
-  lastRpmTime = millis();
-  rpmCount = 0;
+static unsigned long lastRpmUpdate = 0;
+  const unsigned long rpmUpdateInterval = 1000; // 1 second
+  float rpm = 0.0;
+  if (millis() - lastRpmUpdate >= rpmUpdateInterval) {
+    if (rpmCount > 0 && timeDifference > 10) { // Only calculate if valid data
+  rpm = (rpmCount * 60000.0) / (rpmUpdateInterval * PULSES_PER_REVOLUTION);    }
+    rpmCount = 0;
+    lastRpmUpdate = millis();
+
+    // Debug output
+    Serial.print("Interrupt Count: ");
+    Serial.print(interruptCount);
+    Serial.print(", timeDifference: ");
+    Serial.print(timeDifference);
+    Serial.print(" ms, RPM: ");
+    Serial.println(rpm);
+    Serial.print("RPM Pin State: ");
+    Serial.println(digitalRead(RPM_PIN));
+  }
+
+  // Debug output
+  if (millis() % 1000 == 0) { // Print every second
+    Serial.print("timeDifference: ");
+    Serial.print(timeDifference);
+    Serial.print(" ms, rpmCount: ");
+    Serial.print(rpmCount);
+    Serial.print(", RPM: ");
+    Serial.println(rpm);
+  }
   analogReadResolution(12);
   int adcReading = analogRead(BATTERY_PIN);
   float currentVoltage = (adcReading * 8.058608e-4 / 2.647058e-1);
