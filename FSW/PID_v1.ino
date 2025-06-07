@@ -311,57 +311,64 @@ float lastDerivative = 0.0;  // Previous derivative
 
 
 float pidControl(float input, float setpoint, float &lastError, float &integral, float &lastDerivative, bool invert, float currentAngle, float expCoefficient = 0.0) {
-  // PID tuning parameters
-  const float K_proportional = 0.015;
-  const float K_integral = 0.000;
-  const float K_derivative = 0.6;
+  // Base PID tuning parameters
+  const float K_proportional_base = 0.01;
+  const float K_derivative_base = 0.45;
+  const float K_integral = 0.0;
   const float K_secondDerivative = 0;
   const float rng = 360.0;
 
-  Serial.println(heading);
+  // Dynamic scaling factor based on error magnitude
+  float errorRaw = setpoint - input;
+  if (errorRaw > 180.0) errorRaw -= 360.0;
+  else if (errorRaw < -180.0) errorRaw += 360.0;
+  float errorScale = min(abs(errorRaw), 180.0f) / 180.0f;
 
-  const float maxIntegral = 500;           // Anti-windup clamp
-  const float maxDeltaServo = 15;          // Limit how fast servo command changes
+  // Dynamically scaled gains
+  float K_proportional = K_proportional_base + 0.02 * errorScale;       // Error scaling for propotional, derivative, and acceleration are here
+  float K_derivative = K_derivative_base + 0.2 * errorScale;
 
-  // Angle wrapping
+  // Adaptive acceleration limit
+  float maxDeltaServo = 10 + 30 * errorScale;
+
+  // Angle adjustment and wraparound
   float adjusted = -currentAngle - (-currentAngle - input);
   if (adjusted > 180.0) adjusted -= 360.0;
   else if (adjusted < -180.0) adjusted += 360.0;
 
+  // Compute wrapped error
   float error = setpoint - adjusted;
   if (error > 180.0) error -= 360.0;
   else if (error < -180.0) error += 360.0;
 
-  // Integral with anti-windup
+  // Integral term (unused but preserved)
   integral += error;
-  if (integral > maxIntegral) integral = maxIntegral;
-  else if (integral < -maxIntegral) integral = -maxIntegral;
 
-  // Derivative on measurement (input-based to avoid kick)
-  float derivative = -(input - lastDerivative);
+  // Derivative and second derivative
+  float derivative = error - lastError;
+  float secondDerivative = derivative - lastDerivative;
 
-  // Second derivative term
-  float secondDerivative = derivative - (lastError - lastDerivative);
-
-  // Proportional term (optionally exponential)
-  float pTerm = (expCoefficient != 0.0)
-    ? K_proportional * error * exp(expCoefficient * abs(error))
-    : K_proportional * error;
+  // Proportional term with optional exponential scaling
+  float pTerm;
+  if (expCoefficient != 0.0) {
+    pTerm = K_proportional * error * exp(expCoefficient * abs(error));
+  } else {
+    pTerm = K_proportional * error;
+  }
 
   // Total PID output
   float output = pTerm + K_integral * integral + K_derivative * derivative + K_secondDerivative * secondDerivative;
 
-  // Update previous values
-  lastDerivative = input;
+  // Update stored values
   lastError = error;
+  lastDerivative = derivative;
 
   // Servo control setup
   float MMoffset = 150;
-  float Maxms = 1595 + MMoffset;
-  float Minms = 1355 - MMoffset;
+  float Maxms = 1595 + MMoffset;  // 1605
+  float Minms = 1355 - MMoffset;  // 1345
   float Deadzonecenter = 1475;
   float Dzoffset = -5;
-
   float servoMicroseconds;
 
   if (!invert) {
@@ -382,7 +389,7 @@ float pidControl(float input, float setpoint, float &lastError, float &integral,
     }
   }
 
-  // Optional output rate limiter
+  // Rate limiting servo movement
   static float lastServo = Deadzonecenter;
   float delta = servoMicroseconds - lastServo;
   if (abs(delta) > maxDeltaServo) {
@@ -392,6 +399,7 @@ float pidControl(float input, float setpoint, float &lastError, float &integral,
 
   return lastServo;
 }
+
 
 
 // ENS220 Sensor Initialization
