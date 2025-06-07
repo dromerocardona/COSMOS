@@ -690,6 +690,9 @@ class GroundStation(QMainWindow):
 
     #update graphs
     def update_graphs(self):
+        if not self.isVisible():
+            return
+
         current_time = time.time()
 
         altitude = self.comm.get_ALTITUDE()
