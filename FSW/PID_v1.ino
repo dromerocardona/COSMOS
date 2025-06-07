@@ -312,92 +312,87 @@ float lastDerivative = 0.0;  // Previous derivative
 
 float pidControl(float input, float setpoint, float &lastError, float &integral, float &lastDerivative, bool invert, float currentAngle, float expCoefficient = 0.0) {
   // PID tuning parameters
-  const float K_proportional = 0.01;   // Proportional gain
-  const float K_integral = 0.0;        // Integral gain
-  const float K_derivative = 0.45;     // Derivative gain
-  const float K_secondDerivative = 0;  // Second derivative gain
-  const float rng = 360.0;             // Range for mapping output
+  const float K_proportional = 0.015;
+  const float K_integral = 0.000;
+  const float K_derivative = 0.6;
+  const float K_secondDerivative = 0;
+  const float rng = 360.0;
 
+  Serial.println(heading);
 
+  const float maxIntegral = 500;           // Anti-windup clamp
+  const float maxDeltaServo = 15;          // Limit how fast servo command changes
+
+  // Angle wrapping
   float adjusted = -currentAngle - (-currentAngle - input);
-  if (adjusted > 180.0) {
-    adjusted -= 360.0;
-  } else if (adjusted < -180.0) {
-    adjusted += 360.0;
-  }
+  if (adjusted > 180.0) adjusted -= 360.0;
+  else if (adjusted < -180.0) adjusted += 360.0;
 
-
-  // Calculate the error
   float error = setpoint - adjusted;
-  if (error > 180.0) {
-    error -= 360.0;
-  } else if (error < -180.0) {
-    error += 360.0;
-  }
+  if (error > 180.0) error -= 360.0;
+  else if (error < -180.0) error += 360.0;
 
-  // Calculate the integral term
+  // Integral with anti-windup
   integral += error;
+  if (integral > maxIntegral) integral = maxIntegral;
+  else if (integral < -maxIntegral) integral = -maxIntegral;
 
-  // Calculate the derivative term
-  float derivative = error - lastError;
+  // Derivative on measurement (input-based to avoid kick)
+  float derivative = -(input - lastDerivative);
 
-  // Calculate the second derivative term
-  float secondDerivative = derivative - lastDerivative;
+  // Second derivative term
+  float secondDerivative = derivative - (lastError - lastDerivative);
 
-  // Compute the proportional term with an exponential factor
-  float pTerm;
-  if (expCoefficient != 0.0) {
-    // Exponential factor applied to the proportional term
-    pTerm = K_proportional * error * exp(expCoefficient * abs(error));
-  } else {
-    // Standard proportional term when expCoefficient is 0
-    pTerm = K_proportional * error;
-  }
+  // Proportional term (optionally exponential)
+  float pTerm = (expCoefficient != 0.0)
+    ? K_proportional * error * exp(expCoefficient * abs(error))
+    : K_proportional * error;
 
-  // Calculate the total PID output
+  // Total PID output
   float output = pTerm + K_integral * integral + K_derivative * derivative + K_secondDerivative * secondDerivative;
 
-  // Update stored values for the next iteration
+  // Update previous values
+  lastDerivative = input;
   lastError = error;
-  lastDerivative = derivative;
 
-  // Servo control specifications
+  // Servo control setup
   float MMoffset = 150;
-  float Maxms = 1595 + MMoffset;  // 1605
-  float Minms = 1355 - MMoffset;  // 1345
-  float servoMicroseconds;
+  float Maxms = 1595 + MMoffset;
+  float Minms = 1355 - MMoffset;
   float Deadzonecenter = 1475;
-  float Dzoffset = -5;  // Controls the deadzone width
+  float Dzoffset = -5;
 
-  // Map the output to servo microseconds based on inversion
+  float servoMicroseconds;
+
   if (!invert) {
     if (output > 0) {
-      // Map from [0, rng] to [Deadzonecenter + Dzoffset, Maxms]
       servoMicroseconds = (Deadzonecenter + Dzoffset) + output * (Maxms - (Deadzonecenter + Dzoffset)) / rng;
-      // e.g., [0, rng] to [1465, 1605]
     } else if (output < 0) {
-      // Map from [-rng, 0] to [Minms, Deadzonecenter - Dzoffset]
       servoMicroseconds = Minms + (output + rng) * ((Deadzonecenter - Dzoffset) - Minms) / rng;
-      // e.g., [-rng, 0] to [1345, 1485]
     } else {
-      servoMicroseconds = Deadzonecenter;  // Center position, 1475
+      servoMicroseconds = Deadzonecenter;
     }
   } else {
     if (output > 0) {
-      // Map from [0, rng] to [Minms, Deadzonecenter - Dzoffset]
       servoMicroseconds = Minms + output * ((Deadzonecenter - Dzoffset) - Minms) / rng;
-      // e.g., [0, rng] to [1345, 1485]
     } else if (output < 0) {
-      // Map from [-rng, 0] to [Deadzonecenter + Dzoffset, Maxms]
       servoMicroseconds = (Deadzonecenter + Dzoffset) + (output + rng) * (Maxms - (Deadzonecenter + Dzoffset)) / rng;
-      // e.g., [-rng, 0] to [1465, 1605]
     } else {
-      servoMicroseconds = Deadzonecenter;  // Center position, 1475
+      servoMicroseconds = Deadzonecenter;
     }
   }
 
-  return servoMicroseconds;
+  // Optional output rate limiter
+  static float lastServo = Deadzonecenter;
+  float delta = servoMicroseconds - lastServo;
+  if (abs(delta) > maxDeltaServo) {
+    delta = maxDeltaServo * (delta > 0 ? 1 : -1);
+  }
+  lastServo += delta;
+
+  return lastServo;
 }
+
 
 // ENS220 Sensor Initialization
 void SingleShotMeasure_setup() {
@@ -649,8 +644,8 @@ void loop() {
 
   for (k = 0; k < 100; k++) {
     if (true) {
-      Serial.print(millis()); 
-      Serial.println("Stab loopstart");
+      //Serial.print(millis()); 
+      //Serial.println("Stab loopstart");
       // Calibration phase
       int pinState = digitalRead(PULSECOMS);
 
@@ -675,7 +670,7 @@ void loop() {
       } else if (pinState == LOW) {
         wasHigh = false;  // Reset if pin goes LOW again during the 1s countdown
       }
-      Serial.println(millis());
+      //Serial.println(millis());
       mag.read();
       imu.read();
       // Read magnetometer data
@@ -690,10 +685,10 @@ void loop() {
       if (IMU.accelerationAvailable()) {
         IMU.readAcceleration(accelX, accelY, accelZ);
       }
-      Serial.println(millis());
+      //Serial.println(millis());
       // Compute heading and update running average
       float heading = computeTiltCompensatedHeading();
-      Serial.println(millis());
+      //Serial.println(millis());
       tHigh = pulseIn(feedbackPin, HIGH, timeout);
       tLow = pulseIn(feedbackPin, LOW, timeout);
 
@@ -712,29 +707,29 @@ void loop() {
       if (currentAngle < 0) currentAngle = 0;
       else if (currentAngle >= 360) currentAngle = 359.99;
 
-      Serial.println(millis());Serial.print("PID start");
+      //Serial.println(millis());//Serial.print("PID start");
 
       camServo.writeMicroseconds(pidControl(heading, setpoint, lastError, integral, lastDerivative, true, currentAngle, 0));
       
-      Serial.println(millis());
+      //Serial.println(millis());
 
       // Read gyroscope data for velocity
       if (IMU.gyroscopeAvailable()) {
         IMU.readGyroscope(gyroX, gyroY, gyroZ);
       }
       
-      Serial.println(millis());
+      //Serial.println(millis());
       
       SingleShotMeasure_loop();
       float altitude = calculateAltitude(pressure);
       
-      Serial.println(millis());
-      Serial.print("// Update altitude and velocity history\nupdateAltitudeHistory(altitudeHistory, timestampHistory, altitude, historySize);\nupdateVelocityHistory(altitudeHistory, velocityHistory, timestampHistory, historySize);");
+      //Serial.println(millis());
+      //Serial.print("// Update altitude and velocity history\nupdateAltitudeHistory(altitudeHistory, timestampHistory, altitude, historySize);\nupdateVelocityHistory(altitudeHistory, velocityHistory, timestampHistory, historySize);");
       // Update altitude and velocity history
       updateAltitudeHistory(altitudeHistory, timestampHistory, altitude, historySize);
       updateVelocityHistory(altitudeHistory, velocityHistory, timestampHistory, historySize);
 
-      Serial.println(millis());
+      //Serial.println(millis());
 
       logTelemetryStab(altitude, temperature, pressure,
                        gyroX, gyroY, gyroZ, accelX, accelY, accelZ,
@@ -761,18 +756,18 @@ void logTelemetry(float altitude, float temperature, float pressure,
 
   // Check if adding this string would exceed the buffer size
   if (bufferIndex + len >= 1024) {
-    Serial.print(millis());
-    Serial.println("Started write");
+    //Serial.print(millis());
+    //Serial.println("Started write");
     // Write the current buffer to the file
     File dataFile = SD.open("data.txt", FILE_WRITE);
     if (dataFile) {
-      Serial.println("writing");
+      //Serial.println("writing");
       dataFile.write(buffer, bufferIndex);
       dataFile.close();
     }
     bufferIndex = 0;  // Reset the buffer
-    Serial.print(millis());
-    Serial.println("completed write");
+    //Serial.print(millis());
+    //Serial.println("completed write");
   }
 
   // Append the formatted string to the buffer
@@ -795,18 +790,18 @@ void logTelemetryStab(float altitude, float temperature, float pressure,
 
   // Check if adding this string would exceed the buffer size
   if (bufferIndex + len >= 1024) {
-    Serial.print(millis());
-    Serial.println("Started write");
+    //Serial.print(millis());
+    //Serial.println("Started write");
     // Write the current buffer to the file
     File dataFile = SD.open("data.txt", FILE_WRITE);
     if (dataFile) {
-      Serial.println("writing");
+      //Serial.println("writing");
       dataFile.write(buffer, bufferIndex);
       dataFile.close();
     }
     bufferIndex = 0;  // Reset the buffer
-    Serial.print(millis());
-    Serial.println("completed write");
+    //Serial.print(millis());
+    //Serial.println("completed write");
   }
 
   // Append the formatted string to the buffer
