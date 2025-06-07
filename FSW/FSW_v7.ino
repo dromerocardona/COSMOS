@@ -846,7 +846,7 @@ void setup() {
     pixels.show();
   }
   dataFile.println("TEAM_ID,MISSION_TIME,PACKET_COUNT,MODE,STATE,ALTITUDE,TEMPERATURE,PRESSURE,VOLTAGE,GYRO_R,GYRO_P,GYRO_Y,ACCEL_R,ACCEL_P,ACCEL_Y,MAG_R,MAG_P,MAG_Y,AUTO_GYRO_ROTATION_RATE,GPS_TIME,GPS_ALTITUDE,GPS_LATITUDE,GPS_LONGITUDE,GPS_SATS,CMD_ECHO,TEAM_NAME");
-  pinMode(RPM_PIN, INPUT_PULLUP);
+  pinMode(RPM_PIN, INPUT);
   attachInterrupt(digitalPinToInterrupt(RPM_PIN), rpmISR, RISING);
   if (!gps.begin()) {
     Serial.println("GNSS v3 initialization failed!");
