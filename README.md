@@ -28,11 +28,20 @@ rotating.
 ground station at a 1 Hz rate. The sensor data shall include interior temperature, battery
 voltage, altitude, auto-gyro rotation rate, acceleration, rate, magnetic field, and GPS position.
 
+Ground Station:
+![Ground Station](groundstation.png)
+
 Software Contributors:
-- `Ground Station`:
+- `GCS`:
   - Diego Romero-Cardona
 
-- `Embedded Code`:
+- `FSW`:
   - Caleb Wiley
   - Akhil Samiraju
   - Barrett Twining
+  - Diego Romero-Cardona
+
+- `PID Board`:
+  - Caleb Wiley
+  - Barrett Twining
+  - Luke Wiggins
