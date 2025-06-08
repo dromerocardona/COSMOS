@@ -28,13 +28,13 @@ rotating.
 ground station at a 1 Hz rate. The sensor data shall include interior temperature, battery
 voltage, altitude, auto-gyro rotation rate, acceleration, rate, magnetic field, and GPS position.
 
-# Cansat:
+Cansat:
 ![Cansat](cansat.png)
 
-# Ground Station:
+Ground Station:
 ![Ground Station](groundstation.png)
 
-# Software Contributors:
+Software Contributors:
 - `GCS`:
   - Diego Romero-Cardona
 
@@ -48,3 +48,5 @@ voltage, altitude, auto-gyro rotation rate, acceleration, rate, magnetic field, 
   - Caleb Wiley
   - Barrett Twining
   - Luke Wiggins
+
+Competition Flight Data:
