@@ -30,11 +30,11 @@ rotating.
 ground station at a 1 Hz rate. The sensor data shall include interior temperature, battery
 voltage, altitude, auto-gyro rotation rate, acceleration, rate, magnetic field, and GPS position.
 
-Cansat:
+Post-Flight Cansat Payload:
 
 ![Cansat](cansat.png)
 
-Ground Station:
+Ground Station during Landing:
 
 ![Ground Station](groundstation.png)
 
