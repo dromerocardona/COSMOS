@@ -1,4 +1,6 @@
-# COSMOS GCS/FSW
+# Team #3195 COSMOS
+
+![banner](teambanner.png)
 
 Cansat Competition Description:
 - The Cansat competition is a design-build-fly competition that provides teams with an
