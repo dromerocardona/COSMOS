@@ -1,6 +1,6 @@
 # Team #3195 COSMOS
 
-![banner](teambanner.png)
+![banner](assets/teambanner.png)
 
 Cansat Competition Description:
 - The Cansat competition is a design-build-fly competition that provides teams with an
@@ -32,11 +32,11 @@ voltage, altitude, auto-gyro rotation rate, acceleration, rate, magnetic field, 
 
 Post-Flight Cansat Payload:
 
-![Cansat](cansat.png)
+![Cansat](assets/cansat.png)
 
 Ground Station during Landing:
 
-![Ground Station](groundstation.png)
+![Ground Station](assets/groundstation.png)
 
 Software Contributors:
 - `GCS`:
